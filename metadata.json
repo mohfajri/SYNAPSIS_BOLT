@@ -1,0 +1,8 @@
+{
+  "name": "TaskHub Enterprise",
+  "description": "Multi-user Enterprise Project System featuring interactive dashboards, Gantt charts, Kanban, MoM, and a secure Java/PostgreSQL backend blueprint.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
