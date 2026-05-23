@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User } from "../types";
+import { User, Client } from "../types";
 import { 
   Users, 
   Plus, 
@@ -10,7 +10,8 @@ import {
   Eye, 
   EyeOff, 
   UserCheck2,
-  Pencil
+  Pencil,
+  Building2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -21,6 +22,7 @@ interface UsersViewProps {
   onDeleteUser: (id: string) => Promise<void>;
   onUpdateUser: (id: string, data: Partial<User>) => Promise<void>;
   rolesList?: { roleName: string; active: boolean }[];
+  clientsList?: Client[];
 }
 
 export default function UsersView({
@@ -29,7 +31,8 @@ export default function UsersView({
   onAddUser,
   onDeleteUser,
   onUpdateUser,
-  rolesList = []
+  rolesList = [],
+  clientsList = []
 }: UsersViewProps) {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -38,6 +41,8 @@ export default function UsersView({
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
   const [role, setRole] = useState<string>("Technical Support");
+  const [siteTugas, setSiteTugas] = useState("");
+  const [statusAktif, setStatusAktif] = useState(true);
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
   const [errorText, setErrorText] = useState("");
 
@@ -46,6 +51,8 @@ export default function UsersView({
   const [editName, setEditName] = useState("");
   const [editNickname, setEditNickname] = useState("");
   const [editRole, setEditRole] = useState<string>("Technical Support");
+  const [editSiteTugas, setEditSiteTugas] = useState("");
+  const [editStatusAktif, setEditStatusAktif] = useState(true);
   
   // Password Reset State
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
@@ -73,7 +80,9 @@ export default function UsersView({
       password: password.trim(),
       name: name.trim(),
       nickname: nickname.trim(),
-      role
+      role,
+      siteTugas,
+      statusAktif
     });
 
     // Reset Form
@@ -82,6 +91,8 @@ export default function UsersView({
     setName("");
     setNickname("");
     setRole("Technical Support");
+    setSiteTugas("");
+    setStatusAktif(true);
     setIsFormOpen(false);
   }
 
@@ -95,7 +106,9 @@ export default function UsersView({
     await onUpdateUser(editUser.id, {
       name: editName.trim(),
       nickname: editNickname.trim(),
-      role: editRole
+      role: editRole,
+      siteTugas: editSiteTugas,
+      statusAktif: editStatusAktif
     });
     setEditUser(null);
   }
@@ -187,7 +200,9 @@ export default function UsersView({
                 <th className="p-4">Nama Lengkap</th>
                 <th className="p-4">Nama Panggilan</th>
                 <th className="p-4">Hak Akses / Role</th>
-                <th className="p-4">Kata Sandi (Simulated PostgreSQL)</th>
+                <th className="p-4">Site Tugas</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 font-mono">Kata Sandi</th>
                 <th className="p-4 text-right">Tindakan</th>
               </tr>
             </thead>
@@ -224,6 +239,27 @@ export default function UsersView({
                         {u.role}
                       </span>
                     </td>
+                    <td className="p-4 text-slate-700 dark:text-slate-300 font-medium">
+                      {u.siteTugas ? (
+                        <div className="flex items-center gap-1">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-semibold">{u.siteTugas}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Pusat / Kantor Pusat</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-slate-700 dark:text-slate-300 font-medium">
+                      {u.statusAktif !== false ? (
+                        <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-full">
+                          Aktif
+                        </span>
+                      ) : (
+                        <span className="bg-slate-100 text-slate-400 dark:bg-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          Tidak Aktif
+                        </span>
+                      )}
+                    </td>
                     <td className="p-4 font-mono">
                       <div className="flex items-center gap-2">
                         <span>{revealed ? u.password : "••••••••••••"}</span>
@@ -244,6 +280,8 @@ export default function UsersView({
                             setEditName(u.name || "");
                             setEditNickname(u.nickname || "");
                             setEditRole(u.role);
+                            setEditSiteTugas(u.siteTugas || "");
+                            setEditStatusAktif(u.statusAktif !== false);
                           }}
                           className="p-1 px-1.5 border border-slate-100 hover:border-blue-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 dark:border-slate-800 dark:hover:bg-blue-950/20 rounded transition-all"
                           title="Edit Pengguna (Nama & Role)"
@@ -393,6 +431,35 @@ export default function UsersView({
                   </select>
                 </div>
 
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Site Tugas / Lokasi RS</label>
+                  <select
+                    value={siteTugas}
+                    onChange={(e) => setSiteTugas(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-250 font-medium cursor-pointer"
+                  >
+                    <option value="">Pusat / Kantor Pusat</option>
+                    {clientsList.map(cl => (
+                      <option key={cl.id} value={cl.namaRS}>
+                        🏢 {cl.namaRS}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    id="statusAktif"
+                    checked={statusAktif}
+                    onChange={(e) => setStatusAktif(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                  <label htmlFor="statusAktif" className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide cursor-pointer">
+                    Akun Status Aktif
+                  </label>
+                </div>
+
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
@@ -478,6 +545,35 @@ export default function UsersView({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Site Tugas / Lokasi RS</label>
+                  <select
+                    value={editSiteTugas}
+                    onChange={(e) => setEditSiteTugas(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-250 font-medium cursor-pointer"
+                  >
+                    <option value="">Pusat / Kantor Pusat</option>
+                    {clientsList.map(cl => (
+                      <option key={cl.id} value={cl.namaRS}>
+                        🏢 {cl.namaRS}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    id="editStatusAktif"
+                    checked={editStatusAktif}
+                    onChange={(e) => setEditStatusAktif(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                  <label htmlFor="editStatusAktif" className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide cursor-pointer">
+                    Akun Status Aktif
+                  </label>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">

@@ -1,0 +1,735 @@
+{
+  "users": [
+    {
+      "id": "u-admin",
+      "username": "admin",
+      "name": "Administrator Utama",
+      "nickname": "Admin",
+      "password": "admin123",
+      "role": "Administrator",
+      "email": "admin@taskhub.com",
+      "createdAt": "2026-05-21T00:00:00Z",
+      "statusAktif": true,
+      "siteTugas": ""
+    },
+    {
+      "id": "u-lead",
+      "username": "fajar",
+      "name": "Fajar Pratama",
+      "nickname": "Fajar",
+      "password": "fajar123",
+      "role": "Site Coordinator",
+      "email": "fajar@taskhub.com",
+      "createdAt": "2026-05-21T00:00:00Z",
+      "statusAktif": true,
+      "siteTugas": ""
+    },
+    {
+      "id": "u-nanda",
+      "username": "nanda",
+      "name": "Nanda Wardhana",
+      "nickname": "Nanda",
+      "password": "password123",
+      "role": "Technical Support",
+      "email": "nanda@taskhub.com",
+      "createdAt": "2026-05-21T00:00:00Z",
+      "statusAktif": true,
+      "siteTugas": ""
+    },
+    {
+      "id": "u-fnbk3xt",
+      "username": "fajri",
+      "name": "mohfajri",
+      "nickname": "Fajri",
+      "password": "123456",
+      "role": "Site Coordinator",
+      "email": "fajri@taskhub.com",
+      "siteTugas": "",
+      "statusAktif": true,
+      "createdAt": "2026-05-22T11:13:04.487Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p-01",
+      "kode": "P01",
+      "nama": "Sistem Informasi Rumah Sakit",
+      "modul": "Front Office",
+      "pic": "Fajar",
+      "client": "RS Mataram",
+      "asal": "Tender",
+      "status": "On Track",
+      "startDate": "2026-04-01",
+      "endDate": "2026-08-31",
+      "completionDate": "",
+      "prasyarat": "Server AWS disiapkan oleh RS, tim teknis RS dilatih sebelum launching.",
+      "notes": "Ulasan berkala dilakukan setiap hari Jumat jam 14.00 WITA.",
+      "url": "https://hospital-project-drive.example.com",
+      "createdAt": "2026-04-01T00:00:00Z"
+    },
+    {
+      "id": "p-02",
+      "kode": "P02",
+      "nama": "Aplikasi Keuangan Daerah",
+      "modul": "Back Office",
+      "pic": "Nanda",
+      "client": "Pemerintah Provinsi NTB",
+      "asal": "Hibah",
+      "status": "Delayed",
+      "startDate": "2026-03-01",
+      "endDate": "2026-07-30",
+      "completionDate": "",
+      "prasyarat": "Reorganisasi database lama, migrasi skema tabel diselesaikan client.",
+      "notes": "Mendapat revisi regulasi di bagian pelaporan anggaran daerah.",
+      "url": "https://finance-project-shared.example.com",
+      "createdAt": "2026-03-01T00:00:00Z"
+    },
+    {
+      "id": "p-03",
+      "kode": "P03",
+      "nama": "Portal Layanan Publik Satu Atap",
+      "modul": "Admin",
+      "pic": "Admin",
+      "client": "Diskominfo Provinsi",
+      "asal": "Internal",
+      "status": "On Track",
+      "startDate": "2026-05-01",
+      "endDate": "2026-09-30",
+      "completionDate": "",
+      "prasyarat": "Sertifikasi SSL domain utama dari pemerintah sudah di-approve.",
+      "notes": "Prioritas tinggi untuk integrasi SSO ASN.",
+      "url": "",
+      "createdAt": "2026-05-01T00:00:00Z"
+    },
+    {
+      "kode": "P04",
+      "nama": "dsdsdsdsd",
+      "modul": "Front Office",
+      "pic": "Admin",
+      "client": "fdfsf",
+      "asal": "Tender",
+      "status": "To Do",
+      "startDate": "2026-05-22",
+      "endDate": "2026-05-28",
+      "completionDate": "",
+      "prasyarat": "",
+      "notes": "",
+      "url": "",
+      "id": "p-dum4hag",
+      "createdAt": "2026-05-22T10:09:35.488Z"
+    }
+  ],
+  "tasks": [
+    {
+      "project": "P01",
+      "modul": "Front Office",
+      "task": "gdhfhdfhdg",
+      "taskType": "Setting",
+      "categoryProgress": "Prasyarat",
+      "pic": "Fajri",
+      "priority": "Medium",
+      "status": "Not Started",
+      "startDate": "2026-05-22",
+      "dueDate": "",
+      "progress": 0,
+      "notes": "",
+      "url": "",
+      "subtasks": [],
+      "id": "t-nvnsf5d",
+      "createdAt": "2026-05-22T11:14:48.562Z"
+    },
+    {
+      "project": "P01",
+      "modul": "Front Office",
+      "task": "aaaqqqqq",
+      "taskType": "Setting",
+      "categoryProgress": "Prasyarat",
+      "pic": "Admin",
+      "priority": "Medium",
+      "status": "To Do",
+      "startDate": "2026-05-22",
+      "dueDate": "",
+      "progress": 0,
+      "notes": "",
+      "url": "",
+      "subtasks": [],
+      "id": "t-2wtkg96",
+      "createdAt": "2026-05-22T10:08:52.286Z"
+    },
+    {
+      "id": "t-01",
+      "project": "P01",
+      "modul": "Front Office",
+      "task": "Setup Halaman Login & Autentikasi JWT",
+      "taskType": "Setting",
+      "categoryProgress": "Aplikasi",
+      "pic": "Fajar",
+      "priority": "Urgent",
+      "status": "In Progress",
+      "startDate": "2026-05-01",
+      "dueDate": "2026-05-28",
+      "progress": 67,
+      "notes": "Mencakup flow refresh token ganda.",
+      "url": "",
+      "subtasks": [
+        {
+          "id": "sub-1-1",
+          "title": "Desain UI Form Login",
+          "done": true
+        },
+        {
+          "id": "sub-1-2",
+          "title": "Integrasi API Autentikasi",
+          "done": true
+        },
+        {
+          "id": "sub-1-3",
+          "title": "Enkripsi Session LocalStorage",
+          "done": false
+        }
+      ],
+      "createdAt": "2026-05-01T00:00:00Z"
+    },
+    {
+      "id": "t-02",
+      "project": "P01",
+      "modul": "Back Office",
+      "task": "Integrasi Gerbang Pembayaran (Payment Gateway)",
+      "taskType": "Setting",
+      "categoryProgress": "Aplikasi",
+      "pic": "Nanda",
+      "priority": "High",
+      "status": "In Progress",
+      "startDate": "2026-05-10",
+      "dueDate": "2026-06-15",
+      "progress": 0,
+      "notes": "Menunggu key credential sandbox dari pihak bank.",
+      "url": "",
+      "subtasks": [],
+      "createdAt": "2026-05-01T00:00:00Z"
+    },
+    {
+      "id": "t-03",
+      "project": "P01",
+      "modul": "Front Office",
+      "task": "Pengujian End-to-End Modul Kasir",
+      "taskType": "Fit and Gap",
+      "categoryProgress": "Aplikasi",
+      "pic": "Nanda",
+      "priority": "High",
+      "status": "Done",
+      "startDate": "2026-04-01",
+      "dueDate": "2026-04-30",
+      "progress": 100,
+      "notes": "Berhasil meluncurkan 15 test-case tanpa kegagalan krusial.",
+      "url": "",
+      "subtasks": [
+        {
+          "id": "sub-3-1",
+          "title": "Skenario Pembayaran Tunai",
+          "done": true
+        },
+        {
+          "id": "sub-3-2",
+          "title": "Skenario Pembayaran BPJS",
+          "done": true
+        }
+      ],
+      "createdAt": "2026-04-01T00:00:00Z"
+    },
+    {
+      "id": "t-04",
+      "project": "P01",
+      "modul": "Admin",
+      "task": "Konfigurasi Server AWS Production",
+      "taskType": "Instalasi",
+      "categoryProgress": "Infrastruktur & Hardware",
+      "pic": "Admin",
+      "priority": "Urgent",
+      "status": "In Progress",
+      "startDate": "2026-05-05",
+      "dueDate": "2026-05-24",
+      "progress": 80,
+      "notes": "Setup VPC, Load Balancer, SSL, dan auto-scaling kelompok web server.",
+      "url": "",
+      "subtasks": [],
+      "createdAt": "2026-05-05T00:00:00Z"
+    },
+    {
+      "id": "t-05",
+      "project": "P01",
+      "modul": "Admin",
+      "task": "Training Penggunaan Aplikasi untuk Perawat",
+      "taskType": "Training",
+      "categoryProgress": "Training",
+      "pic": "Fajar",
+      "priority": "Medium",
+      "status": "Done",
+      "startDate": "2026-04-20",
+      "dueDate": "2026-04-28",
+      "progress": 100,
+      "notes": "Disertai modul video tutorial berdurasi 30 menit.",
+      "url": "",
+      "subtasks": [],
+      "createdAt": "2026-04-20T00:00:00Z"
+    },
+    {
+      "id": "t-06",
+      "project": "P02",
+      "modul": "Reporting",
+      "task": "Dashboard Kompilasi Laporan Anggaran Bulanan",
+      "taskType": "Setting",
+      "categoryProgress": "Aplikasi",
+      "pic": "Nanda",
+      "priority": "Medium",
+      "status": "Pending",
+      "startDate": "2026-04-15",
+      "dueDate": "2026-05-20",
+      "progress": 30,
+      "notes": "Menunggu regulasi format baru disetujui BPKAD.",
+      "url": "",
+      "subtasks": [],
+      "createdAt": "2026-04-15T00:00:00Z"
+    }
+  ],
+  "commLogs": [
+    {
+      "id": "c-01",
+      "project": "P01",
+      "type": "Email",
+      "date": "2026-05-18",
+      "participants": "Fajar Pratama (Lead) -> Manajemen RS Mataram",
+      "summary": "Persetujuan Dokumen UAT Modul Front Office",
+      "detail": "Penyampaian link formulir persetujuan dan hasil pengujian sirkuit kasir. Pihak RS membalas ok dengan catatan kecil tentang tombol print struk."
+    },
+    {
+      "id": "c-02",
+      "project": "P02",
+      "type": "WhatsApp",
+      "date": "2026-05-20",
+      "participants": "Nanda Wardhana <-> BPKAD NTB",
+      "summary": "Diskusi Desain Skema Pajak Daerah",
+      "detail": "Mengklarifikasi formula pemotongan retribusi terintegrasi. Menyeimbangkan parameter input sesuai surat instruksi gubernur terbaru."
+    }
+  ],
+  "meetingLogs": [
+    {
+      "id": "m-01",
+      "project": "P01",
+      "date": "2026-05-15",
+      "title": "Evaluasi Sprint 1 & Penentuan Titik Integrasi BPJS",
+      "attendees": "Fajar Pratama, Nanda Wardhana, Tim IT RS Mataram, Dokter Spesialis RS",
+      "agenda": "1. Demo status UAT Front Office.\n2. Hambatan konektivitas web service BPJS local.",
+      "decisions": "1. Jalur Kasir dinyatakan selesai dan disetujui.\n2. Untuk sinkronisasi BPJS, RS berkomitmen membuka port VPN mulai 22 Mei.\n3. Pertemuan teknis lanjutan direncanakan pada 25 Mei.",
+      "actions": "1. Fajar: Selesaikan draf manual book admin (Target 21 Mei).\n2. Nanda: Hubungkan mock endpoints dengan rute VPN baru."
+    }
+  ],
+  "docs": [
+    {
+      "id": "d-01",
+      "project": "P01",
+      "category": "API Specs",
+      "title": "Panduan Integrasi BPJS Health API V2.1",
+      "url": "https://example.com/bpjs-api-docs",
+      "desc": "Detail payload JSON untuk pendaftaran rujukan balik online, sinkronisasi antrean RS, dan pencetakan SEP.",
+      "date": "2026-05-01"
+    },
+    {
+      "id": "d-02",
+      "project": "P01",
+      "category": "Desain",
+      "title": "Figma Hospital Suite UI/UX Design Baseline",
+      "url": "https://figma.com/file/hospital-specs",
+      "desc": "Skema warna lengkap, ikon kustomisasi, layout dashboard rawat inap, rawat jalan, serta mobile layout.",
+      "date": "2026-04-12"
+    }
+  ],
+  "logs": [
+    {
+      "id": "l-01",
+      "projId": "p-01",
+      "type": "kendala",
+      "date": "2026-05-10",
+      "text": "Koneksi database lokal RS mengalami bottleneck saat testing load 500 requests/second."
+    },
+    {
+      "id": "l-02",
+      "projId": "p-01",
+      "type": "solusi",
+      "date": "2026-05-11",
+      "text": "Menambahkan lapisan caching Redis untuk meringankan beban query pasien berulang sebesar 75%."
+    },
+    {
+      "id": "l-03",
+      "projId": "p-01",
+      "type": "fokus",
+      "date": "2026-05-17",
+      "text": "Penyelesaian deployment arsitektur AWS production dan pengujian kestabilan modul klaim asuransi."
+    }
+  ],
+  "settings": {
+    "roles": [
+      {
+        "roleName": "Administrator",
+        "allowedViews": [
+          "settings",
+          "users",
+          "clients"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Site Coordinator",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "System Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Technical Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Assistant Technical Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Client",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Project Lead",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Developer",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt"
+        ],
+        "active": true
+      }
+    ],
+    "milestoneStatuses": [
+      {
+        "value": "On Track",
+        "active": true
+      },
+      {
+        "value": "Completed",
+        "active": true
+      },
+      {
+        "value": "Delayed",
+        "active": true
+      },
+      {
+        "value": "On Hold",
+        "active": true
+      },
+      {
+        "value": "Cancelled",
+        "active": true
+      },
+      {
+        "value": "To Do",
+        "active": true
+      }
+    ],
+    "taskTypes": [
+      {
+        "value": "Setting",
+        "active": true
+      },
+      {
+        "value": "Fit and Gap",
+        "active": true
+      },
+      {
+        "value": "Instalasi",
+        "active": true
+      },
+      {
+        "value": "Training",
+        "active": true
+      },
+      {
+        "value": "Security Audit",
+        "active": true
+      },
+      {
+        "value": "Database Tune",
+        "active": true
+      }
+    ],
+    "catProgresses": [
+      {
+        "value": "Prasyarat",
+        "active": true
+      },
+      {
+        "value": "Aplikasi",
+        "active": true
+      },
+      {
+        "value": "Infrastruktur & Hardware",
+        "active": true
+      },
+      {
+        "value": "Training",
+        "active": true
+      }
+    ],
+    "priorities": [
+      {
+        "value": "Urgent",
+        "active": true
+      },
+      {
+        "value": "High",
+        "active": true
+      },
+      {
+        "value": "Medium",
+        "active": true
+      },
+      {
+        "value": "Low",
+        "active": true
+      },
+      {
+        "value": "Very Low",
+        "active": true
+      }
+    ],
+    "progressStatuses": [
+      {
+        "value": "Not Started",
+        "active": true
+      },
+      {
+        "value": "In Progress",
+        "active": true
+      },
+      {
+        "value": "Done",
+        "active": true
+      },
+      {
+        "value": "Pending",
+        "active": true
+      },
+      {
+        "value": "Cancelled",
+        "active": true
+      },
+      {
+        "value": "Backlog",
+        "active": true
+      },
+      {
+        "value": "To Do",
+        "active": true
+      }
+    ],
+    "tipeMedika": [
+      {
+        "value": "Rumah Sakit",
+        "active": true
+      },
+      {
+        "value": "Klinik Utama",
+        "active": true
+      },
+      {
+        "value": "Klinik Pratama",
+        "active": true
+      },
+      {
+        "value": "Puskesmas",
+        "active": true
+      },
+      {
+        "value": "Laboratorium",
+        "active": true
+      }
+    ],
+    "kategoriDokumen": [
+      {
+        "value": "MOM Rapat",
+        "active": true
+      },
+      {
+        "value": "Berita Acara",
+        "active": true
+      },
+      {
+        "value": "User Manual",
+        "active": true
+      },
+      {
+        "value": "Desain UI/UX",
+        "active": true
+      },
+      {
+        "value": "Dokumen Kontrak",
+        "active": true
+      },
+      {
+        "value": "API Specs",
+        "active": true
+      }
+    ],
+    "jenisBeritaAcara": [
+      {
+        "value": "BA Serah Terima Alat",
+        "active": true
+      },
+      {
+        "value": "BA Instalasi Aplikasi",
+        "active": true
+      },
+      {
+        "value": "BA Training /... Sosialisasi",
+        "active": true
+      },
+      {
+        "value": "BA Go-Live",
+        "active": true
+      },
+      {
+        "value": "BA Penyelesaian Pekerjaan",
+        "active": true
+      }
+    ],
+    "jenisModul": [
+      {
+        "value": "Modul Utama",
+        "active": true
+      },
+      {
+        "value": "Modul Integrasi",
+        "active": true
+      },
+      {
+        "value": "Modul Penunjang",
+        "active": true
+      },
+      {
+        "value": "Modul Pelaporan / Dashboard",
+        "active": true
+      }
+    ],
+    "statusImplementasi": [
+      {
+        "value": "Belum Mulai",
+        "active": true
+      },
+      {
+        "value": "Analisis Fit & Gap",
+        "active": true
+      },
+      {
+        "value": "Instalasi / Setting",
+        "active": true
+      },
+      {
+        "value": "Pelatihan User",
+        "active": true
+      },
+      {
+        "value": "Pendampingan UAT",
+        "active": true
+      },
+      {
+        "value": "Selesai Implementasi",
+        "active": true
+      }
+    ],
+    "tipeMedia": [
+      {
+        "value": "WhatsApp",
+        "active": true
+      },
+      {
+        "value": "Email",
+        "active": true
+      },
+      {
+        "value": "Rapat",
+        "active": true
+      },
+      {
+        "value": "Telepon",
+        "active": true
+      }
+    ]
+  },
+  "clients": [
+    {
+      "id": "c-vitx55j",
+      "namaRS": "RS TPT",
+      "noKSO": "2024/rsud/0101",
+      "direkturRS": "FF",
+      "modulSIMRS": "",
+      "tanggalProject": "2026-01-01",
+      "tanggalCutOff": "2026-03-01",
+      "tipeMedika": "Rumah Sakit",
+      "createdAt": "2026-05-22T11:11:58.950Z"
+    }
+  ]
+}

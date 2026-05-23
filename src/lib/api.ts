@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset } from "../types";
 
 const API_BASE = "/api";
 
@@ -243,6 +243,152 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  // Clients / RS CRUD
+  async getClients(): Promise<Client[]> {
+    const res = await fetch(`${API_BASE}/clients`);
+    return handleResponse(res);
+  },
+
+  async createClient(data: Partial<Client>): Promise<Client> {
+    const res = await fetch(`${API_BASE}/clients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateClient(id: string, data: Partial<Client>): Promise<Client> {
+    const res = await fetch(`${API_BASE}/clients/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteClient(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/clients/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Berita Acara (BA) Logs CRUD
+  async getBALogs(): Promise<BALog[]> {
+    const res = await fetch(`${API_BASE}/balogs`);
+    return handleResponse(res);
+  },
+
+  async createBALog(data: Partial<BALog>): Promise<BALog> {
+    const res = await fetch(`${API_BASE}/balogs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteBALog(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/balogs/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Ticket / Helpdesk CRUD
+  async getTickets(): Promise<Ticket[]> {
+    const res = await fetch(`${API_BASE}/tickets`);
+    return handleResponse(res);
+  },
+
+  async createTicket(data: Partial<Ticket>): Promise<Ticket> {
+    const res = await fetch(`${API_BASE}/tickets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket> {
+    const res = await fetch(`${API_BASE}/tickets/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteTicket(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/tickets/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // App Modules CRUD
+  async getAppModules(): Promise<AppModule[]> {
+    const res = await fetch(`${API_BASE}/appmodules`);
+    return handleResponse(res);
+  },
+
+  async createAppModule(data: Partial<AppModule>): Promise<AppModule> {
+    const res = await fetch(`${API_BASE}/appmodules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateAppModule(id: string, data: Partial<AppModule>): Promise<AppModule> {
+    const res = await fetch(`${API_BASE}/appmodules/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteAppModule(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/appmodules/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Assets Management CRUD
+  async getAssets(): Promise<Asset[]> {
+    const res = await fetch(`${API_BASE}/assets`);
+    return handleResponse(res);
+  },
+
+  async createAsset(data: Partial<Asset>): Promise<Asset> {
+    const res = await fetch(`${API_BASE}/assets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateAsset(id: string, data: Partial<Asset>): Promise<Asset> {
+    const res = await fetch(`${API_BASE}/assets/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteAsset(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/assets/${id}`, {
+      method: "DELETE"
     });
     return handleResponse(res);
   }

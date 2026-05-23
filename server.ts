@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry } from "./src/types.js";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog } from "./src/types.js";
 
 const app = express();
 const PORT = 3000;
@@ -10,7 +10,7 @@ const DB_FILE = path.join(process.cwd(), "db.json");
 
 const DEFAULT_SETTINGS = {
   roles: [
-    { roleName: "Administrator", allowedViews: ["settings", "users"], active: true },
+    { roleName: "Administrator", allowedViews: ["settings", "users", "clients"], active: true },
     { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
     { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
     { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
@@ -54,6 +54,48 @@ const DEFAULT_SETTINGS = {
     { value: "Pending", active: true },
     { value: "Cancelled", active: true },
     { value: "Backlog", active: true }
+  ],
+  tipeMedika: [
+    { value: "Rumah Sakit", active: true },
+    { value: "Klinik Utama", active: true },
+    { value: "Klinik Pratama", active: true },
+    { value: "Puskesmas", active: true },
+    { value: "Laboratorium", active: true }
+  ],
+  kategoriDokumen: [
+    { value: "MOM Rapat", active: true },
+    { value: "Berita Acara", active: true },
+    { value: "User Manual", active: true },
+    { value: "Desain UI/UX", active: true },
+    { value: "Dokumen Kontrak", active: true },
+    { value: "API Specs", active: true }
+  ],
+  jenisBeritaAcara: [
+    { value: "BA Serah Terima Alat", active: true },
+    { value: "BA Instalasi Aplikasi", active: true },
+    { value: "BA Training /... Sosialisasi", active: true },
+    { value: "BA Go-Live", active: true },
+    { value: "BA Penyelesaian Pekerjaan", active: true }
+  ],
+  jenisModul: [
+    { value: "Modul Utama", active: true },
+    { value: "Modul Integrasi", active: true },
+    { value: "Modul Penunjang", active: true },
+    { value: "Modul Pelaporan / Dashboard", active: true }
+  ],
+  statusImplementasi: [
+    { value: "Belum Mulai", active: true },
+    { value: "Analisis Fit & Gap", active: true },
+    { value: "Instalasi / Setting", active: true },
+    { value: "Pelatihan User", active: true },
+    { value: "Pendampingan UAT", active: true },
+    { value: "Selesai Implementasi", active: true }
+  ],
+  tipeMedia: [
+    { value: "WhatsApp", active: true },
+    { value: "Email", active: true },
+    { value: "Rapat", active: true },
+    { value: "Telepon", active: true }
   ]
 };
 
@@ -354,6 +396,31 @@ async function initializeDB() {
       }
     ];
 
+    const initialClients: Client[] = [
+      {
+        id: "c-01",
+        namaRS: "RS Mataram",
+        noKSO: "KSO-2026-001",
+        direkturRS: "dr. Ahmad Wijaya, Sp.PD",
+        modulSIMRS: "Front Office, Back Office, Farmasi, Laboratorium",
+        tanggalProject: "2026-04-01",
+        tanggalCutOff: "2026-08-31",
+        tipeMedika: "Rumah Sakit",
+        createdAt: "2026-04-01T00:00:00Z"
+      },
+      {
+        id: "c-02",
+        namaRS: "Puskesmas Ampenan",
+        noKSO: "KSO-2026-002",
+        direkturRS: "dr. Siti Aminah",
+        modulSIMRS: "Front Office, KIA, Apotek",
+        tanggalProject: "2026-05-10",
+        tanggalCutOff: "2026-09-15",
+        tipeMedika: "Puskesmas",
+        createdAt: "2026-05-10T00:00:00Z"
+      }
+    ];
+
     const initialDB = {
       users: initialUsers,
       projects: initialProjects,
@@ -362,7 +429,8 @@ async function initializeDB() {
       meetingLogs: initialMeetingLogs,
       docs: initialDocs,
       logs: initialLogs,
-      settings: DEFAULT_SETTINGS
+      settings: DEFAULT_SETTINGS,
+      clients: initialClients
     };
 
     await writeDB(initialDB);
@@ -377,7 +445,79 @@ initializeDB();
 async function readDB() {
   await initializeDB();
   const raw = await fs.readFile(DB_FILE, "utf-8");
-  return JSON.parse(raw);
+  const db = JSON.parse(raw);
+  let modified = false;
+  if (!db.clients) {
+    db.clients = [];
+    modified = true;
+  }
+  if (!db.tickets) {
+    db.tickets = [];
+    modified = true;
+  }
+  if (!db.appModules) {
+    db.appModules = [];
+    modified = true;
+  }
+  if (!db.assets) {
+    db.assets = [];
+    modified = true;
+  }
+  if (db.users) {
+    db.users.forEach((u: any) => {
+      if (u.statusAktif === undefined) {
+        u.statusAktif = true;
+        modified = true;
+      }
+      if (u.siteTugas === undefined) {
+        u.siteTugas = "";
+        modified = true;
+      }
+    });
+  }
+  if (db.settings && db.settings.roles) {
+    const adminRole = db.settings.roles.find((r: any) => r.roleName === "Administrator");
+    if (adminRole) {
+      if (!adminRole.allowedViews.includes("clients")) {
+        adminRole.allowedViews.push("clients");
+        modified = true;
+      }
+      if (!adminRole.allowedViews.includes("tickets")) {
+        adminRole.allowedViews.push("tickets");
+        modified = true;
+      }
+      if (!adminRole.allowedViews.includes("appmodules")) {
+        adminRole.allowedViews.push("appmodules");
+        modified = true;
+      }
+      if (!adminRole.allowedViews.includes("assets")) {
+        adminRole.allowedViews.push("assets");
+        modified = true;
+      }
+    }
+    
+    // Also enable for other roles by default so they are easy to access
+    db.settings.roles.forEach((r: any) => {
+      if (r.roleName !== "Administrator" && r.roleName !== "Client") {
+        if (!r.allowedViews.includes("tickets")) {
+          r.allowedViews.push("tickets");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("appmodules")) {
+          r.allowedViews.push("appmodules");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("assets")) {
+          r.allowedViews.push("assets");
+          modified = true;
+        }
+      }
+    });
+  }
+  if (modified) {
+    await writeDB(db);
+  }
+  return db;
 }
 
 // ── AUTHENTICATION API ──────────────────────────────────────────────────
@@ -394,6 +534,10 @@ app.post("/api/auth/login", async (req, res) => {
     
     if (!user || user.password !== password) {
       return res.status(401).json({ error: "Username atau Password yang Anda masukkan salah!" });
+    }
+
+    if (user.statusAktif === false) {
+      return res.status(403).json({ error: "Akun Anda tidak aktif! Silakan hubungi Administrator Utama." });
     }
     
     // Return session packet without the password
@@ -453,7 +597,7 @@ app.get("/api/users", async (req, res) => {
 
 app.post("/api/users", async (req, res) => {
   try {
-    const { username, name, nickname, password, email, role } = req.body;
+    const { username, name, nickname, password, email, role, siteTugas, statusAktif } = req.body;
     if (!username || !name || !nickname || !password || !email || !role) {
       return res.status(400).json({ error: "Seluruh data user wajib diisi!" });
     }
@@ -471,6 +615,8 @@ app.post("/api/users", async (req, res) => {
       password,
       role,
       email,
+      siteTugas: siteTugas || "",
+      statusAktif: statusAktif !== undefined ? Boolean(statusAktif) : true,
       createdAt: new Date().toISOString()
     };
 
@@ -487,7 +633,7 @@ app.post("/api/users", async (req, res) => {
 app.put("/api/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, nickname, email, role, password } = req.body;
+    const { name, nickname, email, role, password, siteTugas, statusAktif } = req.body;
     const db = await readDB();
     const idx = db.users.findIndex((u: any) => u.id === id);
     if (idx === -1) {
@@ -498,6 +644,12 @@ app.put("/api/users/:id", async (req, res) => {
     db.users[idx].nickname = nickname || db.users[idx].nickname;
     db.users[idx].email = email || db.users[idx].email;
     db.users[idx].role = role || db.users[idx].role;
+    if (siteTugas !== undefined) {
+      db.users[idx].siteTugas = siteTugas;
+    }
+    if (statusAktif !== undefined) {
+      db.users[idx].statusAktif = Boolean(statusAktif);
+    }
     if (password) {
       db.users[idx].password = password;
     }
@@ -745,6 +897,47 @@ app.delete("/api/docs/:id", async (req, res) => {
 });
 
 
+// ── BERITA ACARA (BA) LOGS CRUD ──────────────────────────────────────────
+app.get("/api/balogs", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.baLogs || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/balogs", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newBA: BALog = { 
+      ...req.body, 
+      id: "ba-" + Math.random().toString(36).slice(2, 9), 
+      date: req.body.date || new Date().toISOString().slice(0, 10),
+      status: req.body.status || "Draft"
+    };
+    if (!db.baLogs) db.baLogs = [];
+    db.baLogs.unshift(newBA);
+    await writeDB(db);
+    return res.status(201).json(newBA);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/balogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.baLogs = (db.baLogs || []).filter((ba: any) => ba.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ── DIAGNOSTIC LOGS (KENDALA/SOLUSI/FOKUS) CRUD ─────────────────────────
 app.get("/api/logs", async (req, res) => {
   try {
@@ -781,6 +974,237 @@ app.delete("/api/logs/:id", async (req, res) => {
 });
 
 
+// ── CLIENTS / RS CRUD ──────────────────────────────────────────────────────
+app.get("/api/clients", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.clients || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/clients", async (req, res) => {
+  try {
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses } = req.body;
+    if (!namaRS) {
+      return res.status(400).json({ error: "Nama RS wajib diisi!" });
+    }
+    const db = await readDB();
+    const newClient: Client = {
+      id: "c-" + Math.random().toString(36).slice(2, 9),
+      namaRS,
+      noKSO: noKSO || "",
+      direkturRS: direkturRS || "",
+      modulSIMRS: modulSIMRS || "",
+      tanggalProject: tanggalProject || "",
+      tanggalCutOff: tanggalCutOff || "",
+      tipeMedika: tipeMedika || "",
+      createdAt: new Date().toISOString(),
+      moduleStatuses: moduleStatuses || []
+    };
+    db.clients.push(newClient);
+    await writeDB(db);
+    return res.status(201).json(newClient);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/clients/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses } = req.body;
+    const db = await readDB();
+    const idx = db.clients.findIndex((cl: any) => cl.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Data Client / RS tidak ditemukan!" });
+    }
+    if (namaRS !== undefined) db.clients[idx].namaRS = namaRS;
+    if (noKSO !== undefined) db.clients[idx].noKSO = noKSO;
+    if (direkturRS !== undefined) db.clients[idx].direkturRS = direkturRS;
+    if (modulSIMRS !== undefined) db.clients[idx].modulSIMRS = modulSIMRS;
+    if (tanggalProject !== undefined) db.clients[idx].tanggalProject = tanggalProject;
+    if (tanggalCutOff !== undefined) db.clients[idx].tanggalCutOff = tanggalCutOff;
+    if (tipeMedika !== undefined) db.clients[idx].tipeMedika = tipeMedika;
+    if (moduleStatuses !== undefined) db.clients[idx].moduleStatuses = moduleStatuses;
+    
+    await writeDB(db);
+    return res.json(db.clients[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/clients/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.clients = (db.clients || []).filter((cl: any) => cl.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── TICKETS CRUD ─────────────────────────────────────────────────────────
+app.get("/api/tickets", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.tickets || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/tickets", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newTicket = { id: "tk-" + Math.random().toString(36).slice(2, 9), createdAt: new Date().toISOString(), ...req.body };
+    db.tickets = db.tickets || [];
+    db.tickets.unshift(newTicket);
+    await writeDB(db);
+    return res.status(201).json(newTicket);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/tickets/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.tickets || []).findIndex((tk: any) => tk.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Ticket tidak ditemukan!" });
+    }
+    db.tickets[idx] = { ...db.tickets[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.tickets[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/tickets/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.tickets = (db.tickets || []).filter((tk: any) => tk.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── APPLICATION MODULES CRUD ──────────────────────────────────────────────
+app.get("/api/appmodules", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.appModules || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/appmodules", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newModule = { id: "am-" + Math.random().toString(36).slice(2, 9), createdAt: new Date().toISOString(), ...req.body };
+    db.appModules = db.appModules || [];
+    db.appModules.unshift(newModule);
+    await writeDB(db);
+    return res.status(201).json(newModule);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/appmodules/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.appModules || []).findIndex((am: any) => am.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Modul Utama tidak ditemukan!" });
+    }
+    db.appModules[idx] = { ...db.appModules[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.appModules[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/appmodules/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.appModules = (db.appModules || []).filter((am: any) => am.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── ASSETS CRUD ──────────────────────────────────────────────────────────
+app.get("/api/assets", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.assets || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/assets", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newAsset = { id: "as-" + Math.random().toString(36).slice(2, 9), createdAt: new Date().toISOString(), ...req.body };
+    db.assets = db.assets || [];
+    db.assets.unshift(newAsset);
+    await writeDB(db);
+    return res.status(201).json(newAsset);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/assets/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.assets || []).findIndex((as: any) => as.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Aset tidak ditemukan!" });
+    }
+    db.assets[idx] = { ...db.assets[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.assets[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/assets/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.assets = (db.assets || []).filter((as: any) => as.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ── SETTINGS CRUD ────────────────────────────────────────────────────────
 app.get("/api/settings", async (req, res) => {
   try {
@@ -788,6 +1212,18 @@ app.get("/api/settings", async (req, res) => {
     if (!db.settings) {
       db.settings = { ...DEFAULT_SETTINGS };
       await writeDB(db);
+    } else {
+      let modified = false;
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia"];
+      for (const key of keys) {
+        if (!db.settings[key]) {
+          db.settings[key] = (DEFAULT_SETTINGS as any)[key];
+          modified = true;
+        }
+      }
+      if (modified) {
+        await writeDB(db);
+      }
     }
     return res.json(db.settings);
   } catch (err: any) {

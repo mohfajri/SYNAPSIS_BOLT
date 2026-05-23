@@ -584,33 +584,51 @@ export default function ProjectsView({
                       <span className="flex items-center gap-1">
                         <BookMarked className="w-4 h-4 text-slate-400" /> Asal: <strong>{p.asal || "—"}</strong>
                       </span>
+                      {p.createdBy && (
+                        <span className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-150/10">
+                          🧑‍💻 Penginput: <strong className="font-extrabold">{p.createdBy}</strong>
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {currentUser?.role !== "Client" && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button 
-                        onClick={() => openEdit(p)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-                        title="Edit Project"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      {currentUser?.role === "Administrator" && (
+                  {currentUser?.role !== "Client" && (() => {
+                    const canModify = !p.createdBy || p.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                    return (
+                      <div className="flex items-center gap-1 shrink-0">
                         <button 
-                          onClick={() => {
-                            if (confirm(`Hapus project "${p.nama}" secara permanen? Seluruh tugas terkait akan terhapus!`)) {
-                              onDeleteProject(p.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-                          title="Hapus Project"
+                          onClick={() => openEdit(p)}
+                          disabled={!canModify}
+                          className={`p-1.5 rounded-lg transition-all ${
+                            canModify 
+                              ? "text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800" 
+                              : "text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40 bg-slate-100/50 dark:bg-slate-800/30"
+                          }`}
+                          title={canModify ? "Edit Project" : `Hanya penginput (${p.createdBy}) yang boleh mengedit`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
-                      )}
-                    </div>
-                  )}
+                        {currentUser?.role === "Administrator" && (
+                          <button 
+                            onClick={() => {
+                              if (confirm(`Hapus project "${p.nama}" secara permanen? Seluruh tugas terkait akan terhapus!`)) {
+                                onDeleteProject(p.id);
+                              }
+                            }}
+                            disabled={!canModify}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              canModify 
+                                ? "text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800" 
+                                : "text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40 bg-slate-100/50 dark:bg-slate-800/30"
+                            }`}
+                            title={canModify ? "Hapus Project" : `Hanya penginput (${p.createdBy}) yang boleh menghapus`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Body Content */}

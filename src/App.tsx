@@ -6,7 +6,12 @@ import {
   CommLog, 
   MeetingLog, 
   Documentation, 
-  LogEntry 
+  LogEntry,
+  Client,
+  BALog,
+  Ticket,
+  AppModule,
+  Asset
 } from "./types";
 import { 
   api, 
@@ -27,6 +32,10 @@ import CalendarView from "./components/CalendarView";
 import CollaborationViews from "./components/CollaborationViews";
 import UsersView from "./components/UsersView";
 import SettingsView from "./components/SettingsView";
+import ClientsView from "./components/ClientsView";
+import TicketsView from "./components/TicketsView";
+import ApplicationModulesView from "./components/ApplicationModulesView";
+import AssetsView from "./components/AssetsView";
 
 // Icons
 import { 
@@ -49,7 +58,12 @@ import {
   Bell,
   Check,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Network,
+  Building2,
+  LifeBuoy,
+  Cpu,
+  Laptop
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -72,7 +86,38 @@ export default function App() {
   // Layout View Mode & Sidebar
   const [currentView, setCurrentView] = useState<string>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
+  const [isSidebarMini, setIsSidebarMini] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_mini");
+      return saved === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") {
+        if (saved === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+        return saved;
+      }
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  const toggleSidebarMini = () => {
+    setIsSidebarMini(prev => {
+      const next = !prev;
+      localStorage.setItem("sidebar_mini", String(next));
+      return next;
+    });
+  };
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem("sidebar_collapsed_categories");
@@ -99,18 +144,24 @@ export default function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [commLogs, setCommLogs] = useState<CommLog[]>([]);
   const [meetingLogs, setMeetingLogs] = useState<MeetingLog[]>([]);
+  const [baLogs, setBaLogs] = useState<BALog[]>([]);
   const [docs, setDocs] = useState<Documentation[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [settings, setSettings] = useState<any>({
     roles: [
-      { roleName: "Administrator", allowedViews: ["settings", "users"], active: true },
-      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-      { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks"], active: true },
-      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt"], active: true }
+      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets", "clients", "users"], active: true },
+      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "tickets"], active: true },
+      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "assets"], active: true }
     ],
     milestoneStatuses: [
       { value: "On Track", active: true },
@@ -151,7 +202,89 @@ export default function App() {
   });
 
   // Derived configuration list from active users to satisfy PIC selection dynamically
-  const picsList = users.length > 0 ? users.map(u => u.nickname || u.username) : ["Admin", "Fajar", "Nanda"];
+  // Filter out inactive users (statusAktif === false) and use distinct user nicknames
+  const picsList = users.length > 0
+    ? users.filter(u => u.statusAktif !== false).map(u => u.nickname || u.username)
+    : ["Admin", "Fajar", "Nanda"];
+
+  // ── USER-BASED CLIENT/SITE SCOPING FILTER ──
+  const isUserScoped = currentUser && 
+    currentUser.siteTugas && 
+    currentUser.role !== "Administrator" && 
+    currentUser.role !== "Direktur";
+  const userSite = currentUser?.siteTugas || "";
+
+  // Filtered computed views
+  const scopedClients = isUserScoped 
+    ? clients.filter(c => c.namaRS === userSite) 
+    : clients;
+
+  const scopedProjects = isUserScoped 
+    ? projects.filter(p => p.client === userSite || p.createdBy === currentUser?.username) 
+    : projects;
+
+  const scopedTasks = isUserScoped 
+    ? tasks.filter(t => {
+        if (t.createdBy === currentUser?.username || (currentUser?.nickname && t.pic === currentUser.nickname)) {
+          return true;
+        }
+        const proj = projects.find(p => p.kode === t.project);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : tasks;
+
+  const scopedLogs = isUserScoped 
+    ? logs.filter(l => {
+        if (l.createdBy === currentUser?.username) return true;
+        const proj = projects.find(p => p.id === l.projId || p.kode === l.projId);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : logs;
+
+  const scopedCommLogs = isUserScoped 
+    ? commLogs.filter(cl => {
+        if (cl.createdBy === currentUser?.username) return true;
+        const proj = projects.find(p => p.kode === cl.project);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : commLogs;
+
+  // Collaboration: Meeting Logs
+  const scopedMeetingLogs = isUserScoped 
+    ? meetingLogs.filter(ml => {
+        if (ml.createdBy === currentUser?.username) return true;
+        const proj = projects.find(p => p.kode === ml.project);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : meetingLogs;
+
+  const scopedBaLogs = isUserScoped 
+    ? baLogs.filter(ba => {
+        if (ba.createdBy === currentUser?.username) return true;
+        const proj = projects.find(p => p.kode === ba.project);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : baLogs;
+
+  const scopedDocs = isUserScoped 
+    ? docs.filter(d => {
+        if (d.createdBy === currentUser?.username) return true;
+        const proj = projects.find(p => p.kode === d.project);
+        return proj ? proj.client === userSite : false;
+      }) 
+    : docs;
+
+  const scopedTickets = isUserScoped 
+    ? tickets.filter(ti => ti.projectName === userSite || ti.createdBy === currentUser?.username) 
+    : tickets;
+
+  const scopedAppModules = isUserScoped 
+    ? appModules.filter(am => am.projectName === userSite || am.createdBy === currentUser?.username) 
+    : appModules;
+
+  const scopedAssets = isUserScoped 
+    ? assets.filter(as => as.clientRS === userSite || as.createdBy === currentUser?.username) 
+    : assets;
 
   // Task shortcut modal link
   const [quickTaskStatusLink, setQuickTaskStatusLink] = useState<any>(null);
@@ -293,9 +426,22 @@ export default function App() {
     }
     setIsSessionLoading(false);
 
-    // Initial theme check
-    const isDark = document.documentElement.classList.contains("dark");
-    setThemeMode(isDark ? "dark" : "light");
+    // Initial theme check and sync
+    try {
+      const saved = localStorage.getItem("theme");
+      if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+        setThemeMode("dark");
+      } else if (saved === "light") {
+        document.documentElement.classList.remove("dark");
+        setThemeMode("light");
+      } else {
+        const isDark = document.documentElement.classList.contains("dark");
+        setThemeMode(isDark ? "dark" : "light");
+      }
+    } catch {
+      // ignore
+    }
 
     // Dynamic Clock
     const timer = setInterval(() => {
@@ -320,7 +466,7 @@ export default function App() {
 
   async function syncDatabase() {
     try {
-      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD] = await Promise.all([
+      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD] = await Promise.all([
         api.getProjects(),
         api.getTasks(),
         api.getLogs(),
@@ -328,7 +474,12 @@ export default function App() {
         api.getMeetingLogs(),
         api.getDocs(),
         api.getUsers(),
-        api.getSettings().catch(() => null)
+        api.getSettings().catch(() => null),
+        api.getClients().catch(() => []),
+        api.getBALogs().catch(() => []),
+        api.getTickets().catch(() => []),
+        api.getAppModules().catch(() => []),
+        api.getAssets().catch(() => [])
       ]);
       setProjects(projD);
       setTasks(taskD);
@@ -337,6 +488,11 @@ export default function App() {
       setMeetingLogs(meetD);
       setDocs(docD);
       setUsers(userD);
+      setClients(clientD || []);
+      setBaLogs(baD || []);
+      setTickets(ticketsD || []);
+      setAppModules(appModulesD || []);
+      setAssets(assetsD || []);
       if (settingsD) {
         setSettings(settingsD);
       }
@@ -366,6 +522,11 @@ export default function App() {
   function toggleThemeMode() {
     const next = themeMode === "light" ? "dark" : "light";
     setThemeMode(next);
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      // ignore
+    }
     if (next === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -378,7 +539,12 @@ export default function App() {
   // Project CRUD
   async function handleAddProject(data: Partial<Project>) {
     try {
-      const res = await api.createProject(data);
+      let finalClient = data.client;
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+        finalClient = currentUser.siteTugas;
+      }
+      const payload = { ...data, client: finalClient, createdBy: currentUser?.username || "System" };
+      const res = await api.createProject(payload);
       setProjects(prev => [...prev, res]);
     } catch (err) {
       alert("Gagal menyimpan project baru: " + err);
@@ -387,7 +553,11 @@ export default function App() {
 
   async function handleUpdateProject(id: string, data: Partial<Project>) {
     try {
-      const res = await api.updateProject(id, data);
+      let finalData = { ...data };
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+        finalData.client = currentUser.siteTugas;
+      }
+      const res = await api.updateProject(id, finalData);
       setProjects(prev => prev.map(p => p.id === id ? res : p));
     } catch (err) {
       alert("Gagal memperbarui project: " + err);
@@ -411,7 +581,8 @@ export default function App() {
   // Task CRUD
   async function handleAddTask(data: Partial<Task>) {
     try {
-      const res = await api.createTask(data);
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createTask(payload);
       setTasks(prev => [res, ...prev]);
     } catch (err) {
       alert("Gagal menyimpan tugas baru: " + err);
@@ -439,7 +610,7 @@ export default function App() {
   // Diagnostic Logs Creators
   async function handleAddDiagnosticLog(projId: string, type: 'kendala' | 'solusi' | 'fokus', text: string, date: string) {
     try {
-      const res = await api.createLog({ projId, type, text, date });
+      const res = await api.createLog({ projId, type, text, date, createdBy: currentUser?.username || "System" });
       setLogs(prev => [...prev, res]);
     } catch (err) {
       alert("Gagal menambah catatan diagnostik: " + err);
@@ -458,7 +629,8 @@ export default function App() {
   // Collaboration: Comm Logs
   async function handleAddCommLog(data: Partial<CommLog>) {
     try {
-      const res = await api.createCommLog(data);
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createCommLog(payload);
       setCommLogs(prev => [res, ...prev]);
     } catch (err) {
       alert("Gagal menambah log komunikasi: " + err);
@@ -477,7 +649,8 @@ export default function App() {
   // Collaboration: Meeting Logs
   async function handleAddMeetingLog(data: Partial<MeetingLog>) {
     try {
-      const res = await api.createMeetingLog(data);
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createMeetingLog(payload);
       setMeetingLogs(prev => [res, ...prev]);
     } catch (err) {
       alert("Gagal menambah Minutes of Meeting (MoM): " + err);
@@ -496,7 +669,8 @@ export default function App() {
   // Collaboration: Docs repositories
   async function handleAddDoc(data: Partial<Documentation>) {
     try {
-      const res = await api.createDoc(data);
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createDoc(payload);
       setDocs(prev => [res, ...prev]);
     } catch (err) {
       alert("Gagal menyimpan dokumen baru: " + err);
@@ -512,6 +686,26 @@ export default function App() {
     }
   }
 
+  // Collaboration: Berita Acara (BA) Logs
+  async function handleAddBALog(data: Partial<BALog>) {
+    try {
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createBALog(payload);
+      setBaLogs(prev => [res, ...prev]);
+    } catch (err) {
+      alert("Gagal menambah Berita Acara (BA): " + err);
+    }
+  }
+
+  async function handleDeleteBALog(id: string) {
+    try {
+      await api.deleteBALog(id);
+      setBaLogs(prev => prev.filter(ba => ba.id !== id));
+    } catch (err) {
+      alert("Gagal menghapus Berita Acara (BA): " + err);
+    }
+  }
+
   // Administrator User Account Creation
   async function handleAddUser(data: Partial<User>) {
     try {
@@ -521,7 +715,9 @@ export default function App() {
         role: data.role,
         name: data.name || (data.username ? data.username.charAt(0).toUpperCase() + data.username.slice(1) : "User Pelaksana"),
         nickname: data.nickname || (data.username || "Nick"),
-        email: data.email || `${data.username || "user"}@taskhub.com`
+        email: data.email || `${data.username || "user"}@taskhub.com`,
+        siteTugas: data.siteTugas || "",
+        statusAktif: data.statusAktif !== undefined ? data.statusAktif : true
       };
       const res = await api.createUser(payload);
       setUsers(prev => [...prev, res]);
@@ -550,6 +746,146 @@ export default function App() {
       }
     } catch (err) {
       alert("Gagal memperbarui data user: " + err);
+    }
+  }
+
+  // Clients CRUD Handlers
+  async function handleAddClient(data: Partial<Client>) {
+    try {
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createClient(payload);
+      setClients(prev => [...prev, res]);
+    } catch (err: any) {
+      alert(`Gagal menambah data Client: ${err.message}`);
+    }
+  }
+
+  async function handleUpdateClient(id: string, data: Partial<Client>) {
+    try {
+      const res = await api.updateClient(id, data);
+      setClients(prev => prev.map(cl => cl.id === id ? { ...cl, ...res } : cl));
+    } catch (err: any) {
+      alert(`Gagal mengubah data Client: ${err.message}`);
+    }
+  }
+
+  async function handleDeleteClient(id: string) {
+    try {
+      await api.deleteClient(id);
+      setClients(prev => prev.filter(cl => cl.id !== id));
+    } catch (err: any) {
+      alert(`Gagal menghapus data Client: ${err.message}`);
+    }
+  }
+
+  // Ticket / Helpdesk operations
+  async function handleAddTicket(data: Partial<Ticket>) {
+    try {
+      let finalProjectName = data.projectName;
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+         finalProjectName = currentUser.siteTugas;
+      }
+      const payload = { ...data, projectName: finalProjectName, createdBy: currentUser?.username || "System" };
+      const res = await api.createTicket(payload);
+      setTickets(prev => [res, ...prev]);
+    } catch (err: any) {
+      alert(`Gagal menambah tiket helpdesk: ${err.message}`);
+    }
+  }
+
+  async function handleUpdateTicket(id: string, data: Partial<Ticket>) {
+    try {
+      let finalData = { ...data };
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+        finalData.projectName = currentUser.siteTugas;
+      }
+      const res = await api.updateTicket(id, finalData);
+      setTickets(prev => prev.map(tk => tk.id === id ? { ...tk, ...res } : tk));
+    } catch (err: any) {
+      alert(`Gagal memperbarui tiket helpdesk: ${err.message}`);
+    }
+  }
+
+  async function handleDeleteTicket(id: string) {
+    try {
+      await api.deleteTicket(id);
+      setTickets(prev => prev.filter(tk => tk.id !== id));
+    } catch (err: any) {
+      alert(`Gagal menghapus tiket helpdesk: ${err.message}`);
+    }
+  }
+
+  // App Modules operations
+  async function handleAddAppModule(data: Partial<AppModule>) {
+    try {
+      let finalProjectName = data.projectName;
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+         finalProjectName = currentUser.siteTugas;
+      }
+      const payload = { ...data, projectName: finalProjectName, createdBy: currentUser?.username || "System" };
+      const res = await api.createAppModule(payload);
+      setAppModules(prev => [res, ...prev]);
+    } catch (err: any) {
+      alert(`Gagal menambah modul utama: ${err.message}`);
+    }
+  }
+
+  async function handleUpdateAppModule(id: string, data: Partial<AppModule>) {
+    try {
+      let finalData = { ...data };
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+        finalData.projectName = currentUser.siteTugas;
+      }
+      const res = await api.updateAppModule(id, finalData);
+      setAppModules(prev => prev.map(am => am.id === id ? { ...am, ...res } : am));
+    } catch (err: any) {
+      alert(`Gagal memperbarui modul utama: ${err.message}`);
+    }
+  }
+
+  async function handleDeleteAppModule(id: string) {
+    try {
+      await api.deleteAppModule(id);
+      setAppModules(prev => prev.filter(am => am.id !== id));
+    } catch (err: any) {
+      alert(`Gagal menghapus modul utama: ${err.message}`);
+    }
+  }
+
+  // Assets operations
+  async function handleAddAsset(data: Partial<Asset>) {
+    try {
+      let finalClientRS = data.clientRS;
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+         finalClientRS = currentUser.siteTugas;
+      }
+      const payload = { ...data, clientRS: finalClientRS, createdBy: currentUser?.username || "System" };
+      const res = await api.createAsset(payload);
+      setAssets(prev => [res, ...prev]);
+    } catch (err: any) {
+      alert(`Gagal menambah data aset: ${err.message}`);
+    }
+  }
+
+  async function handleUpdateAsset(id: string, data: Partial<Asset>) {
+    try {
+      let finalData = { ...data };
+      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
+        finalData.clientRS = currentUser.siteTugas;
+      }
+      const res = await api.updateAsset(id, finalData);
+      setAssets(prev => prev.map(as => as.id === id ? { ...as, ...res } : as));
+    } catch (err: any) {
+      alert(`Gagal memperbarui data aset: ${err.message}`);
+    }
+  }
+
+  async function handleDeleteAsset(id: string) {
+    try {
+      await api.deleteAsset(id);
+      setAssets(prev => prev.filter(as => as.id !== id));
+    } catch (err: any) {
+      alert(`Gagal menghapus data aset: ${err.message}`);
     }
   }
 
@@ -681,8 +1017,17 @@ export default function App() {
       ]
     },
     {
+      name: "Operasional & Aset",
+      items: [
+        { id: "tickets", label: "Helpdesk & Troubleshoot", icon: LifeBuoy },
+        { id: "appmodules", label: "Registrasi Modul SIMRS", icon: Cpu },
+        { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop }
+      ]
+    },
+    {
       name: "Administration",
       items: [
+        { id: "clients", label: "Profile Client / RS", icon: Building2 },
         { id: "users", label: "Penyusunan Akun (CRUD)", icon: Users },
         { id: "settings", label: "Setting Sistem", icon: Database }
       ]
@@ -692,9 +1037,9 @@ export default function App() {
   const userRoleConfig = settings?.roles?.find((r: any) => r.roleName === currentUser?.role);
   
   // Default values based on specifications
-  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"];
+  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"];
   if (currentUser?.role === "Administrator") {
-    allowedViewIds = ["settings", "users"];
+    allowedViewIds = ["settings", "users", "clients", "tickets", "appmodules", "assets"];
   }
 
   if (userRoleConfig && userRoleConfig.active) {
@@ -714,14 +1059,17 @@ export default function App() {
       
       {/* SIDEBAR NAVIGATION COLUMN */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-4 px-4 flex flex-col justify-between transform transition-transform md:translate-x-0 md:static md:h-screen shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-4 flex flex-col justify-between transform transition-all duration-300 md:translate-x-0 md:static md:h-screen shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-2" : "w-64 px-4"}`}
       >
         {/* Brand header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <Database className="w-6 h-6 text-blue-600 dark:text-blue-500 animate-pulse" />
-            <div>
-              <h1 className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">TaskHub</h1>
+          <div 
+            className={`flex items-center gap-2 ${isSidebarMini ? "md:justify-center md:w-full" : ""}`}
+            title="System for Networked Analytics, Project Synchronization and Integrated Services"
+          >
+            <Network className="w-6 h-6 text-blue-600 dark:text-blue-500 animate-pulse shrink-0" />
+            <div className={isSidebarMini ? "md:hidden" : ""}>
+              <h1 className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">SYNAPSIS</h1>
               <p className="text-[10px] text-blue-600 dark:text-blue-450 font-bold tracking-widest">ENTERPRISE PORTAL</p>
             </div>
           </div>
@@ -736,11 +1084,14 @@ export default function App() {
         {/* MIDDLE SCROLLABLE WRAPPER */}
         <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5 scrollbar-thin select-none">
           {/* User Account Quick Details Card */}
-          <div className="bg-slate-50 dark:bg-slate-850 rounded-xl p-3 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+          <div 
+            className={`bg-slate-50 dark:bg-slate-850 rounded-xl p-3 border border-slate-200 dark:border-slate-800 flex items-center gap-2 ${isSidebarMini ? "md:justify-center md:p-1.5" : ""}`}
+            title={isSidebarMini ? `${currentUser?.name || currentUser?.username} (${currentUser?.role})` : undefined}
+          >
             <span className="w-8 h-8 rounded-full bg-blue-650 font-black text-xs text-white flex items-center justify-center shrink-0">
               {currentUser?.username.slice(0, 2).toUpperCase()}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className={`min-w-0 flex-1 ${isSidebarMini ? "md:hidden" : ""}`}>
               <p className="text-xs font-black text-slate-800 dark:text-white truncate leading-tight">{currentUser?.name || currentUser?.username}</p>
               <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold mt-1 uppercase tracking-wider">{currentUser?.role}</p>
             </div>
@@ -748,29 +1099,50 @@ export default function App() {
 
           {/* Menus Map items */}
           <div className="space-y-4">
-            {activeCategories.map((cat) => {
+            {activeCategories.map((cat, catIdx) => {
               const isCollapsed = !!collapsedCategories[cat.name];
               
               return (
                 <div key={cat.name} className="space-y-1">
                   {/* Category Header */}
-                  <button
-                    onClick={() => toggleCategory(cat.name)}
-                    className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer"
-                  >
-                    <span>{cat.name}</span>
-                    <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-                      {isCollapsed ? (
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </span>
-                  </button>
+                  {isSidebarMini ? (
+                    catIdx > 0 && <div className="border-t border-slate-100 dark:border-slate-800 my-2 hidden md:block" />
+                  ) : (
+                    <button
+                      onClick={() => toggleCategory(cat.name)}
+                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer"
+                    >
+                      <span>{cat.name}</span>
+                      <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                        {isCollapsed ? (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Mobile header (always normal list on mobile) */}
+                  {isSidebarMini && (
+                    <button
+                      onClick={() => toggleCategory(cat.name)}
+                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer md:hidden"
+                    >
+                      <span>{cat.name}</span>
+                      <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                        {isCollapsed ? (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    </button>
+                  )}
 
                   {/* Items List */}
-                  {!isCollapsed && (
-                    <div className="space-y-1 pl-1 border-l border-slate-100 dark:border-slate-800 ml-1">
+                  {(!isCollapsed || isSidebarMini) && (
+                    <div className={`space-y-1 ${isSidebarMini ? "md:ml-0 md:pl-0 md:border-l-0" : "pl-1 border-l border-slate-100 dark:border-slate-800 ml-1"}`}>
                       {cat.items.map((item) => {
                         const Icon = item.icon;
                         const isActive = currentView === item.id;
@@ -778,6 +1150,7 @@ export default function App() {
                         return (
                           <button
                             key={item.id}
+                            title={item.label}
                             onClick={() => {
                               setCurrentView(item.id);
                               // On mobile, auto collapse sidebar
@@ -785,14 +1158,18 @@ export default function App() {
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all transition-colors cursor-pointer ${
+                            className={`w-full flex items-center gap-2.5 rounded-lg text-xs font-bold transition-all transition-colors cursor-pointer ${
+                              isSidebarMini 
+                                ? "px-3 py-1.5 md:px-0 md:py-2 md:justify-center" 
+                                : "px-3 py-1.5"
+                            } ${
                               isActive 
                                 ? "bg-blue-600 text-white shadow-xs" 
                                 : "text-slate-750 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
-                            <Icon className="w-3.5 h-3.5 opacity-90 shrink-0" />
-                            <span className="truncate">{item.label}</span>
+                            <Icon className="w-4 h-4 opacity-90 shrink-0" />
+                            <span className={`truncate ${isSidebarMini ? "md:hidden" : ""}`}>{item.label}</span>
                           </button>
                         );
                       })}
@@ -806,9 +1183,12 @@ export default function App() {
 
         {/* Dynamic Indonesia Time, server host indicator & Logout Row */}
         <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="flex items-center gap-2 bg-slate-55 mb-0.5 dark:bg-slate-850 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-slate-800">
+          <div 
+            className={`flex items-center gap-2 bg-slate-55 mb-0.5 dark:bg-slate-850 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-slate-800 ${isSidebarMini ? "md:justify-center md:px-0.5 md:py-1.5" : ""}`}
+            title={`WITA TIME COORD: ${currentTime || "—"}`}
+          >
             <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-550 shrink-0" />
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 ${isSidebarMini ? "md:hidden" : ""}`}>
               <div className="text-slate-500 dark:text-slate-400 leading-none text-[9px]">WITA TIME COORD</div>
               <p className="text-slate-850 dark:text-white font-mono text-xs mt-0.5 font-bold leading-none">{currentTime || "—"}</p>
             </div>
@@ -816,9 +1196,11 @@ export default function App() {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-red-500/10 hover:border-red-500/20 text-red-655 dark:text-red-400 hover:text-red-700 text-xs font-bold rounded-lg transition-colors bg-white dark:bg-transparent cursor-pointer"
+            title="Log out Session"
+            className={`w-full flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-red-500/10 hover:border-red-500/20 text-red-655 dark:text-red-400 hover:text-red-700 text-xs font-bold rounded-lg transition-colors bg-white dark:bg-transparent cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0 md:py-1.5" : "justify-center"}`}
           >
-            <LogOut className="w-3.5 h-3.5" /> Log out Session
+            <LogOut className="w-3.5 h-3.5 shrink-0" /> 
+            <span className={isSidebarMini ? "md:hidden" : ""}>Log out Session</span>
           </button>
         </div>
       </aside>
@@ -832,9 +1214,15 @@ export default function App() {
           {/* Mobile hamburger menu toggle */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsSidebarOpen(prev => !prev)}
-              className="p-1.5 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg shrink-0"
-              title="Toggle Sidebar"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsSidebarOpen(prev => !prev);
+                } else {
+                  toggleSidebarMini();
+                }
+              }}
+              className="p-1.5 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg shrink-0 cursor-pointer"
+              title="Toggle Sidebar Width"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -986,8 +1374,8 @@ export default function App() {
           
           {currentView === "dashboard" && (
             <DashboardView 
-              projects={projects}
-              tasks={tasks}
+              projects={scopedProjects}
+              tasks={scopedTasks}
               onNavigateToView={(v) => setCurrentView(v)}
               onViewTaskDetail={handleOpenTaskDetailDirectly}
               picThemeColors={picThemeColors}
@@ -996,9 +1384,9 @@ export default function App() {
 
           {currentView === "projects" && (
             <ProjectsView 
-              projects={projects}
-              tasks={tasks}
-              logs={logs}
+              projects={scopedProjects}
+              tasks={scopedTasks}
+              logs={scopedLogs}
               currentUser={currentUser}
               picsList={picsList}
               modulsList={modulsList}
@@ -1016,8 +1404,8 @@ export default function App() {
 
           {currentView === "tasks" && (
             <TasksView 
-              tasks={tasks}
-              projects={projects}
+              tasks={scopedTasks}
+              projects={scopedProjects}
               currentUser={currentUser}
               picsList={picsList}
               modulsList={modulsList}
@@ -1029,15 +1417,18 @@ export default function App() {
               onAddTask={handleAddTask}
               onUpdateTask={handleUpdateTask}
               onDeleteTask={handleDeleteTask}
+              initialOpenWithStatus={quickTaskStatusLink}
+              onClearInitialStatus={() => setQuickTaskStatusLink(null)}
             />
           )}
 
           {currentView === "kanban" && (
             <KanbanView 
-              tasks={tasks}
-              projects={projects}
+              tasks={scopedTasks}
+              projects={scopedProjects}
               picsList={picsList}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
+              progressStatusesList={settings?.progressStatuses ? settings.progressStatuses.filter((x: any) => x.active).map((x: any) => x.value) : progressStatusesList}
               picThemeColors={picThemeColors}
               onUpdateTask={handleUpdateTask}
               onViewTaskDetail={handleOpenTaskDetailDirectly}
@@ -1047,8 +1438,8 @@ export default function App() {
 
           {currentView === "gantt" && (
             <GanttView 
-              tasks={tasks}
-              projects={projects}
+              tasks={scopedTasks}
+              projects={scopedProjects}
               picsList={picsList}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
               picThemeColors={picThemeColors}
@@ -1058,29 +1449,81 @@ export default function App() {
 
           {currentView === "calendar" && (
             <CalendarView 
-              tasks={tasks}
-              projects={projects}
+              tasks={scopedTasks}
+              projects={scopedProjects}
               onViewTaskDetail={handleOpenTaskDetailDirectly}
             />
           )}
 
           {currentView === "collab" && (
             <CollaborationViews 
-              commLogs={commLogs}
-              meetingLogs={meetingLogs}
-              docs={docs}
-              projects={projects}
+              commLogs={scopedCommLogs}
+              meetingLogs={scopedMeetingLogs}
+              baLogs={scopedBaLogs}
+              docs={scopedDocs}
+              projects={scopedProjects}
               currentUser={currentUser}
               onAddCommLog={handleAddCommLog}
               onDeleteCommLog={handleDeleteCommLog}
               onAddMeetingLog={handleAddMeetingLog}
               onDeleteMeetingLog={handleDeleteMeetingLog}
+              onAddBALog={handleAddBALog}
+              onDeleteBALog={handleDeleteBALog}
               onAddDoc={handleAddDoc}
               onDeleteDoc={handleDeleteDoc}
+              tipeMediaList={settings?.tipeMedia ? settings.tipeMedia.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
+              jenisBeritaAcaraList={settings?.jenisBeritaAcara ? settings.jenisBeritaAcara.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
             />
           )}
 
-          {currentView === "users" && currentUser?.role === "Administrator" && (
+          {currentView === "tickets" && (
+            <TicketsView 
+              tickets={scopedTickets}
+              clients={scopedClients}
+              projects={scopedProjects}
+              currentUser={currentUser}
+              onAddTicket={handleAddTicket}
+              onUpdateTicket={handleUpdateTicket}
+              onDeleteTicket={handleDeleteTicket}
+            />
+          )}
+
+          {currentView === "appmodules" && (
+            <ApplicationModulesView 
+              appModules={scopedAppModules}
+              clients={scopedClients}
+              projects={scopedProjects}
+              currentUser={currentUser}
+              onAddModule={handleAddAppModule}
+              onUpdateModule={handleUpdateAppModule}
+              onDeleteModule={handleDeleteAppModule}
+            />
+          )}
+
+          {currentView === "assets" && (
+            <AssetsView 
+              assets={scopedAssets}
+              clients={scopedClients}
+              currentUser={currentUser}
+              onAddAsset={handleAddAsset}
+              onUpdateAsset={handleUpdateAsset}
+              onDeleteAsset={handleDeleteAsset}
+            />
+          )}
+
+          {currentView === "clients" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur") && (
+            <ClientsView 
+              clients={scopedClients}
+              onAddClient={handleAddClient}
+              onUpdateClient={handleUpdateClient}
+              onDeleteClient={handleDeleteClient}
+              tipeMedikaList={settings?.tipeMedika ? settings.tipeMedika.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
+              jenisModulList={settings?.jenisModul ? settings.jenisModul.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
+              statusImplementasiList={settings?.statusImplementasi ? settings.statusImplementasi.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
+            />
+          )}
+
+          {currentView === "users" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur") && (
             <UsersView 
               users={users}
               currentUser={currentUser}
@@ -1088,6 +1531,7 @@ export default function App() {
               onDeleteUser={handleDeleteUser}
               onUpdateUser={handleUpdateUser}
               rolesList={settings.roles || []}
+              clientsList={clients}
             />
           )}
 

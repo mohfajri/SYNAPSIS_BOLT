@@ -72,8 +72,8 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
           <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20 mb-3">
             <Shield className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">TaskHub Enterprise</h1>
-          <p className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Project & Suite Control Layer</p>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">SYNAPSIS</h1>
+          <p className="text-[10px] text-blue-400 font-black tracking-widest uppercase mt-1 leading-normal max-w-sm mx-auto">System for Networked Analytics, Project Synchronization & Integrated Services</p>
         </div>
 
         {/* Card Body */}
@@ -162,7 +162,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-250 focus:outline-none focus:border-blue-500 text-white"
-                  placeholder="admin / fajar"
+                  placeholder="Username Anda"
                 />
               </div>
             </div>
@@ -238,14 +238,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             </button>
           </form>
 
-          {/* Core admin info card for demo setup */}
-          {!isRegister && (
-            <div className="mt-6 pt-5 border-t border-slate-800/60 text-[11px] text-slate-500 leading-relaxed text-center">
-              <span className="font-semibold block mb-1 text-slate-400 uppercase tracking-wider text-[9px]">Demo Account Blueprint</span>
-              Admin Account: <span className="font-mono text-slate-400">admin</span> / <span className="font-mono text-slate-400">admin123</span><br />
-              Lead Account: <span className="font-mono text-slate-400">fajar</span> / <span className="font-mono text-slate-400">fajar123</span>
-            </div>
-          )}
+
         </motion.div>
       </div>
     </div>

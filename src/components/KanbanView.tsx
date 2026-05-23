@@ -16,6 +16,7 @@ interface KanbanViewProps {
   projects: Project[];
   picsList: string[];
   pstatusesList: string[];
+  progressStatusesList?: string[];
   picThemeColors: (picName: string) => string;
   onUpdateTask: (id: string, data: Partial<Task>) => Promise<void>;
   onViewTaskDetail: (id: string) => void;
@@ -27,6 +28,7 @@ export default function KanbanView({
   projects,
   picsList,
   pstatusesList,
+  progressStatusesList,
   picThemeColors,
   onUpdateTask,
   onViewTaskDetail,
@@ -88,14 +90,14 @@ export default function KanbanView({
     return true;
   };
 
-  const statuses = [
-    "Not Started",
-    "In Progress",
-    "Pending",
-    "Backlog",
-    "Done",
-    "Cancelled"
-  ] as const;
+  const baseStatuses = (progressStatusesList && progressStatusesList.length > 0)
+    ? progressStatusesList
+    : ["Not Started", "In Progress", "Pending", "Backlog", "Done", "Cancelled"];
+
+  // Shift Backlog to the far-left (index 0) of the list
+  const statuses = baseStatuses.includes("Backlog")
+    ? ["Backlog", ...baseStatuses.filter(s => s !== "Backlog")]
+    : baseStatuses;
 
   // Filter tasks
   const filtered = tasks.filter((t) => {
@@ -123,7 +125,7 @@ export default function KanbanView({
     }
   }
 
-  async function handleDrop(e: React.DragEvent, col: typeof statuses[number]) {
+  async function handleDrop(e: React.DragEvent, col: string) {
     e.preventDefault();
     if (!draggedId) return;
 

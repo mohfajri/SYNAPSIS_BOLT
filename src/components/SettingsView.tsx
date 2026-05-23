@@ -13,7 +13,12 @@ import {
   Edit2,
   Check,
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  HeartPulse,
+  FileText,
+  FileCheck,
+  Boxes,
+  Zap
 } from "lucide-react";
 import { Project, Task, User } from "../types";
 
@@ -35,6 +40,12 @@ interface SettingsConfig {
   catProgresses: ItemConfig[];
   priorities: ItemConfig[];
   progressStatuses: ItemConfig[];
+  tipeMedika?: ItemConfig[];
+  tipeMedia?: ItemConfig[];
+  kategoriDokumen?: ItemConfig[];
+  jenisBeritaAcara?: ItemConfig[];
+  jenisModul?: ItemConfig[];
+  statusImplementasi?: ItemConfig[];
 }
 
 const AVAILABLE_VIEWS = [
@@ -45,6 +56,10 @@ const AVAILABLE_VIEWS = [
   { id: "gantt", label: "Gantt Timeline" },
   { id: "calendar", label: "Kalender Deadline" },
   { id: "collab", label: "Arsip Kolaborasi" },
+  { id: "tickets", label: "Helpdesk & Troubleshoot" },
+  { id: "appmodules", label: "Registrasi Modul SIMRS" },
+  { id: "assets", label: "Aset & Alat Tambahan" },
+  { id: "clients", label: "Profile Client / RS" },
   { id: "users", label: "Penyusunan Akun (CRUD)" },
   { id: "settings", label: "Setting Sistem" }
 ];
@@ -99,6 +114,13 @@ export default function SettingsView({
       case "catProgresses": return isCatProgressUsed(value);
       case "priorities": return isPriorityUsed(value);
       case "progressStatuses": return isTaskStatusUsed(value);
+      case "tipeMedika":
+      case "tipeMedia":
+      case "kategoriDokumen":
+      case "jenisBeritaAcara":
+      case "jenisModul":
+      case "statusImplementasi":
+        return false;
       default: return false;
     }
   };
@@ -379,6 +401,46 @@ export default function SettingsView({
             <Activity className="w-4.5 h-4.5 shrink-0" />
             <span>Status Progress Sekarang</span>
           </button>
+
+          <button
+            onClick={() => { setActiveTab("tipeMedia"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "tipeMedia" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Boxes className="w-4.5 h-4.5 shrink-0" />
+            <span>Tipe Media</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("kategoriDokumen"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "kategoriDokumen" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <FileText className="w-4.5 h-4.5 shrink-0" />
+            <span>Kategori Dokumen</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("jenisBeritaAcara"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "jenisBeritaAcara" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <FileCheck className="w-4.5 h-4.5 shrink-0" />
+            <span>Jenis Berita Acara</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("jenisModul"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "jenisModul" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Boxes className="w-4.5 h-4.5 shrink-0" />
+            <span>Jenis Modul</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("statusImplementasi"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "statusImplementasi" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Zap className="w-4.5 h-4.5 shrink-0" />
+            <span>Status Implementasi</span>
+          </button>
         </div>
 
         {/* Dynamic Detail Card Panels */}
@@ -561,6 +623,11 @@ export default function SettingsView({
                     {activeTab === "catProgresses" && "Katalog Kategori Progress"}
                     {activeTab === "priorities" && "List Prioritas Tugas"}
                     {activeTab === "progressStatuses" && "Indikator Status Progress"}
+                    {activeTab === "tipeMedia" && "Katalog Tipe Media Korespondensi"}
+                    {activeTab === "kategoriDokumen" && "Kategori Dokumen Arsip"}
+                    {activeTab === "jenisBeritaAcara" && "Jenis Berita Acara (BA)"}
+                    {activeTab === "jenisModul" && "Katalog Jenis Modul Aplikasi"}
+                    {activeTab === "statusImplementasi" && "Status Tahap Implementasi"}
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Kelola data isian rujukan secara global, data lama tetap dipertahankan.</p>
                 </div>
@@ -601,7 +668,7 @@ export default function SettingsView({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-805">
-                    {(settings[activeTab as keyof SettingsConfig] as ItemConfig[]).map((item, idx) => {
+                    {((settings[activeTab as keyof SettingsConfig] || []) as ItemConfig[]).map((item, idx) => {
                       const valueUsed = getIsUsed(activeTab, item.value);
                       const isEditing = editingIndex === idx;
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CommLog, MeetingLog, Documentation, Project, User } from "../types";
+import { CommLog, MeetingLog, Documentation, Project, User, BALog } from "../types";
 import { 
   MessageSquare, 
   Users, 
@@ -15,6 +15,8 @@ import {
   FileSpreadsheet, 
   CheckCircle2, 
   BookOpen,
+  FileCheck,
+  FileText,
   X 
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -22,6 +24,7 @@ import { motion, AnimatePresence } from "motion/react";
 interface CollaborationViewsProps {
   commLogs: CommLog[];
   meetingLogs: MeetingLog[];
+  baLogs?: BALog[];
   docs: Documentation[];
   projects: Project[];
   currentUser: User | null;
@@ -29,13 +32,18 @@ interface CollaborationViewsProps {
   onDeleteCommLog: (id: string) => Promise<void>;
   onAddMeetingLog: (data: Partial<MeetingLog>) => Promise<void>;
   onDeleteMeetingLog: (id: string) => Promise<void>;
+  onAddBALog?: (data: Partial<BALog>) => Promise<void>;
+  onDeleteBALog?: (id: string) => Promise<void>;
   onAddDoc: (data: Partial<Documentation>) => Promise<void>;
   onDeleteDoc: (id: string) => Promise<void>;
+  tipeMediaList?: string[];
+  jenisBeritaAcaraList?: string[];
 }
 
 export default function CollaborationViews({
   commLogs,
   meetingLogs,
+  baLogs = [],
   docs,
   projects,
   currentUser,
@@ -43,18 +51,22 @@ export default function CollaborationViews({
   onDeleteCommLog,
   onAddMeetingLog,
   onDeleteMeetingLog,
+  onAddBALog,
+  onDeleteBALog,
   onAddDoc,
-  onDeleteDoc
+  onDeleteDoc,
+  tipeMediaList = ["WhatsApp", "Email", "Rapat", "Telepon"],
+  jenisBeritaAcaraList = ["BA Serah Terima Alat", "BA Instalasi Aplikasi", "BA Training / Sosialisasi", "BA Go-Live", "BA Penyelesaian Pekerjaan"]
 }: CollaborationViewsProps) {
   
-  const [activeSubTab, setActiveSubTab] = useState<'comm' | 'mom' | 'docs'>('comm');
+  const [activeSubTab, setActiveSubTab] = useState<'comm' | 'mom' | 'ba' | 'docs'>('comm');
   const [filterProject, setFilterProject] = useState("");
 
   // Modal control triggers
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   // ── COMM FORM STATES ──
-  const [commType, setCommType] = useState<'Email' | 'WhatsApp' | 'Rapat' | 'Telepon'>("Email");
+  const [commType, setCommType] = useState<string>("WhatsApp");
   const [commProj, setCommProj] = useState("");
   const [commDate, setCommDate] = useState("");
   const [commParts, setCommParts] = useState("");
@@ -70,6 +82,18 @@ export default function CollaborationViews({
   const [momDecisions, setMomDecisions] = useState("");
   const [momActions, setMomActions] = useState("");
 
+  // ── BERITA ACARA (BA) FORM STATES ──
+  const [baProj, setBaProj] = useState("");
+  const [baNo, setBaNo] = useState("");
+  const [baTitle, setBaTitle] = useState("");
+  const [baType, setBaType] = useState(jenisBeritaAcaraList[0] || "");
+  const [baDate, setBaDate] = useState("");
+  const [baSignatoryRS, setBaSignatoryRS] = useState("");
+  const [baSignatorySupport, setBaSignatorySupport] = useState("");
+  const [baNotes, setBaNotes] = useState("");
+  const [baFileUrl, setBaFileUrl] = useState("");
+  const [baStatus, setBaStatus] = useState("Draft");
+
   // ── DOCS FORM STATES ──
   const [docTitle, setDocTitle] = useState("");
   const [docProj, setDocProj] = useState("");
@@ -81,6 +105,7 @@ export default function CollaborationViews({
   // Filter processes
   const filteredComm = commLogs.filter(c => !filterProject || c.project === filterProject);
   const filteredMeet = meetingLogs.filter(m => !filterProject || m.project === filterProject);
+  const filteredBa = baLogs.filter(ba => !filterProject || ba.project === filterProject);
   const filteredDocs = docs.filter(d => !filterProject || d.project === filterProject);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -91,6 +116,7 @@ export default function CollaborationViews({
     setCommParts("");
     setCommSummary("");
     setCommDetail("");
+    setCommType(tipeMediaList[0] || "WhatsApp");
 
     setMomTitle("");
     setMomProj(projects[0]?.kode || "");
@@ -99,6 +125,17 @@ export default function CollaborationViews({
     setMomAgenda("");
     setMomDecisions("");
     setMomActions("");
+
+    setBaProj(projects[0]?.kode || "");
+    setBaNo("");
+    setBaTitle("");
+    setBaType(jenisBeritaAcaraList[0] || "");
+    setBaDate(todayStr);
+    setBaSignatoryRS("");
+    setBaSignatorySupport("");
+    setBaNotes("");
+    setBaFileUrl("");
+    setBaStatus("Draft");
 
     setDocTitle("");
     setDocProj(projects[0]?.kode || "");
@@ -141,6 +178,29 @@ export default function CollaborationViews({
     setIsFormOpen(false);
   }
 
+  async function handleAddBASubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!baNo.trim() || !baTitle.trim()) {
+      alert("Nomor Berita Acara dan Judul wajib diisi!");
+      return;
+    }
+    if (onAddBALog) {
+      await onAddBALog({
+        project: baProj,
+        noBA: baNo,
+        title: baTitle,
+        type: baType,
+        date: baDate,
+        signatoryRS: baSignatoryRS,
+        signatorySupport: baSignatorySupport,
+        notes: baNotes,
+        fileUrl: baFileUrl,
+        status: baStatus
+      });
+    }
+    setIsFormOpen(false);
+  }
+
   async function handleAddDocSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!docTitle.trim() || !docUrl.trim()) return;
@@ -163,7 +223,7 @@ export default function CollaborationViews({
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-2">
         
         {/* Sub controllers */}
-        <div className="flex gap-1 bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 rounded-lg text-xs">
+        <div className="flex flex-wrap gap-1 bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 rounded-lg text-xs">
           <button
             onClick={() => { setActiveSubTab('comm'); }}
             className={`px-3.5 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${activeSubTab === 'comm' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-sm' : 'text-slate-500 hover:text-slate-200'}`}
@@ -176,6 +236,13 @@ export default function CollaborationViews({
             className={`px-3.5 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${activeSubTab === 'mom' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-sm' : 'text-slate-500 hover:text-slate-200'}`}
           >
             <Users className="w-4 h-4" /> Minutes of Meeting (MoM)
+          </button>
+
+          <button
+            onClick={() => { setActiveSubTab('ba'); }}
+            className={`px-3.5 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${activeSubTab === 'ba' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-extrabold shadow-sm' : 'text-slate-500 hover:text-slate-200'}`}
+          >
+            <FileText className="w-4 h-4" /> Berita Acara (BA)
           </button>
           
           <button
@@ -200,10 +267,11 @@ export default function CollaborationViews({
 
           {currentUser?.role !== "Client" && (
             <button
+              type="button"
               onClick={handleOpenForm}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-sm transition-all"
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-sm transition-all whitespace-nowrap"
             >
-              <Plus className="w-4 h-4" /> {activeSubTab === 'comm' ? "Catat Korelasi" : activeSubTab === 'mom' ? "Tulis MoM" : "Tambah Dokumen"}
+              <Plus className="w-4 h-4" /> {activeSubTab === 'comm' ? "Catat Korelasi" : activeSubTab === 'mom' ? "Tulis MoM" : activeSubTab === 'ba' ? "Buat BA Baru" : "Tambah Dokumen"}
             </button>
           )}
 
@@ -249,16 +317,25 @@ export default function CollaborationViews({
                           </div>
                         </div>
 
-                        {currentUser?.role === "Administrator" && (
-                          <button
-                            onClick={() => {
-                              if (confirm("Hapus log korespondensi ini?")) onDeleteCommLog(c.id);
-                            }}
-                            className="text-slate-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        {(() => {
+                          const canDelete = !c.createdBy || c.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                          return (
+                            <button
+                              onClick={() => {
+                                if (confirm("Hapus log korespondensi ini?")) onDeleteCommLog(c.id);
+                              }}
+                              disabled={!canDelete}
+                              className={`transition-all ${
+                                canDelete
+                                  ? "text-slate-400 hover:text-red-500 cursor-pointer"
+                                  : "text-slate-200 dark:text-slate-800 cursor-not-allowed opacity-40"
+                              }`}
+                              title={canDelete ? "Hapus log korespondensi" : `Hanya penginput (${c.createdBy}) yang boleh menghapus`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          );
+                        })()}
                       </div>
 
                       <h5 className="text-sm font-black text-slate-800 dark:text-slate-100 mt-2 tracking-tight">
@@ -270,6 +347,11 @@ export default function CollaborationViews({
                       <p className="text-xs text-slate-650 dark:text-slate-300 mt-2 leading-relaxed whitespace-pre-wrap">
                         {c.detail}
                       </p>
+                      {c.createdBy && (
+                        <div className="mt-2.5 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-150/10 w-fit">
+                          🧑‍💻 Penginput: <strong className="font-extrabold">{c.createdBy}</strong>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -309,18 +391,32 @@ export default function CollaborationViews({
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">
                         Peserta Rapat: {m.attendees}
                       </p>
+                      {m.createdBy && (
+                        <div className="mt-2 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-150/10 w-fit">
+                          🧑‍💻 Penginput: <strong className="font-extrabold">{m.createdBy}</strong>
+                        </div>
+                      )}
                     </div>
 
-                    {currentUser?.role === "Administrator" && (
-                      <button
-                        onClick={() => {
-                          if (confirm("Hapus arsip MoM rapat ini dari server?")) onDeleteMeetingLog(m.id);
-                        }}
-                        className="text-slate-400 hover:text-red-500 shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    {(() => {
+                      const canDelete = !m.createdBy || m.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                      return (
+                        <button
+                          onClick={() => {
+                            if (confirm("Hapus arsip MoM rapat ini dari server?")) onDeleteMeetingLog(m.id);
+                          }}
+                          disabled={!canDelete}
+                          className={`shrink-0 transition-all p-1.5 rounded-lg ${
+                            canDelete 
+                              ? "text-slate-400 hover:text-red-500 cursor-pointer" 
+                              : "text-slate-200 dark:text-slate-800 cursor-not-allowed opacity-40"
+                          }`}
+                          title={canDelete ? "Hapus MoM" : `Hanya penginput (${m.createdBy}) yang boleh menghapus`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -353,6 +449,138 @@ export default function CollaborationViews({
           </div>
         )}
 
+        {/* TAB: BERITA ACARA (BA) LOGS */}
+        {activeSubTab === 'ba' && (
+          <div className="space-y-4">
+            {filteredBa.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2 opacity-45" />
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Belum ada Berita Acara (BA) dibuat</p>
+                <p className="text-xs text-slate-400">Buat Berita Acara serah terima alat, instalasi aplikasi, training, atau UAT untuk project ini.</p>
+              </div>
+            ) : (
+              filteredBa.map((ba) => (
+                <div 
+                  key={ba.id} 
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 hover:border-blue-500/25 transition-all space-y-4"
+                >
+                  <div className="flex justify-between items-start gap-4 border-b border-slate-101 dark:border-slate-800 pb-3">
+                    <div>
+                      <div className="flex items-center flex-wrap gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono font-bold">
+                        <span className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
+                          {ba.project}
+                        </span>
+                        <span className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-705 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                          {ba.type}
+                        </span>
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <Calendar className="w-3.5 h-3.5" /> {new Date(ba.date).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-black text-slate-800 dark:text-slate-100 mt-2 tracking-tight">
+                        {ba.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono font-semibold">
+                        No. BA: <span className="text-slate-705 dark:text-slate-205">{ba.noBA}</span>
+                      </p>
+                      {ba.createdBy && (
+                        <div className="mt-2 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-150/10 w-fit">
+                          🧑‍💻 Penginput: <strong className="font-extrabold">{ba.createdBy}</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded border ${
+                        ba.status === "Approved" ? "bg-emerald-950/20 text-emerald-400 border-emerald-900/50" :
+                        ba.status === "Signed" ? "bg-blue-950/20 text-blue-300 border-blue-900/50" :
+                        "bg-amber-950/20 text-amber-400 border-amber-900/30"
+                      }`}>
+                        {ba.status}
+                      </span>
+                      {onDeleteBALog && (() => {
+                        const canDelete = !ba.createdBy || ba.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                        return (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Hapus arsip Berita Acara "${ba.title}" dari server?`)) {
+                                onDeleteBALog(ba.id);
+                              }
+                            }}
+                            disabled={!canDelete}
+                            className={`p-1 rounded shrink-0 transition-all ${
+                              canDelete 
+                                ? "text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" 
+                                : "text-slate-200 dark:text-slate-800 cursor-not-allowed opacity-40"
+                            }`}
+                            title={canDelete ? "Hapus BA" : `Hanya penginput (${ba.createdBy}) yang boleh menghapus`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* BA Content Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    {/* Signatures Panel */}
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-850 space-y-2">
+                      <p className="font-extrabold text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileCheck className="w-4 h-4 text-emerald-500" /> Penandatangan Berita Acara
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1 font-medium">
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-bold">Penandatangan RS</p>
+                          <p className="text-slate-700 dark:text-slate-200 truncate">{ba.signatoryRS || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase font-bold">Pelaksana/Support</p>
+                          <p className="text-slate-700 dark:text-slate-200 truncate">{ba.signatorySupport || "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Attachment & Notes */}
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3.5 rounded-xl border border-slate-101 dark:border-slate-850 flex flex-col justify-between">
+                      <div>
+                        <p className="font-extrabold text-[10px] text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Files className="w-4 h-4 text-blue-500" /> Tautan Dokumen Lampiran
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1.5 font-medium">
+                          {ba.fileUrl ? (
+                            <a 
+                              href={ba.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-500 dark:text-blue-400 underline font-semibold flex items-center gap-1 hover:text-blue-300"
+                            >
+                              <Link2 className="w-3.5 h-3.5 inline shrink-0" />
+                              <span className="truncate">{ba.fileUrl}</span>
+                            </a>
+                          ) : (
+                            <span className="italic">Tidak ada dokumen terlampir</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Description Notes full-width */}
+                    <div className="md:col-span-2 bg-slate-50 dark:bg-slate-950/20 p-3.5 rounded-xl space-y-1.5">
+                      <p className="font-extrabold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Catatan Deskripsi Kegiatan / Deskripsi Singkat Pekerjaan:
+                      </p>
+                      <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-normal whitespace-pre-wrap">
+                        {ba.notes || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         {/* TAB 3: DOCUMENTATION LINKS */}
         {activeSubTab === 'docs' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -379,16 +607,25 @@ export default function CollaborationViews({
                         </span>
                       </div>
 
-                      {currentUser?.role === "Administrator" && (
-                        <button
-                          onClick={() => {
-                            if (confirm("Hapus tautan dokumen ini?")) onDeleteDoc(d.id);
-                          }}
-                          className="text-slate-400 hover:text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      {(() => {
+                        const canDelete = !d.createdBy || d.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                        return (
+                          <button
+                            onClick={() => {
+                              if (confirm("Hapus tautan dokumen ini?")) onDeleteDoc(d.id);
+                            }}
+                            disabled={!canDelete}
+                            className={`transition-all ${
+                              canDelete 
+                                ? "text-slate-400 hover:text-red-500 cursor-pointer" 
+                                : "text-slate-200 dark:text-slate-800 cursor-not-allowed opacity-40"
+                            }`}
+                            title={canDelete ? "Hapus dokumen" : `Hanya penginput (${d.createdBy}) yang boleh menghapus`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        );
+                      })()}
                     </div>
 
                     <h5 className="text-sm font-black text-slate-850 dark:text-slate-100 mt-2.5 tracking-tight">
@@ -400,6 +637,11 @@ export default function CollaborationViews({
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 lines-2-clamp">
                       {d.desc || "Tidak ada rincian keterangan tambahan."}
                     </p>
+                    {d.createdBy && (
+                      <div className="mt-2.5 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-150/10 w-fit">
+                        🧑‍💻 Penginput: <strong className="font-extrabold">{d.createdBy}</strong>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -433,7 +675,7 @@ export default function CollaborationViews({
               <div className="flex justify-between items-center border-b border-slate-150/80 pb-3">
                 <div>
                   <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">
-                    {activeSubTab === 'comm' ? "Buat Log Korespondensi" : activeSubTab === 'mom' ? "Tulis Arsip Notula Rapat (MoM)" : "Arsipkan Tautan Dokumen Baru"}
+                    {activeSubTab === 'comm' ? "Buat Log Korespondensi" : activeSubTab === 'mom' ? "Tulis Arsip Notula Rapat (MoM)" : activeSubTab === 'ba' ? "Buat Berita Acara (BA) Baru" : "Arsipkan Tautan Dokumen Baru"}
                   </h3>
                   <p className="text-xs text-slate-450 font-medium">Data akan langsung tersimpan & sinkron dengan server.</p>
                 </div>
@@ -454,13 +696,12 @@ export default function CollaborationViews({
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tipe Media</label>
                       <select
                         value={commType}
-                        onChange={(e) => setCommType(e.target.value as any)}
+                        onChange={(e) => setCommType(e.target.value)}
                         className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg"
                       >
-                        <option value="WhatsApp">💬 WhatsApp Chat</option>
-                        <option value="Email">✉️ Surat Elektronik (Email)</option>
-                        <option value="Rapat">🤝 Diskusi Rapat Tatap Muka</option>
-                        <option value="Telepon">📞 Telepon Langsung</option>
+                        {tipeMediaList.map((tm) => (
+                          <option key={tm} value={tm}>{tm}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -640,6 +881,145 @@ export default function CollaborationViews({
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-all"
                     >
                       Arsipkan MoM Rapat
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* ─ RENDER FORM: BERITA ACARA (BA) LOG ─ */}
+              {activeSubTab === 'ba' && (
+                <form onSubmit={handleAddBASubmit} className="space-y-3.5 text-xs">
+                  <div className="grid grid-cols-2 gap-3.5 text-xs animate-fadeIn">
+                    <div className="flex flex-col gap-1 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Judul BA / Nama Kegiatan *</label>
+                      <input
+                        type="text"
+                        required
+                        value={baTitle}
+                        onChange={(e) => setBaTitle(e.target.value)}
+                        placeholder="Contoh: Berita Acara Training Modul Keuangan RS"
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nomor Berita Acara (No. BA) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={baNo}
+                        onChange={(e) => setBaNo(e.target.value)}
+                        placeholder="Contoh: 002/BA-KOM/V/2026"
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Project Terkait</label>
+                      <select
+                        value={baProj}
+                        onChange={(e) => setBaProj(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      >
+                        {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Jenis Berita Acara</label>
+                      <select
+                        value={baType}
+                        onChange={(e) => setBaType(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      >
+                        {jenisBeritaAcaraList.map(item => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tanggal Kegiatan</label>
+                      <input
+                        type="date"
+                        required
+                        value={baDate}
+                        onChange={(e) => setBaDate(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Penandatangan RS (Pihak 1)</label>
+                      <input
+                        type="text"
+                        value={baSignatoryRS}
+                        onChange={(e) => setBaSignatoryRS(e.target.value)}
+                        placeholder="Nama & Jabatan representatif RS"
+                        className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-505 uppercase tracking-widest">Penandatangan Pelaksana (Pihak 2)</label>
+                      <input
+                        type="text"
+                        value={baSignatorySupport}
+                        onChange={(e) => setBaSignatorySupport(e.target.value)}
+                        placeholder="Nama staff pelaksana/Support"
+                        className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-505 uppercase tracking-widest">Link Attachment Dokumen</label>
+                      <input
+                        type="url"
+                        value={baFileUrl}
+                        onChange={(e) => setBaFileUrl(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/..."
+                        className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-205"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1 font-semibold">
+                      <label className="text-[10px] font-bold text-slate-505 uppercase tracking-widest">Status Berita Acara</label>
+                      <select
+                        value={baStatus}
+                        onChange={(e) => setBaStatus(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-205"
+                      >
+                        <option value="Draft">Draft</option>
+                        <option value="Signed">Signed (Telah Ditandatangani)</option>
+                        <option value="Approved">Approved (Disetujui Pimpinan)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Catatan / Deskripsi Singkat Berita Acara</label>
+                    <textarea
+                      rows={3}
+                      value={baNotes}
+                      onChange={(e) => setBaNotes(e.target.value)}
+                      placeholder="Uraian ringkas implementasi, kendala, atau poin tambahan serah terima..."
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsFormOpen(false)}
+                      className="px-4 py-2 border border-slate-250 text-slate-505 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-all"
+                    >
+                      Simpan Berita Acara
                     </button>
                   </div>
                 </form>

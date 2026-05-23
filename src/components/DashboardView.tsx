@@ -92,7 +92,7 @@ export default function DashboardView({
             {greeting}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            Hari ini adalah {formattedDate} &bull; Selamat bekerja di TaskHub Enterprise.
+            Hari ini adalah {formattedDate} &bull; Selamat bekerja di SYNAPSIS.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 rounded-xl px-4 py-3">

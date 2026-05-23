@@ -14,6 +14,8 @@
   --color-pending: #a855f7;
 }
 
+@variant dark (&:where(.dark, .dark *));
+
 /* Base resets & scrollbars */
 html, body {
   font-family: var(--font-sans);

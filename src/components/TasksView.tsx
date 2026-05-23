@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Task, Project, User, SubTask } from "../types";
 import { 
   Search, 
@@ -17,7 +17,8 @@ import {
   PlusCircle,
   AlertCircle,
   Info,
-  FileText
+  FileText,
+  Share2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -35,6 +36,8 @@ interface TasksViewProps {
   onDeleteTask: (id: string) => Promise<void>;
   prioritiesList?: string[];
   progressStatusesList?: string[];
+  initialOpenWithStatus?: string | null;
+  onClearInitialStatus?: () => void;
 }
 
 export default function TasksView({
@@ -50,7 +53,9 @@ export default function TasksView({
   onUpdateTask,
   onDeleteTask,
   prioritiesList = ["Urgent", "High", "Medium", "Low", "Very Low"],
-  progressStatusesList = ["Not Started", "In Progress", "Done", "Pending", "Cancelled", "Backlog"]
+  progressStatusesList = ["Not Started", "In Progress", "Done", "Pending", "Cancelled", "Backlog"],
+  initialOpenWithStatus,
+  onClearInitialStatus
 }: TasksViewProps) {
   
   const [search, setSearch] = useState("");
@@ -58,6 +63,8 @@ export default function TasksView({
   const [filterPriority, setFilterPriority] = useState("");
   const [filterPic, setFilterPic] = useState("");
   const [filterProject, setFilterProject] = useState("");
+  const [filterTaskType, setFilterTaskType] = useState("");
+  const [filterCatProgress, setFilterCatProgress] = useState("");
   
   // View mode State: 'ticket' (interactive grid cards) or 'table' (rows)
   const [viewMode, setViewMode] = useState<'ticket' | 'table'>('ticket');
@@ -86,6 +93,15 @@ export default function TasksView({
   const [tempSubTasks, setTempSubTasks] = useState<SubTask[]>([]);
   const [newSubTitle, setNewSubTitle] = useState("");
 
+  // Penyesuaian 10 & 14 States
+  const [taskCategoryType, setTaskCategoryType] = useState<string>("Project");
+  const [reporterName, setReporterName] = useState("");
+  const [reporterDept, setReporterDept] = useState("");
+  const [glpiId, setGlpiId] = useState("");
+  const [mantisId, setMantisId] = useState("");
+  const [gitlabId, setGitlabId] = useState("");
+  const [externalTicketStatus, setExternalTicketStatus] = useState<string>("");
+
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // Filters logic mapping
@@ -96,8 +112,18 @@ export default function TasksView({
     const matchesPriority = filterPriority === "" || t.priority === filterPriority;
     const matchesPic = filterPic === "" || t.pic === filterPic;
     const matchesProject = filterProject === "" || t.project === filterProject;
+    const matchesTaskType = filterTaskType === "" || t.taskType === filterTaskType;
+    const matchesCatProgress = filterCatProgress === "" || t.categoryProgress === filterCatProgress;
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesPic && matchesProject;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesPriority &&
+      matchesPic &&
+      matchesProject &&
+      matchesTaskType &&
+      matchesCatProgress
+    );
   });
 
   // Export CSV Helper
@@ -143,12 +169,30 @@ export default function TasksView({
     setNotes("");
     setUrl("");
     setTempSubTasks([]);
+    setTaskCategoryType("Project");
+    setReporterName("");
+    setReporterDept("");
+    setGlpiId("");
+    setMantisId("");
+    setGitlabId("");
+    setExternalTicketStatus("");
     setIsFormOpen(true);
   }
 
+  // Auto-preset for Quick Add on Kanban Board (Item #13)
+  useEffect(() => {
+    if (initialOpenWithStatus) {
+      openCreate();
+      setStatus(initialOpenWithStatus);
+      if (onClearInitialStatus) {
+        onClearInitialStatus();
+      }
+    }
+  }, [initialOpenWithStatus, onClearInitialStatus]);
+
   function openEdit(t: Task) {
     setEditingTask(t);
-    setProjectCode(t.project);
+    setProjectCode(t.project || "");
     setModulName(t.modul || "");
     setTaskName(t.task);
     setTaskType(t.taskType || "");
@@ -162,6 +206,13 @@ export default function TasksView({
     setNotes(t.notes || "");
     setUrl(t.url || "");
     setTempSubTasks(t.subtasks || []);
+    setTaskCategoryType(t.taskCategoryType || "Project");
+    setReporterName(t.reporterName || "");
+    setReporterDept(t.reporterDept || "");
+    setGlpiId(t.glpiId || "");
+    setMantisId(t.mantisId || "");
+    setGitlabId(t.gitlabId || "");
+    setExternalTicketStatus(t.externalTicketStatus || "");
     setIsFormOpen(true);
   }
 
@@ -219,8 +270,8 @@ export default function TasksView({
     }
 
     const payload: Partial<Task> = {
-      project: projectCode,
-      modul: modulName,
+      project: taskCategoryType === "Project" ? projectCode : "",
+      modul: taskCategoryType === "Project" ? modulName : "",
       task: taskName,
       taskType,
       categoryProgress: catProgress,
@@ -232,7 +283,14 @@ export default function TasksView({
       progress: finalProgress,
       notes,
       url,
-      subtasks: tempSubTasks
+      subtasks: tempSubTasks,
+      taskCategoryType,
+      reporterName: taskCategoryType !== "Project" ? reporterName : "",
+      reporterDept: taskCategoryType !== "Project" ? reporterDept : "",
+      glpiId,
+      mantisId,
+      gitlabId,
+      externalTicketStatus
     };
 
     if (editingTask) {
@@ -370,31 +428,81 @@ export default function TasksView({
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PROJECT SELECTION</label>
-                <select
-                  value={projectCode}
-                  onChange={(e) => setProjectCode(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                >
-                  {projects.map(p => (
-                    <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">KATEGORI TUGAS *</label>
+                <div className="flex gap-4 p-1 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  {["Project", "Request", "Incident"].map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setTaskCategoryType(type)}
+                      className={`flex-1 py-2 text-center rounded-lg font-black text-xs transition-all cursor-pointer ${
+                        taskCategoryType === type
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-450 hover:bg-slate-100 dark:hover:bg-slate-900"
+                      }`}
+                    >
+                      {type}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">MODULE / MODUL TERKAIT</label>
-                <select
-                  value={modulName}
-                  onChange={(e) => setModulName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                >
-                  {modulsList.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
+              {taskCategoryType === "Project" ? (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PROJECT SELECTION</label>
+                    <select
+                      value={projectCode}
+                      onChange={(e) => setProjectCode(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                    >
+                      {projects.map(p => (
+                        <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">MODULE / MODUL TERKAIT</label>
+                    <select
+                      value={modulName}
+                      onChange={(e) => setModulName(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                    >
+                      {modulsList.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">NAMA PELAPOR *</label>
+                    <input
+                      type="text"
+                      required
+                      value={reporterName}
+                      onChange={(e) => setReporterName(e.target.value)}
+                      placeholder="Ketik nama pelapor / helpdesk..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-100 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal placeholder:opacity-50"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">BAGIAN PELAPOR / UNIT *</label>
+                    <input
+                      type="text"
+                      required
+                      value={reporterDept}
+                      onChange={(e) => setReporterDept(e.target.value)}
+                      placeholder="Contoh: Unit SIMRS, Rawat Jalan, Keuangan..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-100 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal placeholder:opacity-50"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -498,6 +606,74 @@ export default function TasksView({
                   onChange={(e) => setProgressManual(parseInt(e.target.value))}
                   className="w-full accent-blue-600 disabled:opacity-40 cursor-pointer"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Integrasi ID Tiket Eksternal (Penyesuaian 14) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/60">
+              <Share2 className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <h3 className="font-extrabold text-[11px] text-slate-800 dark:text-slate-200 uppercase tracking-widest">Integrasi ID Tiket Eksternal (GLPI, Mantis, Gitlab)</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">GLPI ID TIKET</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={glpiId}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, ""); // Allow only digits
+                    setGlpiId(cleaned);
+                  }}
+                  placeholder="Maks 10 digit angka"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-100 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">MANTIS ID TIKET</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={mantisId}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, ""); // Allow only digits
+                    setMantisId(cleaned);
+                  }}
+                  placeholder="Maks 10 digit angka"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-100 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">GITLAB ID TIKET</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={gitlabId}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, ""); // Allow only digits
+                    setGitlabId(cleaned);
+                  }}
+                  placeholder="Maks 10 digit angka"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-100 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">STATUS TIKET EKSTERNAL</label>
+                <select
+                  value={externalTicketStatus}
+                  onChange={(e) => setExternalTicketStatus(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                >
+                  <option value="">Belum Ditautkan</option>
+                  <option value="Open">🟢 OPEN</option>
+                  <option value="Closed">🔴 CLOSED</option>
+                </select>
               </div>
             </div>
           </div>
@@ -634,20 +810,29 @@ export default function TasksView({
 
           {/* Footer buttons / actions */}
           <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
-            {editingTask ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm("Hapus tugas ini secara berantai dari system database?")) {
-                    onDeleteTask(editingTask.id);
-                    setIsFormOpen(false);
-                  }
-                }}
-                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-650 text-xs font-extrabold rounded-lg border border-red-200 transition-all font-sans"
-              >
-                Hapus Tugas
-              </button>
-            ) : <span />}
+            {editingTask ? (() => {
+              const canModify = !editingTask.createdBy || editingTask.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Hapus tugas ini secara berantai dari system database?")) {
+                      onDeleteTask(editingTask.id);
+                      setIsFormOpen(false);
+                    }
+                  }}
+                  disabled={!canModify}
+                  className={`px-4 py-2.5 text-xs font-extrabold rounded-lg border transition-all font-sans ${
+                    canModify 
+                      ? "bg-red-50 hover:bg-red-100 hover:text-red-700 text-red-650 border-red-200 cursor-pointer" 
+                      : "bg-slate-50 dark:bg-slate-850 text-slate-300 dark:text-slate-700 border-transparent cursor-not-allowed opacity-50"
+                  }`}
+                  title={canModify ? "Hapus Tugas" : `Hanya penginput (${editingTask.createdBy}) yang boleh menghapus`}
+                >
+                  Hapus Tugas
+                </button>
+              );
+            })() : <span />}
 
             <div className="flex gap-2">
               <button
@@ -657,13 +842,24 @@ export default function TasksView({
               >
                 Batal / Cancel
               </button>
-              <button
-                id="submit-btn-trigger"
-                type="submit"
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-lg hover:shadow-lg active:scale-95 transition-all cursor-pointer font-sans"
-              >
-                {editingTask ? "Ubah & Simpan Tugas" : "Buat Tugas Baru"}
-              </button>
+              {(() => {
+                const canModify = !editingTask || !editingTask.createdBy || editingTask.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                return (
+                  <button
+                    id="submit-btn-trigger"
+                    type="submit"
+                    disabled={!canModify}
+                    className={`px-6 py-2.5 text-xs font-black rounded-lg hover:shadow-lg active:scale-95 transition-all font-sans ${
+                      canModify 
+                        ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer" 
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-650 cursor-not-allowed opacity-50"
+                    }`}
+                    title={canModify ? "" : `Hanya penginput (${editingTask?.createdBy}) yang boleh menyimpan perubahan`}
+                  >
+                    {editingTask ? "Ubah & Simpan Tugas" : "Buat Tugas Baru"}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -754,6 +950,24 @@ export default function TasksView({
           {picsList.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
 
+        <select
+          value={filterTaskType}
+          onChange={(e) => setFilterTaskType(e.target.value)}
+          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
+        >
+          <option value="">Semua Tipe Tugas</option>
+          {tasktypesList.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <select
+          value={filterCatProgress}
+          onChange={(e) => setFilterCatProgress(e.target.value)}
+          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
+        >
+          <option value="">Semua Kategori Progress</option>
+          {catProgsList.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
         {/* View togglers & action button */}
         <div className="flex bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
           <button
@@ -836,6 +1050,11 @@ export default function TasksView({
                       {t.categoryProgress && (
                         <span className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
                           {t.categoryProgress}
+                        </span>
+                      )}
+                      {t.createdBy && (
+                        <span className="bg-indigo-50/75 dark:bg-indigo-950/45 border border-indigo-100/35 text-indigo-650 dark:text-indigo-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          🧑‍💻 {t.createdBy}
                         </span>
                       )}
                     </div>
@@ -1020,6 +1239,14 @@ export default function TasksView({
                     {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString("id-ID") : "—"}
                   </p>
                 </div>
+                {selectedTask.createdBy && (
+                  <div>
+                    <p className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest font-sans">Dibuat Oleh</p>
+                    <p className="font-bold text-indigo-600 dark:text-indigo-450 mt-1">
+                      🧑‍💻 {selectedTask.createdBy}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Progress Panel */}
@@ -1067,6 +1294,51 @@ export default function TasksView({
                 </div>
               </div>
 
+              {/* Dynamic Reporter Detail block if request/incident to support Penyesuaian 10 details */}
+              {selectedTask.taskCategoryType && selectedTask.taskCategoryType !== "Project" && (
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/55 p-3 rounded-xl text-xs space-y-1">
+                  <p className="font-bold text-amber-700 dark:text-amber-400 uppercase text-[9px] tracking-wider">Detail Pelapor ({selectedTask.taskCategoryType})</p>
+                  <p className="text-slate-850 dark:text-slate-200">
+                    <span className="text-slate-400 font-bold">Nama Pelapor:</span> {selectedTask.reporterName || "—"}
+                  </p>
+                  <p className="text-slate-850 dark:text-slate-200">
+                    <span className="text-slate-400 font-bold">Bagian/Unit:</span> {selectedTask.reporterDept || "—"}
+                  </p>
+                </div>
+              )}
+
+              {/* External Tickets Tracker Panel in details to support Penyesuaian 14 details */}
+              {(selectedTask.glpiId || selectedTask.mantisId || selectedTask.gitlabId) && (
+                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150/10 dark:border-slate-800/40 p-3.5 rounded-xl text-xs space-y-2">
+                  <p className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Tautan Tiket Eksternal</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    {selectedTask.glpiId && (
+                      <p className="text-slate-700 dark:text-slate-300">
+                        <span className="text-slate-400 font-bold font-sans">GLPI:</span> <span className="font-mono bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-[11px] font-bold">{selectedTask.glpiId}</span>
+                      </p>
+                    )}
+                    {selectedTask.mantisId && (
+                      <p className="text-slate-700 dark:text-slate-300">
+                        <span className="text-slate-400 font-bold font-sans">Mantis:</span> <span className="font-mono bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-[11px] font-bold">{selectedTask.mantisId}</span>
+                      </p>
+                    )}
+                    {selectedTask.gitlabId && (
+                      <p className="text-slate-700 dark:text-slate-300">
+                        <span className="text-slate-400 font-bold font-sans">GitLab:</span> <span className="font-mono bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-[11px] font-bold">{selectedTask.gitlabId}</span>
+                      </p>
+                    )}
+                  </div>
+                  {selectedTask.externalTicketStatus && (
+                    <p className="text-xs pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+                      <span className="text-slate-400 font-bold">Status Tiket:</span>{" "}
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${selectedTask.externalTicketStatus === "Open" ? "bg-emerald-55 text-emerald-700 dark:bg-emerald-950/25 dark:text-emerald-400 border border-emerald-250" : "bg-red-50 text-red-650 dark:bg-red-950/25 dark:text-red-400 border border-red-200"}`}>
+                        {selectedTask.externalTicketStatus.toUpperCase()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Extra notes */}
               {selectedTask.notes && (
                 <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150/10 dark:border-slate-800/40 p-3.5 rounded-xl text-xs">
@@ -1091,17 +1363,26 @@ export default function TasksView({
               )}
 
               <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800">
-                {currentUser?.role !== "Client" ? (
-                  <button
-                    onClick={() => {
-                      setSelectedTask(null);
-                      openEdit(selectedTask);
-                    }}
-                    className="px-4 py-1.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition-all"
-                  >
-                    Edit Tugas
-                  </button>
-                ) : <span />}
+                {currentUser?.role !== "Client" ? (() => {
+                  const canModify = !selectedTask.createdBy || selectedTask.createdBy === currentUser?.username || currentUser?.role === "Administrator";
+                  return (
+                    <button
+                      onClick={() => {
+                        setSelectedTask(null);
+                        openEdit(selectedTask);
+                      }}
+                      disabled={!canModify}
+                      className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        canModify 
+                          ? "bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer" 
+                          : "bg-slate-50 dark:bg-slate-850 text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-50"
+                      }`}
+                      title={canModify ? "Edit Tugas" : `Hanya penginput (${selectedTask.createdBy}) yang boleh mengedit`}
+                    >
+                      Edit Tugas
+                    </button>
+                  );
+                })() : <span />}
 
                 <button
                   onClick={() => setSelectedTask(null)}
