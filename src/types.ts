@@ -158,22 +158,37 @@ export interface Ticket {
 
 export interface SubModule {
   id: string;
-  name: string; // Nama Sub Modul
-  featureDesc: string; // Keterangan Fitur
-  startDate: string; // Rentang Implementasi Mulai
-  endDate: string; // Rentang Implementasi Selesai
-  status: string; // Status Implementasi sub-modul
+  noFeature?: string; // No Fitur Modul (Otomatis 3-digit)
+  name: string; // Nama Fitur Modul
+  featureDesc: string; // Detail Keterangan Modul
+  startDate?: string; // Rentang Implementasi Mulai (legacy)
+  endDate?: string; // Rentang Implementasi Selesai (legacy)
+  status: string; // Status Modul (Aktif, Non Aktif, Dalam Pengembangan)
+  imageFileName?: string; // Gambar Modul (File name)
+  imageFileData?: string; // Gambar Modul (File content base64 of img/pdf)
+  releaseDate?: string; // Tanggal Realese Fitur
 }
 
 export interface AppModule {
   id: string;
   projectName: string; // Reference to Client RS or Project
+  noModul?: string; // No Modul (Otomatis 3-digit)
   name: string; // Nama Modul
-  type: string; // Jenis Modul
-  implementationStatus: string; // Status Implementasi
-  implementationDate: string; // Tanggal Implementasi
+  type?: string; // Jenis Kelompok Modul (legacy)
+  jenisModul?: string; // Jenis Modul (Front Office, Back Office, Bridging)
+  jenisAplikasiModul?: string; // Jenis Aplikasi Modul (Web, Mobile)
+  platformModul?: string; // Platform Modul (Desktop, Web)
+  docFileName?: string; // Document filename
+  docFileData?: string; // Document file data (Base64)
+  pptFileName?: string; // PPT filename
+  pptFileData?: string; // PPT file data (Base64)
+  url?: string; // URL Modul
+  releaseDate?: string; // Tanggal Realese Modul
+  statusModul?: string; // Status Modul (Aktif, Non Aktif, Dalam Pengembangan)
+  implementationStatus: string; // (legacy)
+  implementationDate: string; // (legacy)
   pic: string; // PIC
-  subModules: SubModule[]; // Relasional anak
+  subModules: SubModule[]; // Fitur Modul anak
   createdAt: string;
   createdBy?: string;
 }
@@ -211,6 +226,23 @@ export interface Asset {
   status: 'Aktif' | 'Rusak' | 'Maintenance' | string;
   specs: AssetSpecs;
   notes?: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface SiteModuleImplementation {
+  id: string;
+  clientRS: string; // Master Client namaRS
+  appModuleId: string; // AppModule ID
+  appModuleName: string; // AppModule Name
+  subModuleId?: string; // SubModule ID (Feature Modul)
+  subModuleName?: string; // SubModule Name
+  statusImplementasi: string; // e.g., Berjalan, Tidak Berjalan
+  tanggalImplementasi: string; // e.g., 2026-05-24
+  statusPenggunaan: string; // e.g., Optimal, Tidak Optimal
+  kategoriImplementasi: string; // e.g., Request, Pengembangan
+  picImplementasi: string; // e.g. User nickname/name assigned to this site
+  keterangan: string; // Free text description
   createdAt: string;
   createdBy?: string;
 }

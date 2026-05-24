@@ -27,6 +27,7 @@ interface TasksViewProps {
   projects: Project[];
   currentUser: User | null;
   picsList: string[];
+  users?: User[];
   modulsList: string[];
   tasktypesList: string[];
   catProgsList: string[];
@@ -45,6 +46,7 @@ export default function TasksView({
   projects,
   currentUser,
   picsList,
+  users = [],
   modulsList,
   tasktypesList,
   catProgsList,
@@ -103,6 +105,41 @@ export default function TasksView({
   const [externalTicketStatus, setExternalTicketStatus] = useState<string>("");
 
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Get dynamic PIC options filter based on target site of the selected project
+  const getDynamicPicsList = () => {
+    // Exclude administrators, display users according to site/project client
+    if (!users || users.length === 0) {
+      return picsList.filter(p => p !== "Admin" && p !== "admin");
+    }
+    
+    // Find the client RS name of the currently selected project code
+    const currentProj = projects.find(p => p.kode === projectCode);
+    const targetSite = currentProj?.client || currentUser?.siteTugas || "";
+    
+    // Filter active users who are not Administrator
+    const activeNonAdminUsers = users.filter(u => u.statusAktif !== false && u.role !== "Administrator" && u.username !== "admin");
+    
+    if (targetSite) {
+      const siteSpecificUsers = activeNonAdminUsers.filter(u => u.siteTugas && u.siteTugas.toLowerCase() === targetSite.toLowerCase());
+      if (siteSpecificUsers.length > 0) {
+        return siteSpecificUsers.map(u => u.nickname || u.username);
+      }
+    }
+    
+    // If no target site is set, or no users are assigned to that site, fallback to all active non-admin users
+    return activeNonAdminUsers.map(u => u.nickname || u.username);
+  };
+
+  // Synchronize pic choice dynamically when projectCode is changed during creation
+  useEffect(() => {
+    if (!editingTask && isFormOpen) {
+      const dynamicPics = getDynamicPicsList();
+      if (dynamicPics.length > 0 && !dynamicPics.includes(pic)) {
+        setPic(dynamicPics[0]);
+      }
+    }
+  }, [projectCode, isFormOpen, editingTask, users]);
 
   // Filters logic mapping
   const filtered = tasks.filter((t) => {
@@ -540,9 +577,9 @@ export default function TasksView({
                 <select
                   value={pic}
                   onChange={(e) => setPic(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                  className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
                 >
-                  {picsList.map(p => (
+                  {getDynamicPicsList().map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>

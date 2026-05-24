@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Project, Task } from "../types";
+import { Project, Task, User } from "../types";
 import { Calendar, Layers, Hourglass, FolderLock, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface GanttViewProps {
   tasks: Task[];
   projects: Project[];
   picsList: string[];
+  users?: User[];
   pstatusesList: string[];
   picThemeColors: (picName: string) => string;
   onViewTaskDetail: (taskId: string) => void;
@@ -15,6 +16,7 @@ export default function GanttView({
   tasks,
   projects,
   picsList,
+  users = [],
   pstatusesList,
   picThemeColors,
   onViewTaskDetail

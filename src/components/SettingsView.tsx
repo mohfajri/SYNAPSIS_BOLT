@@ -46,6 +46,12 @@ interface SettingsConfig {
   jenisBeritaAcara?: ItemConfig[];
   jenisModul?: ItemConfig[];
   statusImplementasi?: ItemConfig[];
+  jenisAplikasiModul?: ItemConfig[];
+  platformModul?: ItemConfig[];
+  statusModul?: ItemConfig[];
+  statusImplementasiSite?: ItemConfig[];
+  statusPenggunaan?: ItemConfig[];
+  kategoriImplementasi?: ItemConfig[];
 }
 
 const AVAILABLE_VIEWS = [
@@ -58,6 +64,7 @@ const AVAILABLE_VIEWS = [
   { id: "collab", label: "Arsip Kolaborasi" },
   { id: "tickets", label: "Helpdesk & Troubleshoot" },
   { id: "appmodules", label: "Registrasi Modul SIMRS" },
+  { id: "sitemodules", label: "Implementasi Modul per Site" },
   { id: "assets", label: "Aset & Alat Tambahan" },
   { id: "clients", label: "Profile Client / RS" },
   { id: "users", label: "Penyusunan Akun (CRUD)" },
@@ -120,6 +127,12 @@ export default function SettingsView({
       case "jenisBeritaAcara":
       case "jenisModul":
       case "statusImplementasi":
+      case "jenisAplikasiModul":
+      case "platformModul":
+      case "statusModul":
+      case "statusImplementasiSite":
+      case "statusPenggunaan":
+      case "kategoriImplementasi":
         return false;
       default: return false;
     }
@@ -441,6 +454,54 @@ export default function SettingsView({
             <Zap className="w-4.5 h-4.5 shrink-0" />
             <span>Status Implementasi</span>
           </button>
+
+          <button
+            onClick={() => { setActiveTab("jenisAplikasiModul"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "jenisAplikasiModul" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Boxes className="w-4.5 h-4.5 shrink-0" />
+            <span>Jenis Aplikasi Modul</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("platformModul"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "platformModul" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Boxes className="w-4.5 h-4.5 shrink-0" />
+            <span>Platform Modul</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("statusModul"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "statusModul" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Zap className="w-4.5 h-4.5 shrink-0" />
+            <span>Status Modul & Fitur</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("statusImplementasiSite"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "statusImplementasiSite" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Zap className="w-4.5 h-4.5 shrink-0" />
+            <span>Status Implementasi Site</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("statusPenggunaan"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "statusPenggunaan" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <CheckSquare className="w-4.5 h-4.5 shrink-0" />
+            <span>Status Penggunaan Site</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("kategoriImplementasi"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "kategoriImplementasi" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Layers className="w-4.5 h-4.5 shrink-0" />
+            <span>Kategori Implementasi Site</span>
+          </button>
         </div>
 
         {/* Dynamic Detail Card Panels */}
@@ -626,8 +687,14 @@ export default function SettingsView({
                     {activeTab === "tipeMedia" && "Katalog Tipe Media Korespondensi"}
                     {activeTab === "kategoriDokumen" && "Kategori Dokumen Arsip"}
                     {activeTab === "jenisBeritaAcara" && "Jenis Berita Acara (BA)"}
-                    {activeTab === "jenisModul" && "Katalog Jenis Modul Aplikasi"}
+                    {activeTab === "jenisModul" && "Katalog Jenis Modul Aplikasi (Front/Back Office, Bridging)"}
                     {activeTab === "statusImplementasi" && "Status Tahap Implementasi"}
+                    {activeTab === "jenisAplikasiModul" && "Katalog Jenis Aplikasi Modul (Web, Mobile)"}
+                    {activeTab === "platformModul" && "Katalog Platform Modul (Web, Desktop)"}
+                    {activeTab === "statusModul" && "Katalog Status Modul & Fitur (Aktif, Non Aktif, Dalam Pengembangan)"}
+                    {activeTab === "statusImplementasiSite" && "Katalog Status Implementasi Site (e.g. Berjalan, Tidak Berjalan)"}
+                    {activeTab === "statusPenggunaan" && "Katalog Status Penggunaan Site (e.g. Optimal, Tidak Optimal)"}
+                    {activeTab === "kategoriImplementasi" && "Kategori Kategori Implementasi Site (e.g. Request, Pengembangan)"}
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Kelola data isian rujukan secara global, data lama tetap dipertahankan.</p>
                 </div>

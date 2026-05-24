@@ -11,7 +11,8 @@ import {
   BALog,
   Ticket,
   AppModule,
-  Asset
+  Asset,
+  SiteModuleImplementation
 } from "./types";
 import { 
   api, 
@@ -36,6 +37,7 @@ import ClientsView from "./components/ClientsView";
 import TicketsView from "./components/TicketsView";
 import ApplicationModulesView from "./components/ApplicationModulesView";
 import AssetsView from "./components/AssetsView";
+import SiteModulesView from "./components/SiteModulesView";
 
 // Icons
 import { 
@@ -63,7 +65,8 @@ import {
   Building2,
   LifeBuoy,
   Cpu,
-  Laptop
+  Laptop,
+  ClipboardList
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -151,17 +154,18 @@ export default function App() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [siteImplementations, setSiteImplementations] = useState<SiteModuleImplementation[]>([]);
   const [settings, setSettings] = useState<any>({
     roles: [
-      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "assets"], active: true },
-      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets", "clients", "users"], active: true },
-      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
-      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
-      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
-      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
+      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "sitemodules", "assets"], active: true },
+      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users"], active: true },
+      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
+      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
+      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
+      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
       { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "tickets"], active: true },
-      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"], active: true },
-      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "assets"], active: true }
+      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
+      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "sitemodules", "assets"], active: true }
     ],
     milestoneStatuses: [
       { value: "On Track", active: true },
@@ -198,21 +202,47 @@ export default function App() {
       { value: "Pending", active: true },
       { value: "Cancelled", active: true },
       { value: "Backlog", active: true }
+    ],
+    jenisModul: [
+      { value: "Front Office", active: true },
+      { value: "Back Office", active: true },
+      { value: "Bridging", active: true }
+    ],
+    jenisAplikasiModul: [
+      { value: "Web", active: true },
+      { value: "Mobile", active: true }
+    ],
+    platformModul: [
+      { value: "Web", active: true },
+      { value: "Desktop", active: true }
+    ],
+    statusModul: [
+      { value: "Aktif", active: true },
+      { value: "Non Aktif", active: true },
+      { value: "Dalam Pengembangan", active: true }
     ]
   });
 
-  // Derived configuration list from active users to satisfy PIC selection dynamically
-  // Filter out inactive users (statusAktif === false) and use distinct user nicknames
-  const picsList = users.length > 0
-    ? users.filter(u => u.statusAktif !== false).map(u => u.nickname || u.username)
-    : ["Admin", "Fajar", "Nanda"];
-
   // ── USER-BASED CLIENT/SITE SCOPING FILTER ──
+  // Treat 'Kantor Pusat' as global (Option 1)
   const isUserScoped = currentUser && 
     currentUser.siteTugas && 
+    currentUser.siteTugas.toLowerCase().trim() !== "kantor pusat" &&
     currentUser.role !== "Administrator" && 
     currentUser.role !== "Direktur";
   const userSite = currentUser?.siteTugas || "";
+
+  // Derived configuration list from active users to satisfy PIC selection dynamically
+  // Filter out inactive users (statusAktif === false) and use distinct user nicknames
+  // Filter out users who are Administrators, and if scoped, filter to their matching site
+  const picsList = users.length > 0
+    ? users.filter(u => {
+        if (u.statusAktif === false) return false;
+        if (u.role === "Administrator" || u.username === "admin") return false;
+        if (isUserScoped && u.siteTugas && u.siteTugas.toLowerCase() !== userSite.toLowerCase()) return false;
+        return true;
+      }).map(u => u.nickname || u.username)
+    : ["Fajar", "Nanda"];
 
   // Filtered computed views
   const scopedClients = isUserScoped 
@@ -278,13 +308,15 @@ export default function App() {
     ? tickets.filter(ti => ti.projectName === userSite || ti.createdBy === currentUser?.username) 
     : tickets;
 
-  const scopedAppModules = isUserScoped 
-    ? appModules.filter(am => am.projectName === userSite || am.createdBy === currentUser?.username) 
-    : appModules;
+  const scopedAppModules = appModules;
 
   const scopedAssets = isUserScoped 
     ? assets.filter(as => as.clientRS === userSite || as.createdBy === currentUser?.username) 
     : assets;
+
+  const scopedSiteImplementations = isUserScoped 
+    ? siteImplementations.filter(impl => impl.clientRS === userSite) 
+    : siteImplementations;
 
   // Task shortcut modal link
   const [quickTaskStatusLink, setQuickTaskStatusLink] = useState<any>(null);
@@ -466,7 +498,7 @@ export default function App() {
 
   async function syncDatabase() {
     try {
-      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD] = await Promise.all([
+      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD, siteImplD] = await Promise.all([
         api.getProjects(),
         api.getTasks(),
         api.getLogs(),
@@ -479,7 +511,8 @@ export default function App() {
         api.getBALogs().catch(() => []),
         api.getTickets().catch(() => []),
         api.getAppModules().catch(() => []),
-        api.getAssets().catch(() => [])
+        api.getAssets().catch(() => []),
+        api.getSiteImplementations().catch(() => [])
       ]);
       setProjects(projD);
       setTasks(taskD);
@@ -493,8 +526,42 @@ export default function App() {
       setTickets(ticketsD || []);
       setAppModules(appModulesD || []);
       setAssets(assetsD || []);
+      setSiteImplementations(siteImplD || []);
       if (settingsD) {
-        setSettings(settingsD);
+        setSettings((prev: any) => ({
+          ...prev,
+          ...settingsD,
+          jenisModul: settingsD.jenisModul || prev.jenisModul || [
+            { value: "Front Office", active: true },
+            { value: "Back Office", active: true },
+            { value: "Bridging", active: true }
+          ],
+          jenisAplikasiModul: settingsD.jenisAplikasiModul || prev.jenisAplikasiModul || [
+            { value: "Web", active: true },
+            { value: "Mobile", active: true }
+          ],
+          platformModul: settingsD.platformModul || prev.platformModul || [
+            { value: "Web", active: true },
+            { value: "Desktop", active: true }
+          ],
+          statusModul: settingsD.statusModul || prev.statusModul || [
+            { value: "Aktif", active: true },
+            { value: "Non Aktif", active: true },
+            { value: "Dalam Pengembangan", active: true }
+          ],
+          statusImplementasiSite: settingsD.statusImplementasiSite || prev.statusImplementasiSite || [
+            { value: "Berjalan", active: true },
+            { value: "Tidak Berjalan", active: true }
+          ],
+          statusPenggunaan: settingsD.statusPenggunaan || prev.statusPenggunaan || [
+            { value: "Optimal", active: true },
+            { value: "Tidak Optimal", active: true }
+          ],
+          kategoriImplementasi: settingsD.kategoriImplementasi || prev.kategoriImplementasi || [
+            { value: "Request", active: true },
+            { value: "Pengembangan", active: true }
+          ]
+        }));
       }
     } catch (err) {
       console.warn("[DB] Error syncing backend databases, running in offline-ready state:", err);
@@ -540,8 +607,8 @@ export default function App() {
   async function handleAddProject(data: Partial<Project>) {
     try {
       let finalClient = data.client;
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-        finalClient = currentUser.siteTugas;
+      if (isUserScoped) {
+        finalClient = userSite;
       }
       const payload = { ...data, client: finalClient, createdBy: currentUser?.username || "System" };
       const res = await api.createProject(payload);
@@ -554,8 +621,8 @@ export default function App() {
   async function handleUpdateProject(id: string, data: Partial<Project>) {
     try {
       let finalData = { ...data };
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-        finalData.client = currentUser.siteTugas;
+      if (isUserScoped) {
+        finalData.client = userSite;
       }
       const res = await api.updateProject(id, finalData);
       setProjects(prev => prev.map(p => p.id === id ? res : p));
@@ -782,8 +849,8 @@ export default function App() {
   async function handleAddTicket(data: Partial<Ticket>) {
     try {
       let finalProjectName = data.projectName;
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-         finalProjectName = currentUser.siteTugas;
+      if (isUserScoped) {
+         finalProjectName = userSite;
       }
       const payload = { ...data, projectName: finalProjectName, createdBy: currentUser?.username || "System" };
       const res = await api.createTicket(payload);
@@ -796,8 +863,8 @@ export default function App() {
   async function handleUpdateTicket(id: string, data: Partial<Ticket>) {
     try {
       let finalData = { ...data };
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-        finalData.projectName = currentUser.siteTugas;
+      if (isUserScoped) {
+        finalData.projectName = userSite;
       }
       const res = await api.updateTicket(id, finalData);
       setTickets(prev => prev.map(tk => tk.id === id ? { ...tk, ...res } : tk));
@@ -819,8 +886,8 @@ export default function App() {
   async function handleAddAppModule(data: Partial<AppModule>) {
     try {
       let finalProjectName = data.projectName;
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-         finalProjectName = currentUser.siteTugas;
+      if (isUserScoped) {
+         finalProjectName = userSite;
       }
       const payload = { ...data, projectName: finalProjectName, createdBy: currentUser?.username || "System" };
       const res = await api.createAppModule(payload);
@@ -833,8 +900,8 @@ export default function App() {
   async function handleUpdateAppModule(id: string, data: Partial<AppModule>) {
     try {
       let finalData = { ...data };
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-        finalData.projectName = currentUser.siteTugas;
+      if (isUserScoped) {
+        finalData.projectName = userSite;
       }
       const res = await api.updateAppModule(id, finalData);
       setAppModules(prev => prev.map(am => am.id === id ? { ...am, ...res } : am));
@@ -856,8 +923,8 @@ export default function App() {
   async function handleAddAsset(data: Partial<Asset>) {
     try {
       let finalClientRS = data.clientRS;
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-         finalClientRS = currentUser.siteTugas;
+      if (isUserScoped) {
+         finalClientRS = userSite;
       }
       const payload = { ...data, clientRS: finalClientRS, createdBy: currentUser?.username || "System" };
       const res = await api.createAsset(payload);
@@ -870,8 +937,8 @@ export default function App() {
   async function handleUpdateAsset(id: string, data: Partial<Asset>) {
     try {
       let finalData = { ...data };
-      if (currentUser && currentUser.siteTugas && currentUser.role !== "Administrator" && currentUser.role !== "Direktur") {
-        finalData.clientRS = currentUser.siteTugas;
+      if (isUserScoped) {
+        finalData.clientRS = userSite;
       }
       const res = await api.updateAsset(id, finalData);
       setAssets(prev => prev.map(as => as.id === id ? { ...as, ...res } : as));
@@ -886,6 +953,38 @@ export default function App() {
       setAssets(prev => prev.filter(as => as.id !== id));
     } catch (err: any) {
       alert(`Gagal menghapus data aset: ${err.message}`);
+    }
+  }
+
+  async function handleAddSiteImplementation(data: Partial<SiteModuleImplementation>) {
+    try {
+      const res = await api.createSiteImplementation(data);
+      setSiteImplementations(prev => [res, ...prev]);
+      return res;
+    } catch (err: any) {
+      alert(`Gagal mendaftarkan implementasi: ${err.message}`);
+      throw err;
+    }
+  }
+
+  async function handleUpdateSiteImplementation(id: string, data: Partial<SiteModuleImplementation>) {
+    try {
+      const res = await api.updateSiteImplementation(id, data);
+      setSiteImplementations(prev => prev.map(impl => impl.id === id ? { ...impl, ...res } : impl));
+      return res;
+    } catch (err: any) {
+      alert(`Gagal mengubah rincian implementasi: ${err.message}`);
+      throw err;
+    }
+  }
+
+  async function handleDeleteSiteImplementation(id: string) {
+    try {
+      await api.deleteSiteImplementation(id);
+      setSiteImplementations(prev => prev.filter(impl => impl.id !== id));
+    } catch (err: any) {
+      alert(`Gagal menghapus implementasi: ${err.message}`);
+      throw err;
     }
   }
 
@@ -1021,6 +1120,7 @@ export default function App() {
       items: [
         { id: "tickets", label: "Helpdesk & Troubleshoot", icon: LifeBuoy },
         { id: "appmodules", label: "Registrasi Modul SIMRS", icon: Cpu },
+        { id: "sitemodules", label: "Implementasi Modul per Site", icon: ClipboardList },
         { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop }
       ]
     },
@@ -1230,6 +1330,13 @@ export default function App() {
             <span className="text-xs font-black text-slate-400 dark:text-slate-500 hidden sm:inline-block tracking-widest uppercase">
               SUITE &bull; {currentView.toUpperCase()}
             </span>
+
+            {currentUser?.siteTugas && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-extrabold text-[#2563eb] dark:text-[#60a5fa] bg-[#eff6ff] dark:bg-slate-900 border border-[#dbeafe] dark:border-slate-800 rounded-lg shrink-0">
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Client Site: <span className="font-extrabold text-[#1d4ed8] dark:text-[#93c5fd]">{currentUser.siteTugas}</span></span>
+              </div>
+            )}
           </div>
 
           {/* Action triggers: Theme Mode Sun/Moon, PostgreSQL sync */}
@@ -1389,6 +1496,7 @@ export default function App() {
               logs={scopedLogs}
               currentUser={currentUser}
               picsList={picsList}
+              users={users}
               modulsList={modulsList}
               asalsList={asalsList}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
@@ -1408,6 +1516,7 @@ export default function App() {
               projects={scopedProjects}
               currentUser={currentUser}
               picsList={picsList}
+              users={users}
               modulsList={modulsList}
               tasktypesList={settings?.taskTypes ? settings.taskTypes.filter((x: any) => x.active).map((x: any) => x.value) : tasktypesList}
               catProgsList={settings?.catProgresses ? settings.catProgresses.filter((x: any) => x.active).map((x: any) => x.value) : catProgsList}
@@ -1427,6 +1536,7 @@ export default function App() {
               tasks={scopedTasks}
               projects={scopedProjects}
               picsList={picsList}
+              users={users}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
               progressStatusesList={settings?.progressStatuses ? settings.progressStatuses.filter((x: any) => x.active).map((x: any) => x.value) : progressStatusesList}
               picThemeColors={picThemeColors}
@@ -1441,6 +1551,7 @@ export default function App() {
               tasks={scopedTasks}
               projects={scopedProjects}
               picsList={picsList}
+              users={users}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
               picThemeColors={picThemeColors}
               onViewTaskDetail={handleOpenTaskDetailDirectly}
@@ -1494,9 +1605,24 @@ export default function App() {
               clients={scopedClients}
               projects={scopedProjects}
               currentUser={currentUser}
+              settings={settings}
               onAddModule={handleAddAppModule}
               onUpdateModule={handleUpdateAppModule}
               onDeleteModule={handleDeleteAppModule}
+            />
+          )}
+
+          {currentView === "sitemodules" && (
+            <SiteModulesView 
+              siteImplementations={scopedSiteImplementations}
+              clients={scopedClients}
+              appModules={scopedAppModules}
+              users={users}
+              currentUser={currentUser}
+              settings={settings}
+              onAddImplementation={handleAddSiteImplementation}
+              onUpdateImplementation={handleUpdateSiteImplementation}
+              onDeleteImplementation={handleDeleteSiteImplementation}
             />
           )}
 

@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation } from "../types";
 
 const API_BASE = "/api";
 
@@ -388,6 +388,37 @@ export const api = {
 
   async deleteAsset(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/assets/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Site Module Implementations CRUD
+  async getSiteImplementations(): Promise<SiteModuleImplementation[]> {
+    const res = await fetch(`${API_BASE}/siteimplementations`);
+    return handleResponse(res);
+  },
+
+  async createSiteImplementation(data: Partial<SiteModuleImplementation>): Promise<SiteModuleImplementation> {
+    const res = await fetch(`${API_BASE}/siteimplementations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateSiteImplementation(id: string, data: Partial<SiteModuleImplementation>): Promise<SiteModuleImplementation> {
+    const res = await fetch(`${API_BASE}/siteimplementations/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteSiteImplementation(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/siteimplementations/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);

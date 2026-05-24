@@ -96,6 +96,18 @@ const DEFAULT_SETTINGS = {
     { value: "Email", active: true },
     { value: "Rapat", active: true },
     { value: "Telepon", active: true }
+  ],
+  statusImplementasiSite: [
+    { value: "Berjalan", active: true },
+    { value: "Tidak Berjalan", active: true }
+  ],
+  statusPenggunaan: [
+    { value: "Optimal", active: true },
+    { value: "Tidak Optimal", active: true }
+  ],
+  kategoriImplementasi: [
+    { value: "Request", active: true },
+    { value: "Pengembangan", active: true }
   ]
 };
 
@@ -449,6 +461,10 @@ async function readDB() {
   let modified = false;
   if (!db.clients) {
     db.clients = [];
+    modified = true;
+  }
+  if (!db.siteImplementations) {
+    db.siteImplementations = [];
     modified = true;
   }
   if (!db.tickets) {
@@ -1205,6 +1221,62 @@ app.delete("/api/assets/:id", async (req, res) => {
 });
 
 
+// ── SITE IMPLEMENTATIONS CRUD ─────────────────────────────────────────────
+app.get("/api/siteimplementations", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.siteImplementations || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/siteimplementations", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newImpl = { 
+      id: "impl-" + Math.random().toString(36).slice(2, 9), 
+      createdAt: new Date().toISOString(), 
+      ...req.body 
+    };
+    db.siteImplementations = db.siteImplementations || [];
+    db.siteImplementations.unshift(newImpl);
+    await writeDB(db);
+    return res.status(201).json(newImpl);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/siteimplementations/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.siteImplementations || []).findIndex((impl: any) => impl.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Data implementasi tidak ditemukan!" });
+    }
+    db.siteImplementations[idx] = { ...db.siteImplementations[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.siteImplementations[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/siteimplementations/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.siteImplementations = (db.siteImplementations || []).filter((impl: any) => impl.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ── SETTINGS CRUD ────────────────────────────────────────────────────────
 app.get("/api/settings", async (req, res) => {
   try {
@@ -1214,7 +1286,7 @@ app.get("/api/settings", async (req, res) => {
       await writeDB(db);
     } else {
       let modified = false;
-      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia"];
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi"];
       for (const key of keys) {
         if (!db.settings[key]) {
           db.settings[key] = (DEFAULT_SETTINGS as any)[key];

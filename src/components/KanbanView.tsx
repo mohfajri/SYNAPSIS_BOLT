@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Task, Project } from "../types";
+import { Task, Project, User } from "../types";
 import { 
   Plus, 
   HelpCircle, 
@@ -15,6 +15,7 @@ interface KanbanViewProps {
   tasks: Task[];
   projects: Project[];
   picsList: string[];
+  users?: User[];
   pstatusesList: string[];
   progressStatusesList?: string[];
   picThemeColors: (picName: string) => string;
@@ -27,6 +28,7 @@ export default function KanbanView({
   tasks,
   projects,
   picsList,
+  users = [],
   pstatusesList,
   progressStatusesList,
   picThemeColors,
