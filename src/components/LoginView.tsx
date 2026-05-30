@@ -211,6 +211,10 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500"
                 >
                   <option value="Administrator">Administrator (Main Control)</option>
+                  <option value="Direktur">Direktur (Managerial Utama)</option>
+                  <option value="Manager">Manager (Supervisory Hub)</option>
+                  <option value="Supervisor">Supervisor (tim Teknis Lapangan)</option>
+                  <option value="Staff">Staff (Pelaksana Teknis)</option>
                   <option value="Site Coordinator">Site Coordinator</option>
                   <option value="System Support">System Support</option>
                   <option value="Technical Support">Technical Support</option>

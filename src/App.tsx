@@ -12,7 +12,9 @@ import {
   Ticket,
   AppModule,
   Asset,
-  SiteModuleImplementation
+  SiteModuleImplementation,
+  MonevLog,
+  BillingKSO
 } from "./types";
 import { 
   api, 
@@ -38,6 +40,8 @@ import TicketsView from "./components/TicketsView";
 import ApplicationModulesView from "./components/ApplicationModulesView";
 import AssetsView from "./components/AssetsView";
 import SiteModulesView from "./components/SiteModulesView";
+import MonevView from "./components/MonevView";
+import BillingKSOView from "./components/BillingKSOView";
 
 // Icons
 import { 
@@ -66,7 +70,9 @@ import {
   LifeBuoy,
   Cpu,
   Laptop,
-  ClipboardList
+  ClipboardList,
+  Activity,
+  Receipt
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -155,17 +161,23 @@ export default function App() {
   const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [siteImplementations, setSiteImplementations] = useState<SiteModuleImplementation[]>([]);
+  const [monevLogs, setMonevLogs] = useState<MonevLog[]>([]);
+  const [billings, setBillings] = useState<BillingKSO[]>([]);
   const [settings, setSettings] = useState<any>({
     roles: [
-      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users"], active: true },
-      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "tickets"], active: true },
-      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets"], active: true },
-      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "sitemodules", "assets"], active: true }
+      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
+      { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
+      { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
+      { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Staff", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "monev", "billing"], active: true },
+      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "tickets", "monev", "billing"], active: true },
+      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true }
     ],
     milestoneStatuses: [
       { value: "On Track", active: true },
@@ -220,6 +232,54 @@ export default function App() {
       { value: "Aktif", active: true },
       { value: "Non Aktif", active: true },
       { value: "Dalam Pengembangan", active: true }
+    ],
+    statusImplementasiSite: [
+      { value: "Berjalan", active: true },
+      { value: "Tidak Berjalan", active: true }
+    ],
+    statusPenggunaan: [
+      { value: "Optimal", active: true },
+      { value: "Tidak Optimal", active: true }
+    ],
+    kategoriImplementasi: [
+      { value: "Request", active: true },
+      { value: "Pengembangan", active: true }
+    ],
+    tipeMedika: [
+      { value: "Rumah Sakit", active: true },
+      { value: "Klinik Utama", active: true },
+      { value: "Klinik Pratama", active: true },
+      { value: "Puskesmas", active: true },
+      { value: "Laboratorium", active: true }
+    ],
+    tipeMedia: [
+      { value: "WhatsApp", active: true },
+      { value: "Email", active: true },
+      { value: "Rapat", active: true },
+      { value: "Telepon", active: true }
+    ],
+    kategoriDokumen: [
+      { value: "MOM Rapat", active: true },
+      { value: "Berita Acara", active: true },
+      { value: "User Manual", active: true },
+      { value: "Desain UI/UX", active: true },
+      { value: "Dokumen Kontrak", active: true },
+      { value: "API Specs", active: true }
+    ],
+    jenisBeritaAcara: [
+      { value: "BA Serah Terima Alat", active: true },
+      { value: "BA Instalasi Aplikasi", active: true },
+      { value: "BA Training / Sosialisasi", active: true },
+      { value: "BA Go-Live", active: true },
+      { value: "BA Penyelesaian Pekerjaan", active: true }
+    ],
+    statusImplementasi: [
+      { value: "Belum Mulai", active: true },
+      { value: "Analisis Fit & Gap", active: true },
+      { value: "Instalasi / Setting", active: true },
+      { value: "Pelatihan User", active: true },
+      { value: "Pendampingan UAT", active: true },
+      { value: "Selesai Implementasi", active: true }
     ]
   });
 
@@ -498,7 +558,7 @@ export default function App() {
 
   async function syncDatabase() {
     try {
-      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD, siteImplD] = await Promise.all([
+      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD, siteImplD, monevD, billingD] = await Promise.all([
         api.getProjects(),
         api.getTasks(),
         api.getLogs(),
@@ -512,7 +572,9 @@ export default function App() {
         api.getTickets().catch(() => []),
         api.getAppModules().catch(() => []),
         api.getAssets().catch(() => []),
-        api.getSiteImplementations().catch(() => [])
+        api.getSiteImplementations().catch(() => []),
+        api.getMonevLogs().catch(() => []),
+        api.getBillings().catch(() => [])
       ]);
       setProjects(projD);
       setTasks(taskD);
@@ -527,6 +589,8 @@ export default function App() {
       setAppModules(appModulesD || []);
       setAssets(assetsD || []);
       setSiteImplementations(siteImplD || []);
+      setMonevLogs(monevD || []);
+      setBillings(billingD || []);
       if (settingsD) {
         setSettings((prev: any) => ({
           ...prev,
@@ -560,6 +624,42 @@ export default function App() {
           kategoriImplementasi: settingsD.kategoriImplementasi || prev.kategoriImplementasi || [
             { value: "Request", active: true },
             { value: "Pengembangan", active: true }
+          ],
+          tipeMedika: settingsD.tipeMedika || prev.tipeMedika || [
+            { value: "Rumah Sakit", active: true },
+            { value: "Klinik Utama", active: true },
+            { value: "Klinik Pratama", active: true },
+            { value: "Puskesmas", active: true },
+            { value: "Laboratorium", active: true }
+          ],
+          tipeMedia: settingsD.tipeMedia || prev.tipeMedia || [
+            { value: "WhatsApp", active: true },
+            { value: "Email", active: true },
+            { value: "Rapat", active: true },
+            { value: "Telepon", active: true }
+          ],
+          kategoriDokumen: settingsD.kategoriDokumen || prev.kategoriDokumen || [
+            { value: "MOM Rapat", active: true },
+            { value: "Berita Acara", active: true },
+            { value: "User Manual", active: true },
+            { value: "Desain UI/UX", active: true },
+            { value: "Dokumen Kontrak", active: true },
+            { value: "API Specs", active: true }
+          ],
+          jenisBeritaAcara: settingsD.jenisBeritaAcara || prev.jenisBeritaAcara || [
+            { value: "BA Serah Terima Alat", active: true },
+            { value: "BA Instalasi Aplikasi", active: true },
+            { value: "BA Training / Sosialisasi", active: true },
+            { value: "BA Go-Live", active: true },
+            { value: "BA Penyelesaian Pekerjaan", active: true }
+          ],
+          statusImplementasi: settingsD.statusImplementasi || prev.statusImplementasi || [
+            { value: "Belum Mulai", active: true },
+            { value: "Analisis Fit & Gap", active: true },
+            { value: "Instalasi / Setting", active: true },
+            { value: "Pelatihan User", active: true },
+            { value: "Pendampingan UAT", active: true },
+            { value: "Selesai Implementasi", active: true }
           ]
         }));
       }
@@ -1070,6 +1170,63 @@ export default function App() {
     setCurrentView("tasks");
   }
 
+  // Monitoring & Evaluasi (Monev) CRUD Operations
+  async function handleAddMonevLog(data: Partial<MonevLog>) {
+    try {
+      const payload = { ...data, createdBy: currentUser?.username || "System" };
+      const res = await api.createMonevLog(payload);
+      setMonevLogs(prev => [res, ...prev]);
+    } catch (err) {
+      alert("Gagal menambahkan catatan evaluasi baru: " + err);
+    }
+  }
+
+  async function handleUpdateMonevLog(id: string, data: Partial<MonevLog>) {
+    try {
+      const res = await api.updateMonevLog(id, data);
+      setMonevLogs(prev => prev.map(m => m.id === id ? res : m));
+    } catch (err) {
+      alert("Gagal memperbarui catatan evaluasi: " + err);
+    }
+  }
+
+  async function handleDeleteMonevLog(id: string) {
+    try {
+      await api.deleteMonevLog(id);
+      setMonevLogs(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      alert("Gagal menghapus catatan evaluasi: " + err);
+    }
+  }
+
+  // Billing KSO Handlers
+  async function handleAddBilling(data: Partial<BillingKSO>) {
+    try {
+      const res = await api.createBilling(data);
+      setBillings(prev => [res, ...prev]);
+    } catch (err) {
+      alert("Gagal menambahkan data billing: " + err);
+    }
+  }
+
+  async function handleUpdateBilling(id: string, data: Partial<BillingKSO>) {
+    try {
+      const res = await api.updateBilling(id, data);
+      setBillings(prev => prev.map(b => b.id === id ? res : b));
+    } catch (err) {
+      alert("Gagal memperbarui data billing: " + err);
+    }
+  }
+
+  async function handleDeleteBilling(id: string) {
+    try {
+      await api.deleteBilling(id);
+      setBillings(prev => prev.filter(b => b.id !== id));
+    } catch (err) {
+      alert("Gagal menghapus data billing: " + err);
+    }
+  }
+
   // Pre-authenticator render check
   if (isSessionLoading) {
     return (
@@ -1098,7 +1255,8 @@ export default function App() {
       name: "Task Master",
       items: [
         { id: "projects", label: "Project Master", icon: FolderLock },
-        { id: "tasks", label: "Tugas & Progress", icon: CheckSquare }
+        { id: "tasks", label: "Tugas & Progress", icon: CheckSquare },
+        { id: "monev", label: "Monitoring & Evaluasi", icon: Activity }
       ]
     },
     {
@@ -1121,7 +1279,8 @@ export default function App() {
         { id: "tickets", label: "Helpdesk & Troubleshoot", icon: LifeBuoy },
         { id: "appmodules", label: "Registrasi Modul SIMRS", icon: Cpu },
         { id: "sitemodules", label: "Implementasi Modul per Site", icon: ClipboardList },
-        { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop }
+        { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop },
+        { id: "billing", label: "Billing KSO & ATK", icon: Receipt }
       ]
     },
     {
@@ -1144,6 +1303,10 @@ export default function App() {
 
   if (userRoleConfig && userRoleConfig.active) {
     allowedViewIds = userRoleConfig.allowedViews;
+  }
+
+  if (isUserScoped && !allowedViewIds.includes("clients")) {
+    allowedViewIds = [...allowedViewIds, "clients"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -1497,6 +1660,7 @@ export default function App() {
               currentUser={currentUser}
               picsList={picsList}
               users={users}
+              clients={scopedClients}
               modulsList={modulsList}
               asalsList={asalsList}
               pstatusesList={settings?.milestoneStatuses ? settings.milestoneStatuses.filter((x: any) => x.active).map((x: any) => x.value) : pstatusesList}
@@ -1507,6 +1671,8 @@ export default function App() {
               onDeleteProject={handleDeleteProject}
               onAddDiagnosticLog={handleAddDiagnosticLog}
               onDeleteDiagnosticLog={handleDeleteDiagnosticLog}
+              appModules={appModules}
+              siteImplementations={siteImplementations}
             />
           )}
 
@@ -1626,6 +1792,31 @@ export default function App() {
             />
           )}
 
+          {currentView === "monev" && (
+            <MonevView 
+              monevLogs={monevLogs}
+              projects={scopedProjects}
+              tasks={scopedTasks}
+              currentUser={currentUser}
+              picsList={picsList}
+              users={users}
+              onAddMonevLog={handleAddMonevLog}
+              onUpdateMonevLog={handleUpdateMonevLog}
+              onDeleteMonevLog={handleDeleteMonevLog}
+            />
+          )}
+
+          {currentView === "billing" && (
+            <BillingKSOView 
+              billings={billings}
+              clients={scopedClients}
+              currentUser={currentUser}
+              onAddBilling={handleAddBilling}
+              onUpdateBilling={handleUpdateBilling}
+              onDeleteBilling={handleDeleteBilling}
+            />
+          )}
+
           {currentView === "assets" && (
             <AssetsView 
               assets={scopedAssets}
@@ -1637,7 +1828,7 @@ export default function App() {
             />
           )}
 
-          {currentView === "clients" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur") && (
+          {currentView === "clients" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || isUserScoped) && (
             <ClientsView 
               clients={scopedClients}
               onAddClient={handleAddClient}
@@ -1646,6 +1837,8 @@ export default function App() {
               tipeMedikaList={settings?.tipeMedika ? settings.tipeMedika.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
               jenisModulList={settings?.jenisModul ? settings.jenisModul.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
               statusImplementasiList={settings?.statusImplementasi ? settings.statusImplementasi.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
+              appModules={scopedAppModules}
+              currentUser={currentUser}
             />
           )}
 
@@ -1668,6 +1861,7 @@ export default function App() {
               users={users}
               projects={projects}
               tasks={tasks}
+              clients={clients}
               onCascadeRename={handleCascadeRename}
             />
           )}

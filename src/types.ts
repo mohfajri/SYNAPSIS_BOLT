@@ -16,6 +16,7 @@ export interface ClientModuleStatus {
   modulName: string; // e.g. "Front Office", "Back Office" etc, chosen from Settings
   status: string; // e.g. "Instalasi / Setting", chosen from Settings statusImplementasi
   updatedAt: string;
+  tanggalImplementasi?: string; // Tanggal Implementasi RS
 }
 
 export interface Client {
@@ -47,6 +48,7 @@ export interface Project {
   prasyarat: string;
   notes: string;
   url: string;
+  fiturModul?: string[];
   createdAt: string;
   createdBy?: string;
 }
@@ -82,6 +84,13 @@ export interface Task {
   gitlabId?: string;
   externalTicketStatus?: 'Open' | 'Closed' | '';
   createdBy?: string;
+  assignerName?: string;
+  assignerRole?: string;
+  parentTaskId?: string;
+  delegationNotes?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface CommLog {
@@ -245,4 +254,51 @@ export interface SiteModuleImplementation {
   keterangan: string; // Free text description
   createdAt: string;
   createdBy?: string;
+}
+
+export interface MonevLog {
+  id: string;
+  title: string;
+  type: string; // e.g. "Mingguan" | "Bulanan" | "UAT" | "Isidental" | "Akhir Project"
+  date: string;
+  category: string; // e.g. "Kinerja" | "Kendala Teknis" | "Kehadiran" | "Komunikasi" | "Infrastruktur" | "Lainnya"
+  findings: string;
+  recommendations: string;
+  status: string; // e.g. "Open" | "In Progress" | "Resolved"
+  evaluatorPic: string; // Evaluator / PIC
+  linkedProjectId?: string; // Optional Linked Project ID / Kode (can stand alone)
+  linkedTaskId?: string; // Optional Linked Task ID (can stand alone)
+  attachmentName?: string;
+  attachmentData?: string; // Base64 encoding for attachment
+  attachmentSize?: string;
+  hasilEvaluasi?: string; // Phase additional field: secondary post-evaluation results input
+  picAuditorRS?: string; // Additional field for Free Text Hospital Auditor / Evaluator PIC
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface BillingKSO {
+  id: string;
+  type: 'KSO' | 'ATK';
+  clientRS: string; // Nama RS Client
+  periodMonth: string; // Bulan pelayanan (bisa "YYYY-MM" atau deskriptif)
+  serviceAmount: number; // Nilai Penagihan sebelum Pajak
+  ppnPercent: number; // Persentasi PPN (e.g. 11%)
+  ppnAmount: number; // Nilai PPN (Perhitungan: serviceAmount * ppnPercent / 100)
+  totalAmount: number; // Nilai Total setelah PPN (serviceAmount + ppnAmount)
+  description: string; // Uraian penagihan atau detail ATK yang dibeli
+  status: 'Draft' | 'Submitted' | 'Verified' | 'Paid' | 'Cancelled'; // Status penagihan
+  tanggalKirim?: string; // Tanggal dikirimnya penagihan
+  tanggalBayar?: string; // Tanggal pembayarannya
+  attachmentBeritaAcara?: string; // Base64 content or url
+  attachmentBeritaAcaraName?: string; // Filename for BA
+  attachmentRekapTagihan?: string; // Base64 content or url
+  attachmentRekapTagihanName?: string; // Filename for Rekap Tagihan
+  submittedAt?: string;
+  submittedBy?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  revisionNotes?: string;
+  createdAt: string;
+  createdBy: string;
 }

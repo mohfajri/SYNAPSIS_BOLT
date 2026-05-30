@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Project, Task } from "../types";
 import { 
   BarChart3, 
@@ -10,7 +10,8 @@ import {
   Sparkles, 
   ArrowUpRight,
   TrendingUp,
-  Award
+  Award,
+  Search
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -29,6 +30,7 @@ export default function DashboardView({
   onViewTaskDetail,
   picThemeColors
 }: DashboardViewProps) {
+  const [projSearch, setProjSearch] = useState("");
   
   // Greeting based on time of day
   const hour = new Date().getHours();
@@ -73,6 +75,17 @@ export default function DashboardView({
       taskCount: projTasks.length,
       doneCount: completed
     };
+  });
+
+  const filteredProjectSummaries = projectSummaries.filter(p => {
+    const q = projSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (p.nama && p.nama.toLowerCase().includes(q)) || 
+      (p.kode && p.kode.toLowerCase().includes(q)) || 
+      (p.pic && p.pic.toLowerCase().includes(q)) ||
+      (p.client && p.client.toLowerCase().includes(q))
+    );
   });
 
   // Category summary calculations for display
@@ -211,23 +224,37 @@ export default function DashboardView({
 
       {/* Project Milestones and Completion Panel */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <FolderLock className="w-4 h-4 text-blue-500" /> Status Project Master (Database PostgreSQL)
           </h3>
-          <button 
-            onClick={() => onNavigateToView("projects")} 
-            className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 transition-all"
-          >
-            Kelola Project <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="relative font-sans text-xs shrink-0 max-w-[200px] w-full">
+              <input
+                type="text"
+                placeholder="Cari project..."
+                value={projSearch}
+                onChange={(e) => setProjSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 dark:bg-slate-950 dark:border-slate-800 rounded-lg py-1.5 pl-8 pr-3 font-semibold text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-blue-500/30 text-xs"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            </div>
+            <button 
+              onClick={() => onNavigateToView("projects")} 
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 transition-all shrink-0"
+            >
+              Kelola <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {projectSummaries.length === 0 ? (
           <p className="text-xs text-slate-500 dark:text-slate-400 italic">Belum ada project master terdaftar di database.</p>
+        ) : filteredProjectSummaries.length === 0 ? (
+          <p className="text-xs text-slate-450 dark:text-slate-500 italic">Tidak ada project yang cocok dengan pencarian "{projSearch}".</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {projectSummaries.map((p) => {
+            {filteredProjectSummaries.map((p) => {
               const statusColors: Record<string, string> = {
                 "On Track": "text-emerald-500",
                 "Completed": "text-emerald-600",

@@ -108,6 +108,8 @@ export default function SiteModulesView({
     savedState?: any;
   } | null>(null);
 
+  const [saveConfirmPayload, setSaveConfirmPayload] = useState<any>(null);
+
   const [fStatusImplementasi, setFStatusImplementasi] = useState("");
   const [fTanggalImplementasi, setFTanggalImplementasi] = useState("");
   const [fStatusPenggunaan, setFStatusPenggunaan] = useState("");
@@ -471,13 +473,14 @@ export default function SiteModulesView({
     setFKeterangan(saved?.keterangan || "");
   };
 
-  const handleSaveFeatureModal = async (e: React.FormEvent) => {
+  const handleSaveFeatureModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!featureModalData) return;
 
     const { parentImpl, subModuleId, subModuleName, savedState } = featureModalData;
 
-    const payload: Partial<SiteModuleImplementation> = {
+    const payload = {
+      id: savedState?.id || null,
       clientRS: parentImpl.clientRS,
       appModuleId: parentImpl.appModuleId,
       appModuleName: parentImpl.appModuleName,
@@ -492,14 +495,21 @@ export default function SiteModulesView({
       createdBy: currentUser?.name || currentUser?.username || "System"
     };
 
+    setSaveConfirmPayload(payload);
+  };
+
+  const executeConfirmSaveFeature = async () => {
+    if (!saveConfirmPayload) return;
+    const { id, subModuleName } = saveConfirmPayload;
     try {
-      if (savedState) {
-        await onUpdateImplementation(savedState.id, payload);
+      if (id) {
+        await onUpdateImplementation(id, saveConfirmPayload);
         triggerAlert(`Detail rincian fitur "${subModuleName}" berhasil diperbarui!`);
       } else {
-        await onAddImplementation(payload);
+        await onAddImplementation(saveConfirmPayload);
         triggerAlert(`Detail rincian fitur "${subModuleName}" berhasil disimpan!`);
       }
+      setSaveConfirmPayload(null);
       setFeatureModalData(null);
     } catch (err: any) {
       triggerAlert(`Gagal memproses detail fitur: ${err.message}`, true);
@@ -1448,6 +1458,114 @@ export default function SiteModulesView({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DIALOG MODAL: CONFIRM SAVING OPTIONS WRITER (Pop-up Pengamanan Pilihan) */}
+      <AnimatePresence>
+        {saveConfirmPayload && (
+          <div id="save-feature-confirm-modal" className="fixed inset-0 z-[65] flex items-center justify-center p-4">
+            
+            {/* Dark glass backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSaveConfirmPayload(null)}
+              className="absolute inset-0 bg-slate-950/80"
+            />
+
+            {/* Confirmation dialog body wrapper */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden font-sans z-10 p-6 space-y-4 text-xs"
+            >
+              {/* Header Context Warning */}
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-50 dark:bg-amber-955/30 rounded-full shrink-0 border border-amber-200/50">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-rose-700 dark:text-rose-450 uppercase tracking-wider">
+                    Konfirmasi Pilihan Opsi
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 leading-none">
+                    Tinjau Ulang Detail Fitur Sebelum Menyimpan
+                  </p>
+                </div>
+              </div>
+
+              {/* Informative Grid of Options Chosen */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-800/40 rounded-xl space-y-3">
+                <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1">
+                  Pilihan Nilai Opsian Anda:
+                </div>
+                
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 text-[11px] font-medium leading-none">
+                  <div>
+                    <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">Status Rilis</span>
+                    <span className="bg-blue-50 dark:bg-blue-955/40 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded font-black">
+                      {saveConfirmPayload.statusImplementasi}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">Status Utilisasi</span>
+                    <span className="bg-emerald-50 dark:bg-emerald-955/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-black">
+                      {saveConfirmPayload.statusPenggunaan}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">Kategori</span>
+                    <span className="bg-purple-50 dark:bg-purple-955/40 text-purple-705 dark:text-purple-400 px-1.5 py-0.5 rounded font-black">
+                      {saveConfirmPayload.kategoriImplementasi}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">Tanggal Rilis</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">
+                      {saveConfirmPayload.tanggalImplementasi}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                  <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">PIC Penanggungjawab</span>
+                  <span className="text-slate-850 dark:text-slate-100 font-extrabold">{saveConfirmPayload.picImplementasi}</span>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                  <span className="text-slate-405 block text-[9px] uppercase font-bold tracking-wider mb-1">Catatan Keterangan</span>
+                  <p className="text-slate-650 dark:text-slate-350 italic break-words line-clamp-3">
+                    &ldquo;{saveConfirmPayload.keterangan}&rdquo;
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed font-semibold italic text-center">
+                Apakah Anda yakin data di atas sudah benar untuk menghindari kesalahan pilih opsi?
+              </p>
+
+              {/* Confirm Buttons block */}
+              <div className="flex gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSaveConfirmPayload(null)}
+                  className="flex-1 py-2 text-center text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 font-bold rounded-xl cursor-pointer shadow-2xs transition-all"
+                >
+                  Ubah Lagi
+                </button>
+                <button
+                  type="button"
+                  onClick={executeConfirmSaveFeature}
+                  className="flex-1 py-2 text-center text-white bg-blue-600 hover:bg-blue-750 font-black rounded-xl cursor-pointer shadow-sm transition-all uppercase tracking-wider"
+                >
+                  Ya, Simpan!
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

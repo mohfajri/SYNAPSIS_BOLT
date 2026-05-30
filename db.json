@@ -42,11 +42,23 @@
       "name": "mohfajri",
       "nickname": "Fajri",
       "password": "123456",
-      "role": "Site Coordinator",
+      "role": "Supervisor",
       "email": "fajri@taskhub.com",
-      "siteTugas": "",
+      "siteTugas": "RS TPT",
       "statusAktif": true,
       "createdAt": "2026-05-22T11:13:04.487Z"
+    },
+    {
+      "id": "u-0yrno2h",
+      "username": "tari",
+      "name": "Tari",
+      "nickname": "Tari",
+      "password": "123456",
+      "role": "Manager",
+      "email": "tari@taskhub.com",
+      "siteTugas": "",
+      "statusAktif": true,
+      "createdAt": "2026-05-27T14:24:03.981Z"
     }
   ],
   "projects": [
@@ -374,7 +386,12 @@
         "allowedViews": [
           "settings",
           "users",
-          "clients"
+          "clients",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -387,7 +404,12 @@
           "kanban",
           "gantt",
           "calendar",
-          "collab"
+          "collab",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -400,7 +422,12 @@
           "kanban",
           "gantt",
           "calendar",
-          "collab"
+          "collab",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -413,7 +440,12 @@
           "kanban",
           "gantt",
           "calendar",
-          "collab"
+          "collab",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -426,7 +458,12 @@
           "kanban",
           "gantt",
           "calendar",
-          "collab"
+          "collab",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -435,7 +472,9 @@
         "allowedViews": [
           "dashboard",
           "projects",
-          "tasks"
+          "tasks",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -448,7 +487,12 @@
           "kanban",
           "gantt",
           "calendar",
-          "collab"
+          "collab",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
         ],
         "active": true
       },
@@ -459,7 +503,71 @@
           "projects",
           "tasks",
           "kanban",
-          "gantt"
+          "gantt",
+          "tickets",
+          "appmodules",
+          "assets",
+          "monev",
+          "billing"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Manager",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "clients",
+          "monev",
+          "billing"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Manager Keuangan",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "clients",
+          "monev",
+          "billing"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Supervisor",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "tickets",
+          "collab",
+          "calendar",
+          "gantt",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "clients",
+          "monev",
+          "billing"
         ],
         "active": true
       }
@@ -717,6 +825,70 @@
         "value": "Telepon",
         "active": true
       }
+    ],
+    "statusImplementasiSite": [
+      {
+        "value": "Berjalan",
+        "active": true
+      },
+      {
+        "value": "Tidak Berjalan",
+        "active": true
+      }
+    ],
+    "statusPenggunaan": [
+      {
+        "value": "Optimal",
+        "active": true
+      },
+      {
+        "value": "Tidak Optimal",
+        "active": true
+      }
+    ],
+    "kategoriImplementasi": [
+      {
+        "value": "Request",
+        "active": true
+      },
+      {
+        "value": "Pengembangan",
+        "active": true
+      }
+    ],
+    "jenisAplikasiModul": [
+      {
+        "value": "Web",
+        "active": true
+      },
+      {
+        "value": "Mobile",
+        "active": true
+      }
+    ],
+    "platformModul": [
+      {
+        "value": "Web",
+        "active": true
+      },
+      {
+        "value": "Desktop",
+        "active": true
+      }
+    ],
+    "statusModul": [
+      {
+        "value": "Aktif",
+        "active": true
+      },
+      {
+        "value": "Non Aktif",
+        "active": true
+      },
+      {
+        "value": "Dalam Pengembangan",
+        "active": true
+      }
     ]
   },
   "clients": [
@@ -730,6 +902,128 @@
       "tanggalCutOff": "2026-03-01",
       "tipeMedika": "Rumah Sakit",
       "createdAt": "2026-05-22T11:11:58.950Z"
+    }
+  ],
+  "siteImplementations": [],
+  "tickets": [],
+  "appModules": [],
+  "assets": [],
+  "monev": [],
+  "billing": [
+    {
+      "id": "bill-wfvblcv",
+      "createdAt": "2026-05-27T16:07:16.546Z",
+      "type": "KSO",
+      "clientRS": "RS TPT",
+      "periodMonth": "2026-05",
+      "serviceAmount": 234556633,
+      "ppnPercent": 11,
+      "ppnAmount": 25801230,
+      "totalAmount": 260357863,
+      "description": "",
+      "status": "Verified",
+      "tanggalKirim": "2026-05-27",
+      "tanggalBayar": "",
+      "attachmentBeritaAcara": "",
+      "attachmentBeritaAcaraName": "",
+      "attachmentRekapTagihan": "",
+      "attachmentRekapTagihanName": "",
+      "createdBy": "Fajri",
+      "revisionNotes": "",
+      "submittedBy": "Fajri",
+      "submittedAt": "2026-05-27T16:07:19.624Z",
+      "verifiedAt": "2026-05-27T16:26:14.998Z",
+      "verifiedBy": "Tari"
+    },
+    {
+      "id": "bill-lemnp0a",
+      "createdAt": "2026-05-27T16:03:34.691Z",
+      "type": "KSO",
+      "clientRS": "RS TPT",
+      "periodMonth": "2026-05",
+      "serviceAmount": 339929294,
+      "ppnPercent": 11,
+      "ppnAmount": 37392222,
+      "totalAmount": 377321516,
+      "description": "",
+      "status": "Submitted",
+      "tanggalKirim": "",
+      "tanggalBayar": "",
+      "attachmentBeritaAcara": "",
+      "attachmentBeritaAcaraName": "",
+      "attachmentRekapTagihan": "",
+      "attachmentRekapTagihanName": "",
+      "createdBy": "Fajri",
+      "revisionNotes": "",
+      "submittedBy": "Fajri",
+      "submittedAt": "2026-05-27T16:04:47.964Z"
+    },
+    {
+      "id": "bill-2m09cox",
+      "createdAt": "2026-05-27T16:02:50.512Z",
+      "type": "KSO",
+      "clientRS": "RS TPT",
+      "periodMonth": "2026-03",
+      "serviceAmount": 306288277,
+      "ppnPercent": 11,
+      "ppnAmount": 33691710,
+      "totalAmount": 339979987,
+      "description": "",
+      "status": "Submitted",
+      "tanggalKirim": "",
+      "tanggalBayar": "",
+      "attachmentBeritaAcara": "",
+      "attachmentBeritaAcaraName": "",
+      "attachmentRekapTagihan": "",
+      "attachmentRekapTagihanName": "",
+      "createdBy": "Fajri",
+      "submittedBy": "Fajri",
+      "submittedAt": "2026-05-27T16:02:49.676Z",
+      "revisionNotes": ""
+    },
+    {
+      "id": "bill-p4flu9g",
+      "createdAt": "2026-05-27T16:01:47.265Z",
+      "type": "KSO",
+      "clientRS": "RS TPT",
+      "periodMonth": "2026-03",
+      "serviceAmount": 459876367,
+      "ppnPercent": 11,
+      "ppnAmount": 50586400,
+      "totalAmount": 510462767,
+      "description": "",
+      "status": "Draft",
+      "tanggalKirim": "",
+      "tanggalBayar": "",
+      "attachmentBeritaAcara": "",
+      "attachmentBeritaAcaraName": "",
+      "attachmentRekapTagihan": "",
+      "attachmentRekapTagihanName": "",
+      "createdBy": "Fajri",
+      "revisionNotes": ""
+    },
+    {
+      "id": "bill-960sqj3",
+      "createdAt": "2026-05-27T14:22:08.967Z",
+      "type": "KSO",
+      "clientRS": "RS TPT",
+      "periodMonth": "2026-02",
+      "serviceAmount": 307657822,
+      "ppnPercent": 11,
+      "ppnAmount": 33842360,
+      "totalAmount": 341500182,
+      "description": "",
+      "status": "Submitted",
+      "tanggalKirim": "",
+      "tanggalBayar": "",
+      "attachmentBeritaAcara": "",
+      "attachmentBeritaAcaraName": "",
+      "attachmentRekapTagihan": "",
+      "attachmentRekapTagihanName": "",
+      "createdBy": "Fajri",
+      "revisionNotes": "",
+      "submittedBy": "Fajri",
+      "submittedAt": "2026-05-27T14:22:45.172Z"
     }
   ]
 }

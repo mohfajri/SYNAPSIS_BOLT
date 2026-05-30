@@ -20,7 +20,7 @@ import {
   Boxes,
   Zap
 } from "lucide-react";
-import { Project, Task, User } from "../types";
+import { Project, Task, User, Client } from "../types";
 
 interface RoleSettings {
   roleName: string;
@@ -77,6 +77,7 @@ interface SettingsViewProps {
   users: User[];
   projects: Project[];
   tasks: Task[];
+  clients?: Client[];
   onCascadeRename: (category: string, oldValue: string, newValue: string) => void;
 }
 
@@ -86,6 +87,7 @@ export default function SettingsView({
   users, 
   projects, 
   tasks,
+  clients = [],
   onCascadeRename
 }: SettingsViewProps) {
   
@@ -112,6 +114,7 @@ export default function SettingsView({
   const isCatProgressUsed = (val: string) => tasks.some(t => t.categoryProgress === val);
   const isPriorityUsed = (val: string) => tasks.some(t => t.priority === val);
   const isTaskStatusUsed = (val: string) => tasks.some(t => t.status === val);
+  const isTipeMedikaUsed = (val: string) => clients.some(c => c.tipeMedika === val);
 
   const getIsUsed = (category: string, value: string) => {
     switch (category) {
@@ -121,7 +124,7 @@ export default function SettingsView({
       case "catProgresses": return isCatProgressUsed(value);
       case "priorities": return isPriorityUsed(value);
       case "progressStatuses": return isTaskStatusUsed(value);
-      case "tipeMedika":
+      case "tipeMedika": return isTipeMedikaUsed(value);
       case "tipeMedia":
       case "kategoriDokumen":
       case "jenisBeritaAcara":
@@ -262,8 +265,8 @@ export default function SettingsView({
   const handleAddListItem = (category: keyof SettingsConfig) => {
     if (!newValInput.trim()) return;
     
-    const currentList = settings[category] as ItemConfig[];
-    const exists = currentList.some(item => item.value.toLowerCase() === newValInput.trim().toLowerCase());
+    const currentList = (settings[category] || []) as ItemConfig[];
+    const exists = currentList.some(item => item && item.value && item.value.toLowerCase() === newValInput.trim().toLowerCase());
     if (exists) {
       triggerToast("Nilai tersebut sudah terdaftar dalam list!", true);
       return;
@@ -277,7 +280,8 @@ export default function SettingsView({
   };
 
   const handleToggleItemActive = (category: keyof SettingsConfig, index: number) => {
-    const currentList = [...(settings[category] as ItemConfig[])];
+    const currentList = [...((settings[category] || []) as ItemConfig[])];
+    if (!currentList[index]) return;
     const item = currentList[index];
     currentList[index] = { ...item, active: !item.active };
     handleSaveSettings({ ...settings, [category]: currentList });
@@ -291,12 +295,13 @@ export default function SettingsView({
   const handleSaveEdit = (category: keyof SettingsConfig, index: number) => {
     if (!editingValue.trim()) return;
 
-    const currentList = [...(settings[category] as ItemConfig[])];
+    const currentList = [...((settings[category] || []) as ItemConfig[])];
+    if (!currentList[index]) return;
     const oldValue = currentList[index].value;
     const newValue = editingValue.trim();
 
     // Check duplicate
-    const exists = currentList.some((item, idx) => idx !== index && item.value.toLowerCase() === newValue.toLowerCase());
+    const exists = currentList.some((item, idx) => idx !== index && item && item.value && item.value.toLowerCase() === newValue.toLowerCase());
     if (exists) {
       triggerToast("Nilai ini sudah terdaftar!", true);
       return;
@@ -315,11 +320,12 @@ export default function SettingsView({
   };
 
   const handleDeleteListItem = (category: keyof SettingsConfig, index: number) => {
-    const currentList = settings[category] as ItemConfig[];
+    const currentList = (settings[category] || []) as ItemConfig[];
+    if (!currentList[index]) return;
     const item = currentList[index];
 
     if (getIsUsed(category, item.value)) {
-      triggerToast("Item tidak bisa dihapus karena sudah ada inputan transaksi! Silahkan nonaktifkan rujukan ini.", true);
+      triggerToast("Item tidak bisa dihapus karena sudah ada rujukan transaksi! Silahkan menonaktifkan rujukan ini terlebih dahulu.", true);
       return;
     }
 
@@ -413,6 +419,14 @@ export default function SettingsView({
           >
             <Activity className="w-4.5 h-4.5 shrink-0" />
             <span>Status Progress Sekarang</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("tipeMedika"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "tipeMedika" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <HeartPulse className="w-4.5 h-4.5 shrink-0 animate-pulse text-red-500" />
+            <span>Tipe Medika (Kategori RS)</span>
           </button>
 
           <button
@@ -684,6 +698,7 @@ export default function SettingsView({
                     {activeTab === "catProgresses" && "Katalog Kategori Progress"}
                     {activeTab === "priorities" && "List Prioritas Tugas"}
                     {activeTab === "progressStatuses" && "Indikator Status Progress"}
+                    {activeTab === "tipeMedika" && "Katalog Tipe Medika (Kategori RS)"}
                     {activeTab === "tipeMedia" && "Katalog Tipe Media Korespondensi"}
                     {activeTab === "kategoriDokumen" && "Kategori Dokumen Arsip"}
                     {activeTab === "jenisBeritaAcara" && "Jenis Berita Acara (BA)"}

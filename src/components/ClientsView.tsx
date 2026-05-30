@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Client } from "../types";
+import { Client, AppModule, User } from "../types";
 import { 
   Building2, 
   Plus, 
@@ -12,7 +12,11 @@ import {
   Search,
   Pencil,
   X,
-  FileText
+  FileText,
+  Layers,
+  Code,
+  Globe,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -24,6 +28,8 @@ interface ClientsViewProps {
   tipeMedikaList?: string[];
   jenisModulList?: string[];
   statusImplementasiList?: string[];
+  appModules?: AppModule[];
+  currentUser?: User | null;
 }
 
 export default function ClientsView({
@@ -33,9 +39,17 @@ export default function ClientsView({
   onDeleteClient,
   tipeMedikaList = ["Rumah Sakit", "Klinik Utama", "Klinik Pratama", "Puskesmas", "Laboratorium"],
   jenisModulList = ["Modul Utama", "Modul Integrasi", "Modul Penunjang", "Modul Pelaporan / Dashboard"],
-  statusImplementasiList = ["Belum Mulai", "Analisis Fit & Gap", "Instalasi / Setting", "Pelatihan User", "Pendampingan UAT", "Selesai Implementasi"]
+  statusImplementasiList = ["Belum Mulai", "Analisis Fit & Gap", "Instalasi / Setting", "Pelatihan User", "Pendampingan UAT", "Selesai Implementasi"],
+  appModules = [],
+  currentUser = null
 }: ClientsViewProps) {
   
+  const isUserScoped = !!(currentUser && 
+    currentUser.siteTugas && 
+    currentUser.siteTugas.toLowerCase().trim() !== "kantor pusat" &&
+    currentUser.role !== "Administrator" && 
+    currentUser.role !== "Direktur");
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -63,6 +77,10 @@ export default function ClientsView({
   const [expandedModuleClientId, setExpandedModuleClientId] = useState<string | null>(null);
   const [addModulName, setAddModulName] = useState(jenisModulList[0] || "");
   const [addModulStatus, setAddModulStatus] = useState(statusImplementasiList[0] || "");
+  const [addModulTanggal, setAddModulTanggal] = useState(new Date().toISOString().slice(0, 10));
+  const [editingModuleStatusId, setEditingModuleStatusId] = useState<string | null>(null);
+  const [tempStatus, setTempStatus] = useState<string>("");
+  const [tempTanggal, setTempTanggal] = useState<string>("");
 
   async function handleAddModuleStatus(cl: Client) {
     if (!addModulName) return;
@@ -75,22 +93,50 @@ export default function ClientsView({
       id: "ms-" + Math.random().toString(36).slice(2, 9),
       modulName: addModulName,
       status: addModulStatus,
+      tanggalImplementasi: addModulTanggal || new Date().toISOString().slice(0, 10),
       updatedAt: new Date().toISOString()
     };
     const updated = [...currentStatuses, newItem];
     await onUpdateClient(cl.id, { moduleStatuses: updated });
+
+    // Pivot selection to the next available module name to avoid duplication
+    const registeredNames = Array.from(new Set(appModules.map(m => m.name).filter(Boolean)));
+    const clientImplemented = updated.map(m => m.modulName) || [];
+    const nextAvail = registeredNames.filter(name => !clientImplemented.includes(name));
+    setAddModulName(nextAvail[0] || "");
   }
 
-  async function handleUpdateModuleStatusValue(cl: Client, id: string, nextStatus: string) {
+  async function handleUpdateModuleStatusValue(cl: Client, id: string, nextStatus?: string, nextTanggal?: string) {
     const currentStatuses = cl.moduleStatuses || [];
-    const updated = currentStatuses.map(m => m.id === id ? { ...m, status: nextStatus, updatedAt: new Date().toISOString() } : m);
+    const updated = currentStatuses.map(m => {
+      if (m.id === id) {
+        return {
+          ...m,
+          status: nextStatus !== undefined ? nextStatus : m.status,
+          tanggalImplementasi: nextTanggal !== undefined ? nextTanggal : m.tanggalImplementasi,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return m;
+    });
     await onUpdateClient(cl.id, { moduleStatuses: updated });
   }
 
   async function handleDeleteModuleStatus(cl: Client, id: string) {
     const currentStatuses = cl.moduleStatuses || [];
+    const itemToDelete = currentStatuses.find(m => m.id === id);
     const updated = currentStatuses.filter(m => m.id !== id);
     await onUpdateClient(cl.id, { moduleStatuses: updated });
+
+    // Pivot selection since a deleted one might be chosen again
+    const registeredNames = Array.from(new Set(appModules.map(m => m.name).filter(Boolean)));
+    const clientImplemented = updated.map(m => m.modulName) || [];
+    if (itemToDelete) {
+      setAddModulName(prev => prev || itemToDelete.modulName);
+    } else {
+      const nextAvail = registeredNames.filter(name => !clientImplemented.includes(name));
+      setAddModulName(nextAvail[0] || "");
+    }
   }
 
   async function handleCreateSubmit(e: React.FormEvent) {
@@ -163,6 +209,11 @@ export default function ClientsView({
     (cl.modulSIMRS || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Get unique list of registered module names from Registrasi Modul SIMRS (appModules)
+  const registeredModuleNames = Array.from(
+    new Set(appModules.map(m => m.name).filter(Boolean))
+  );
+
   // Stats calculation
   const totalClientsCount = clients.length;
   const medikaBreakdown = clients.reduce((acc, curr) => {
@@ -186,13 +237,15 @@ export default function ClientsView({
             Registrasikan data kemitraan RS, nomor kerjasama (KSO), Direktur Utama, modul tugas & penentuan tanggal cutoff project.
           </p>
         </div>
-        <button
-          onClick={() => setIsFormOpen(!isFormOpen)}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-md shadow-blue-600/20 active:scale-95 cursor-pointer"
-        >
-          {isFormOpen ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-          {isFormOpen ? "Batal" : "Tambah Client RS"}
-        </button>
+        {!isUserScoped && (
+          <button
+            onClick={() => setIsFormOpen(!isFormOpen)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-md shadow-blue-600/20 active:scale-95 cursor-pointer"
+          >
+            {isFormOpen ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            {isFormOpen ? "Batal" : "Tambah Client RS"}
+          </button>
+        )}
       </div>
 
       {/* Visual Statistics Bar */}
@@ -303,7 +356,7 @@ export default function ClientsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Direktur RS</label>
                   <input
@@ -315,19 +368,6 @@ export default function ClientsView({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Modul SIMRS Ditugaskan</label>
-                  <input
-                    type="text"
-                    value={modulSIMRS}
-                    onChange={(e) => setModulSIMRS(e.target.value)}
-                    placeholder="e.g. Front Office, Rawat Inap, Apotek, Antrean Mandiri"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Tanggal Mulai Project</label>
                   <input
@@ -420,7 +460,8 @@ export default function ClientsView({
                             required
                             value={editNamaRS}
                             onChange={(e) => setEditNamaRS(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                            disabled={isUserScoped}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           />
                         </div>
 
@@ -429,7 +470,8 @@ export default function ClientsView({
                           <select
                             value={editTipeMedika}
                             onChange={(e) => setEditTipeMedika(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                            disabled={isUserScoped}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           >
                             {tipeMedikaList.map((tm) => (
                               <option key={tm} value={tm}>{tm}</option>
@@ -443,12 +485,13 @@ export default function ClientsView({
                             type="text"
                             value={editNoKSO}
                             onChange={(e) => setEditNoKSO(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                            disabled={isUserScoped}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Direktur RS</label>
                           <input
@@ -460,24 +503,13 @@ export default function ClientsView({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Modul SIMRS</label>
-                          <input
-                            type="text"
-                            value={editModulSIMRS}
-                            onChange={(e) => setEditModulSIMRS(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tanggal Project</label>
                           <input
                             type="date"
                             value={editTanggalProject}
                             onChange={(e) => setEditTanggalProject(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                            disabled={isUserScoped}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           />
                         </div>
 
@@ -487,7 +519,8 @@ export default function ClientsView({
                             type="date"
                             value={editTanggalCutOff}
                             onChange={(e) => setEditTanggalCutOff(e.target.value)}
-                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                            disabled={isUserScoped}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           />
                         </div>
                       </div>
@@ -533,12 +566,6 @@ export default function ClientsView({
                               <span className="text-slate-800 dark:text-slate-200">{cl.direkturRS || "-"}</span>
                             </div>
 
-                            <div className="flex items-center gap-1.5 md:col-span-2">
-                              <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">Modul SIMRS:</span>
-                              <span className="text-slate-800 dark:text-slate-200">{cl.modulSIMRS || "-"}</span>
-                            </div>
-
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                               <span className="font-semibold text-slate-600 dark:text-slate-300">Tanggal Project:</span>
@@ -549,6 +576,33 @@ export default function ClientsView({
                               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
                               <span className="font-semibold text-slate-600 dark:text-slate-300">Cut Off:</span>
                               <span className="text-orange-600 dark:text-orange-400 font-bold">{cl.tanggalCutOff || "-"}</span>
+                            </div>
+                          </div>
+
+                          {/* Module Implementation Stats Accumulating from Registrasi Modul SIMRS (registeredModuleNames) */}
+                          <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                            <span className="text-[10px] uppercase font-extrabold text-blue-600 dark:text-blue-400 tracking-wider flex items-center gap-1">
+                              <Layers className="w-3.5 h-3.5" /> Akumulasi Status Modul (Total Registrasi: {registeredModuleNames.length} Modul)
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              <div className="bg-white dark:bg-slate-950 p-2 rounded-lg border border-slate-150 dark:border-slate-850 flex flex-col justify-center items-center">
+                                <span className="text-[9px] font-bold text-slate-500">Terimplementasi (Selesai)</span>
+                                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                                  {cl.moduleStatuses?.filter(m => m.status === "Selesai Implementasi").length || 0}
+                                </span>
+                              </div>
+                              <div className="bg-white dark:bg-slate-950 p-2 rounded-lg border border-slate-150 dark:border-slate-850 flex flex-col justify-center items-center">
+                                <span className="text-[9px] font-bold text-slate-500">Dalam Proses</span>
+                                <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                                  {cl.moduleStatuses?.filter(m => m.status !== "Selesai Implementasi").length || 0}
+                                </span>
+                              </div>
+                              <div className="bg-white dark:bg-slate-950 p-2 rounded-lg border border-slate-150 dark:border-slate-850 flex flex-col justify-center items-center col-span-2 sm:col-span-1">
+                                <span className="text-[9px] font-bold text-slate-500">Tidak Terimplementasi (Belum)</span>
+                                <span className="text-sm font-black text-slate-600 dark:text-slate-400">
+                                  {registeredModuleNames.length - (cl.moduleStatuses?.filter(m => m.status === "Selesai Implementasi").length || 0)}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
@@ -589,7 +643,9 @@ export default function ClientsView({
                                 setExpandedModuleClientId(null);
                               } else {
                                 setExpandedModuleClientId(cl.id);
-                                setAddModulName(jenisModulList[0] || "");
+                                const clientImplemented = cl.moduleStatuses?.map(ms => ms.modulName) || [];
+                                const available = registeredModuleNames.filter(name => !clientImplemented.includes(name));
+                                setAddModulName(available[0] || "");
                                 setAddModulStatus(statusImplementasiList[0] || "");
                               }
                             }}
@@ -612,18 +668,20 @@ export default function ClientsView({
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (confirm(`Apakah Anda yakin ingin menghapus data Client ${cl.namaRS}?`)) {
-                                await onDeleteClient(cl.id);
-                              }
-                            }}
-                            className="bg-red-950/20 hover:bg-red-900/30 border border-red-900/40 p-2 rounded-lg text-red-400 transition-all active:scale-95"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isUserScoped && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (confirm(`Apakah Anda yakin ingin menghapus data Client ${cl.namaRS}?`)) {
+                                  await onDeleteClient(cl.id);
+                                }
+                              }}
+                              className="bg-red-950/20 hover:bg-red-900/30 border border-red-900/40 p-2 rounded-lg text-red-400 transition-all active:scale-95"
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -633,7 +691,7 @@ export default function ClientsView({
                           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                             <div className="flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                               <Building2 className="w-4 h-4 text-blue-500" />
-                              <span>Konfigurasi Status Implementasi per Modul</span>
+                              <span>Kelola Status Implementasi Modul</span>
                             </div>
                             <button 
                               type="button"
@@ -644,68 +702,226 @@ export default function ClientsView({
                             </button>
                           </div>
 
-                          {/* List of active tracking modules */}
-                          <div className="space-y-2">
+                          {/* List of active tracking modules styled exactly like Registrasi Modul SIMRS */}
+                          <div className="space-y-3">
                             {!cl.moduleStatuses || cl.moduleStatuses.length === 0 ? (
                               <p className="text-xs text-slate-500 italic font-medium">Belum ada pemantauan status per modul untuk RS ini.</p>
                             ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
-                                {cl.moduleStatuses.map((m) => (
-                                  <div key={m.id} className="flex items-center justify-between gap-3 bg-white dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-850">
-                                    <div className="truncate">
-                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{m.modulName}</p>
-                                      <p className="text-[9px] text-slate-500">Update: {new Date(m.updatedAt || "").toLocaleString("id-ID")}</p>
-                                    </div>
+                              <div className="flex flex-col gap-4 pb-2">
+                                {cl.moduleStatuses.map((m) => {
+                                  const masterModule = appModules?.find(x => x.name === m.modulName);
+                                  const status = m.status;
+                                  const amNo = masterModule?.noModul || "001";
+                                  const jenisMod = masterModule?.jenisModul || masterModule?.type || "Modul Utama";
+                                  const jenisApp = masterModule?.jenisAplikasiModul || "Web";
+                                  const platformMod = masterModule?.platformModul || "Web";
+                                  const isEditingThisModule = editingModuleStatusId === m.id;
 
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <select
-                                        value={m.status}
-                                        onChange={(e) => handleUpdateModuleStatusValue(cl, m.id, e.target.value)}
-                                        className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-205 text-xs rounded-md px-1.5 py-1 focus:outline-none focus:border-blue-500"
-                                      >
-                                        {statusImplementasiList.map((st) => (
-                                          <option key={st} value={st}>{st}</option>
-                                        ))}
-                                      </select>
+                                  return (
+                                    <div 
+                                      key={m.id}
+                                      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl overflow-hidden shadow-xs transition-all p-5 space-y-4 hover:border-slate-300 dark:hover:border-slate-800"
+                                    >
+                                      {/* Header metadata badges (Matches design in Registrasi Modul SIMRS) */}
+                                      <div className="flex flex-wrap items-center gap-2 text-[9px] font-mono font-bold">
+                                        <span className="bg-slate-100 dark:bg-slate-900 text-slate-650 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-250 dark:border-slate-800">
+                                          {jenisMod}
+                                        </span>
+                                        <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-150/40">
+                                          App: {jenisApp}
+                                        </span>
+                                        <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-650 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-150/40">
+                                          Platform: {platformMod}
+                                        </span>
+                                        {masterModule?.pic && (
+                                          <span className="text-slate-450 dark:text-slate-500 font-sans">
+                                            PIC Master: {masterModule.pic}
+                                          </span>
+                                        )}
+                                      </div>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteModuleStatus(cl, m.id)}
-                                        className="p-1 text-slate-400 hover:text-red-400 rounded hover:bg-slate-100 dark:hover:bg-slate-900 transition-all cursor-pointer"
-                                        title="Hapus Pemantauan"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
+                                      {/* Module Title row */}
+                                      <div className="flex items-start justify-between gap-2">
+                                        <h4 className="text-sm font-black text-slate-801 dark:text-slate-100 flex flex-wrap items-center gap-2 leading-tight">
+                                          <span className="bg-emerald-600/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 rounded font-mono font-black border border-emerald-500/10 text-[10px]">
+                                            NO.{amNo}
+                                          </span>
+                                          <Code className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> 
+                                          <span className="truncate">{m.modulName}</span>
+                                        </h4>
+                                        
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteModuleStatus(cl, m.id)}
+                                          className="p-1 px-1.5 text-slate-400 hover:text-red-450 rounded hover:bg-slate-100 dark:hover:bg-slate-900 transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold border border-transparent hover:border-red-200/40 shrink-0"
+                                          title="Hapus Pemantauan"
+                                        >
+                                          <Trash2 className="w-3 h-3 text-red-555" /> Hapus
+                                        </button>
+                                      </div>
+
+                                      {/* Submodules features list metadata if any */}
+                                      {masterModule && masterModule.subModules && masterModule.subModules.length > 0 && (
+                                        <div className="bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-850/50 text-[10px] text-slate-700 dark:text-slate-350 space-y-1">
+                                          <div className="font-bold flex items-center gap-1">
+                                            <Layers className="w-3 h-3 text-indigo-500" />
+                                            <span>Rincian Fitur Utama ({masterModule.subModules.length}):</span>
+                                          </div>
+                                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                            {masterModule.subModules.slice(0, 4).map((sub, sIdx) => (
+                                              <span key={sub.id || sIdx} className="bg-slate-100 dark:bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 font-mono">
+                                                #{sub.noFeature || String(sIdx + 1).padStart(3, "0")} {sub.name}
+                                              </span>
+                                            ))}
+                                            {masterModule.subModules.length > 4 && (
+                                              <span className="text-[9px] text-slate-400 self-center font-bold">+{masterModule.subModules.length - 4} lainnya</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Implementasi inputs or Read-Only display with locker */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100 dark:border-slate-850">
+                                        {isEditingThisModule ? (
+                                          <>
+                                            <div>
+                                              <label className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">📅 Tanggal Implementasi</label>
+                                              <input
+                                                type="date"
+                                                value={tempTanggal}
+                                                onChange={(e) => setTempTanggal(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-blue-500 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500 font-mono font-bold"
+                                              />
+                                            </div>
+
+                                            <div>
+                                              <label className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">🏁 Status Implementasi</label>
+                                              <select
+                                                value={tempStatus}
+                                                onChange={(e) => setTempStatus(e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-blue-505 dark:border-blue-500 text-slate-850 dark:text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500 font-extrabold"
+                                              >
+                                                {statusImplementasiList.map((st) => (
+                                                  <option key={st} value={st}>{st}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <div>
+                                              <span className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">📅 Tanggal Implementasi</span>
+                                              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 px-2.5 py-1 rounded inline-block">
+                                                {m.tanggalImplementasi || "Belum Ditentukan"}
+                                              </span>
+                                            </div>
+
+                                            <div>
+                                              <span className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">🏁 Status Implementasi</span>
+                                              <span className={`inline-block font-extrabold px-3 py-1 rounded text-xs border ${
+                                                m.status === "Selesai Implementasi" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50" :
+                                                m.status.includes("UAT") || m.status.includes("Pending") || m.status.includes("Pelatihan") ? "bg-blue-50 dark:bg-blue-950/40 text-blue-650 dark:text-blue-400 border-blue-200 dark:border-blue-900/50" :
+                                                m.status.includes("Setting") || m.status.includes("Analisis") ? "bg-amber-50 dark:bg-amber-950/40 text-amber-655 dark:text-amber-400 border-amber-200 dark:border-amber-900/35" :
+                                                "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200"
+                                              }`}>
+                                                {m.status}
+                                              </span>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-[8px] text-slate-400 mt-2 dark:text-slate-500 pt-1 border-t border-slate-100/50 dark:border-slate-900/50">
+                                        <div className="flex items-center gap-3">
+                                          <span>Last update: {new Date(m.updatedAt || "").toLocaleString("id-ID")}</span>
+                                          {masterModule?.url && (
+                                            <a 
+                                              href={masterModule.url} 
+                                              target="_blank" 
+                                              rel="noreferrer"
+                                              className="text-[9px] text-blue-505 hover:underline flex items-center gap-0.5 font-bold"
+                                            >
+                                              <Globe className="w-2.5 h-2.5 text-blue-500" /> URL Modul
+                                            </a>
+                                          )}
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5">
+                                          {isEditingThisModule ? (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  await handleUpdateModuleStatusValue(cl, m.id, tempStatus, tempTanggal);
+                                                  setEditingModuleStatusId(null);
+                                                }}
+                                                className="px-2.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[9px] rounded transition-all cursor-pointer active:scale-95"
+                                              >
+                                                Simpan
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setEditingModuleStatusId(null)}
+                                                className="px-2.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[9px] rounded transition-all cursor-pointer"
+                                              >
+                                                Batal
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setEditingModuleStatusId(m.id);
+                                                setTempStatus(m.status);
+                                                setTempTanggal(m.tanggalImplementasi || "");
+                                              }}
+                                              className="px-2.5 py-0.5 border border-slate-250 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900 text-blue-600 dark:text-blue-400 font-extrabold text-[9px] rounded transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                                            >
+                                              <Pencil className="w-2 h-2 text-blue-500" /> Ubah
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
 
-                          {/* Inline form to Add monitoring */}
-                          <div className="bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-850 space-y-3">
+                          {/* Inline form to Add monitoring (Includes Tanggal Implementasi input field as requested) */}
+                          <div className="bg-white dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-850 space-y-3">
                             <h4 className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Mulai Pantau Modul Baru</h4>
-                            <div className="flex flex-col sm:flex-row items-end gap-3">
-                              <div className="w-full sm:flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                              <div>
                                 <label className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Pilih Modul SIMRS</label>
                                 <select
                                   value={addModulName}
                                   onChange={(e) => setAddModulName(e.target.value)}
-                                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium"
+                                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 text-xs text-slate-880 dark:text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium"
                                 >
-                                  {jenisModulList.map((m) => (
-                                    <option key={m} value={m}>{m}</option>
-                                  ))}
+                                  {(() => {
+                                    const clientImplemented = cl.moduleStatuses?.map(ms => ms.modulName) || [];
+                                    const available = registeredModuleNames.filter(name => !clientImplemented.includes(name));
+                                    if (registeredModuleNames.length === 0) {
+                                      return <option value="">-- Daftarkan Modul di "Registrasi Modul SIMRS" Terlebih Dahulu --</option>;
+                                    }
+                                    if (available.length === 0) {
+                                      return <option value="">-- Semua modul terdaftar sudah dipantau --</option>;
+                                    }
+                                    return available.map((m) => (
+                                      <option key={m} value={m}>{m}</option>
+                                    ));
+                                  })()}
                                 </select>
                               </div>
 
-                              <div className="w-full sm:flex-1">
+                              <div>
                                 <label className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Status Implementasi Awal</label>
                                 <select
                                   value={addModulStatus}
                                   onChange={(e) => setAddModulStatus(e.target.value)}
-                                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium"
+                                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 text-xs text-slate-880 dark:text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium"
                                 >
                                   {statusImplementasiList.map((st) => (
                                     <option key={st} value={st}>{st}</option>
@@ -713,13 +929,32 @@ export default function ClientsView({
                                 </select>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleAddModuleStatus(cl)}
-                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-1.5 rounded-md transition-all shrink-0 h-8.5 cursor-pointer"
-                              >
-                                Tambah Modul
-                              </button>
+                              <div>
+                                <label className="block text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">📅 Tanggal Implementasi</label>
+                                <input
+                                  type="date"
+                                  value={addModulTanggal}
+                                  onChange={(e) => setAddModulTanggal(e.target.value)}
+                                  className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 text-xs text-slate-880 dark:text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 font-medium"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end pt-1">
+                              {(() => {
+                                const clientImplemented = cl.moduleStatuses?.map(ms => ms.modulName) || [];
+                                const available = registeredModuleNames.filter(name => !clientImplemented.includes(name));
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddModuleStatus(cl)}
+                                    disabled={available.length === 0}
+                                    className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:dark:bg-slate-900 disabled:text-slate-400 text-white text-xs font-bold px-4 py-1.5 rounded-md transition-all shadow-md shadow-blue-500/10 cursor-pointer active:scale-95"
+                                  >
+                                    Tambah Modul Implementasi
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>

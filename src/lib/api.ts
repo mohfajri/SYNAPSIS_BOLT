@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO } from "../types";
 
 const API_BASE = "/api";
 
@@ -419,6 +419,68 @@ export const api = {
 
   async deleteSiteImplementation(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/siteimplementations/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Monitoring Evaluasi (Monev) CRUD
+  async getMonevLogs(): Promise<MonevLog[]> {
+    const res = await fetch(`${API_BASE}/monev`);
+    return handleResponse(res);
+  },
+
+  async createMonevLog(data: Partial<MonevLog>): Promise<MonevLog> {
+    const res = await fetch(`${API_BASE}/monev`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateMonevLog(id: string, data: Partial<MonevLog>): Promise<MonevLog> {
+    const res = await fetch(`${API_BASE}/monev/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteMonevLog(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/monev/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Billing KSO & ATK CRUD
+  async getBillings(): Promise<BillingKSO[]> {
+    const res = await fetch(`${API_BASE}/billing`);
+    return handleResponse(res);
+  },
+
+  async createBilling(data: Partial<BillingKSO>): Promise<BillingKSO> {
+    const res = await fetch(`${API_BASE}/billing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateBilling(id: string, data: Partial<BillingKSO>): Promise<BillingKSO> {
+    const res = await fetch(`${API_BASE}/billing/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteBilling(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/billing/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);

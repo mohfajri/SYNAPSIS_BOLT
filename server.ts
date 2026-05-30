@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog } from "./src/types.js";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO } from "./src/types.js";
 
 const app = express();
 const PORT = 3000;
@@ -17,7 +17,10 @@ const DEFAULT_SETTINGS = {
     { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
     { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks"], active: true },
     { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt"], active: true }
+    { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt"], active: true },
+    { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
+    { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
+    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true }
   ],
   milestoneStatuses: [
     { value: "On Track", active: true },
@@ -108,10 +111,24 @@ const DEFAULT_SETTINGS = {
   kategoriImplementasi: [
     { value: "Request", active: true },
     { value: "Pengembangan", active: true }
+  ],
+  jenisAplikasiModul: [
+    { value: "Web", active: true },
+    { value: "Mobile", active: true }
+  ],
+  platformModul: [
+    { value: "Web", active: true },
+    { value: "Desktop", active: true }
+  ],
+  statusModul: [
+    { value: "Aktif", active: true },
+    { value: "Non Aktif", active: true },
+    { value: "Dalam Pengembangan", active: true }
   ]
 };
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Helper to write database
 async function writeDB(data: any) {
@@ -479,6 +496,14 @@ async function readDB() {
     db.assets = [];
     modified = true;
   }
+  if (!db.monev) {
+    db.monev = [];
+    modified = true;
+  }
+  if (!db.billing) {
+    db.billing = [];
+    modified = true;
+  }
   if (db.users) {
     db.users.forEach((u: any) => {
       if (u.statusAktif === undefined) {
@@ -510,6 +535,14 @@ async function readDB() {
         adminRole.allowedViews.push("assets");
         modified = true;
       }
+      if (!adminRole.allowedViews.includes("monev")) {
+        adminRole.allowedViews.push("monev");
+        modified = true;
+      }
+      if (!adminRole.allowedViews.includes("billing")) {
+        adminRole.allowedViews.push("billing");
+        modified = true;
+      }
     }
     
     // Also enable for other roles by default so they are easy to access
@@ -525,6 +558,24 @@ async function readDB() {
         }
         if (!r.allowedViews.includes("assets")) {
           r.allowedViews.push("assets");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("monev")) {
+          r.allowedViews.push("monev");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("billing")) {
+          r.allowedViews.push("billing");
+          modified = true;
+        }
+      } else if (r.roleName === "Client") {
+        // Can read or interact with it too if in their permissions
+        if (!r.allowedViews.includes("monev")) {
+          r.allowedViews.push("monev");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("billing")) {
+          r.allowedViews.push("billing");
           modified = true;
         }
       }
@@ -1286,7 +1337,7 @@ app.get("/api/settings", async (req, res) => {
       await writeDB(db);
     } else {
       let modified = false;
-      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi"];
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul"];
       for (const key of keys) {
         if (!db.settings[key]) {
           db.settings[key] = (DEFAULT_SETTINGS as any)[key];
@@ -1309,6 +1360,118 @@ app.put("/api/settings", async (req, res) => {
     db.settings = { ...db.settings, ...req.body };
     await writeDB(db);
     return res.json(db.settings);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── MONITORING EVALUASI (MONEV) CRUD ─────────────────────────────────────
+app.get("/api/monev", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.monev || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/monev", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newMonev = {
+      id: "monev-" + Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      ...req.body
+    };
+    db.monev = db.monev || [];
+    db.monev.unshift(newMonev);
+    await writeDB(db);
+    return res.status(201).json(newMonev);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/monev/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.monev || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Data Monev tidak ditemukan!" });
+    }
+    db.monev[idx] = { ...db.monev[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.monev[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/monev/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.monev = (db.monev || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── BILLING KSO CRUD ─────────────────────────────────────────────────────
+app.get("/api/billing", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.billing || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/billing", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newBilling: BillingKSO = {
+      id: "bill-" + Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      ...req.body
+    };
+    db.billing = db.billing || [];
+    db.billing.unshift(newBilling);
+    await writeDB(db);
+    return res.status(201).json(newBilling);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/billing/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.billing || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Data Billing KSO tidak ditemukan!" });
+    }
+    db.billing[idx] = { ...db.billing[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.billing[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/billing/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.billing = (db.billing || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

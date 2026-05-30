@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Project, Task, LogEntry, User } from "../types";
+import { Project, Task, LogEntry, User, Client, AppModule, SiteModuleImplementation } from "../types";
 import { 
   FolderLock, 
   Search, 
@@ -14,7 +14,8 @@ import {
   BookMarked,
   Trash2,
   Edit,
-  ClipboardList
+  ClipboardList,
+  Layers
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -25,6 +26,7 @@ interface ProjectsViewProps {
   currentUser: User | null;
   picsList: string[];
   users?: User[];
+  clients?: Client[];
   modulsList: string[];
   asalsList: string[];
   pstatusesList: string[];
@@ -35,6 +37,8 @@ interface ProjectsViewProps {
   onDeleteProject: (id: string) => Promise<void>;
   onAddDiagnosticLog: (projId: string, type: 'kendala' | 'solusi' | 'fokus', text: string, date: string) => Promise<void>;
   onDeleteDiagnosticLog: (id: string) => Promise<void>;
+  siteImplementations?: SiteModuleImplementation[];
+  appModules?: AppModule[];
 }
 
 export default function ProjectsView({
@@ -44,6 +48,7 @@ export default function ProjectsView({
   currentUser,
   picsList,
   users = [],
+  clients = [],
   modulsList,
   asalsList,
   pstatusesList,
@@ -53,15 +58,20 @@ export default function ProjectsView({
   onUpdateProject,
   onDeleteProject,
   onAddDiagnosticLog,
-  onDeleteDiagnosticLog
+  onDeleteDiagnosticLog,
+  siteImplementations = [],
+  appModules = []
 }: ProjectsViewProps) {
   
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterClient, setFilterClient] = useState("");
+  const [filterModul, setFilterModul] = useState("");
   
   // Modal & form states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProj, setEditingProj] = useState<Project | null>(null);
+  const [dateError, setDateError] = useState("");
   
   // Create / Edit Form Variables
   const [nama, setNama] = useState("");
@@ -77,6 +87,7 @@ export default function ProjectsView({
   const [prasyarat, setPrasyarat] = useState("");
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
+  const [fiturModul, setFiturModul] = useState<string[]>([]);
 
   // Get dynamic PIC options filter based on target site/client entered
   const getDynamicPicsList = () => {
@@ -112,6 +123,93 @@ export default function ProjectsView({
     }
   }, [client, isFormOpen, editingProj, users]);
 
+  // Derived filter helper lists
+  const clientOptions = React.useMemo(() => {
+    const list = clients ? clients.map(cl => cl.namaRS) : [];
+    if (client && !list.includes(client)) {
+      list.push(client);
+    }
+    if (editingProj?.client && !list.includes(editingProj.client)) {
+      list.push(editingProj.client);
+    }
+    return Array.from(new Set(list)).filter(Boolean).sort();
+  }, [clients, client, editingProj]);
+
+  const siteOptions = React.useMemo(() => {
+    const fromClients = clients.map(c => c.namaRS);
+    const fromProjects = projects.map(p => p.client);
+    const combined = Array.from(new Set([...fromClients, ...fromProjects])).filter(Boolean);
+    return combined.sort();
+  }, [clients, projects]);
+
+  const modulOptions = React.useMemo(() => {
+    const fromSiteImpls = (siteImplementations || [])
+      .filter(impl => !impl.subModuleId)
+      .map(impl => impl.appModuleName);
+    const combined = Array.from(new Set([...fromSiteImpls, ...projects.map(p => p.modul)])).filter(Boolean);
+    return combined.sort();
+  }, [siteImplementations, projects]);
+
+  // Modul Utama selection takes options from "Implementasi Modul per Site"
+  const availableModulesForForm = React.useMemo(() => {
+    const clientName = client.trim();
+
+    if (!clientName) {
+      return [];
+    }
+
+    const filteredImpls = (siteImplementations || []).filter(
+      impl => !impl.subModuleId && impl.clientRS.trim().toLowerCase() === clientName.toLowerCase()
+    );
+    const uniqueForClient = Array.from(new Set(filteredImpls.map(impl => impl.appModuleName))).filter(Boolean);
+    const result = uniqueForClient.sort();
+
+    // Include editingProj's current modul to prevent blank dropdown during edit if matching client
+    if (editingProj?.modul && editingProj.client?.trim().toLowerCase() === clientName.toLowerCase()) {
+      if (!result.includes(editingProj.modul)) {
+        result.push(editingProj.modul);
+      }
+    }
+    return result;
+  }, [siteImplementations, client, editingProj]);
+
+  // Features available for selected Modul Utama (from appModules)
+  const availableFeatures = React.useMemo(() => {
+    if (!appModules || appModules.length === 0) return [];
+    const appMod = appModules.find(m => m.name === modul);
+    return appMod?.subModules || [];
+  }, [appModules, modul]);
+
+  // Sync selected modul selection with available options
+  useEffect(() => {
+    if (isFormOpen) {
+      if (availableModulesForForm.length === 0) {
+        setModul("");
+      } else if (!modul || !availableModulesForForm.includes(modul)) {
+        if (editingProj && editingProj.modul && availableModulesForForm.includes(editingProj.modul)) {
+          setModul(editingProj.modul);
+        } else {
+          setModul(availableModulesForForm[0]);
+        }
+      }
+    }
+  }, [availableModulesForForm, isFormOpen, modul, editingProj]);
+
+  // Sync features list when selected module or form modal shifts context
+  useEffect(() => {
+    if (isFormOpen) {
+      if (!editingProj) {
+        setFiturModul(availableFeatures.map(f => f.name));
+      } else {
+        if (editingProj.modul === modul && editingProj.fiturModul) {
+          setFiturModul(editingProj.fiturModul);
+        } else {
+          setFiturModul(availableFeatures.map(f => f.name));
+        }
+      }
+    }
+  }, [availableFeatures, isFormOpen, editingProj, modul]);
+
   // Diagnostic states
   const [activeLogProjId, setActiveLogProjId] = useState<string | null>(null);
   const [logType, setLogType] = useState<'kendala' | 'solusi' | 'fokus'>("kendala");
@@ -121,7 +219,9 @@ export default function ProjectsView({
     const sQuery = `${p.kode} ${p.nama} ${p.client}`.toLowerCase();
     const matchesSearch = sQuery.includes(search.toLowerCase());
     const matchesStatus = filterStatus === "" || p.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesClient = filterClient === "" || (p.client && p.client.toLowerCase() === filterClient.toLowerCase());
+    const matchesModul = filterModul === "" || (p.modul && p.modul.toLowerCase() === filterModul.toLowerCase());
+    return matchesSearch && matchesStatus && matchesClient && matchesModul;
   });
 
   function openCreate() {
@@ -136,9 +236,9 @@ export default function ProjectsView({
     setEditingProj(null);
     setKode(computedCode);
     setNama("");
-    setModul(modulsList[0] || "");
+    setModul("");
     setPic(picsList[0] || "");
-    setClient("");
+    setClient(currentUser?.siteTugas || "");
     setAsal(asalsList[0] || "");
     setStatus("On Track");
     setStartDate(new Date().toISOString().slice(0, 10));
@@ -147,6 +247,7 @@ export default function ProjectsView({
     setPrasyarat("");
     setNotes("");
     setUrl("");
+    setFiturModul([]);
     setIsFormOpen(true);
   }
 
@@ -165,6 +266,7 @@ export default function ProjectsView({
     setPrasyarat(p.prasyarat);
     setNotes(p.notes);
     setUrl(p.url);
+    setFiturModul(p.fiturModul || []);
     setIsFormOpen(true);
   }
 
@@ -172,10 +274,34 @@ export default function ProjectsView({
     e.preventDefault();
     if (!nama.trim()) return;
 
+    if (!client.trim()) {
+      alert("⚠️ Error: Akun Anda tidak memiliki data rujukan 'Site Tugas' (Dinas RS) terdaftar. Silahkan hubungi administrator atau atur 'Site Tugas' Anda terlebih dahulu agar data project dapat otomatis terikat ke site Anda bertugas!");
+      return;
+    }
+
+    if (!modul) {
+      alert("⚠️ Error: Silahkan pilih Modul Utama sesuai modul terimplementasi di site!");
+      return;
+    }
+
+    // Validation checks
+    if (startDate && endDate && endDate < startDate) {
+      alert("⚠️ Error: Tanggal Batas Akhir tidak boleh mendahului Tanggal Mulai proyek!");
+      setDateError("Tanggal Batas Akhir tidak boleh mendahului Tanggal Mulai.");
+      return;
+    }
+
+    if (startDate && completionDate && completionDate < startDate) {
+      alert("⚠️ Error: Tanggal Selesai Riil tidak boleh mendahului Tanggal Mulai proyek!");
+      setDateError("Tanggal Selesai Riil tidak boleh mendahului Tanggal Mulai.");
+      return;
+    }
+
     const body: Partial<Project> = {
       kode,
       nama,
       modul,
+      fiturModul,
       pic,
       client,
       asal,
@@ -188,12 +314,17 @@ export default function ProjectsView({
       url
     };
 
-    if (editingProj) {
-      await onUpdateProject(editingProj.id, body);
-    } else {
-      await onAddProject(body);
+    try {
+      if (editingProj) {
+        await onUpdateProject(editingProj.id, body);
+      } else {
+        await onAddProject(body);
+      }
+      setIsFormOpen(false);
+      setDateError("");
+    } catch (err: any) {
+      alert("Gagal menyimpan proyek: " + err.message);
     }
-    setIsFormOpen(false);
   }
 
   async function handleAddLog(projId: string) {
@@ -278,7 +409,7 @@ export default function ProjectsView({
                   type="text"
                   disabled
                   value={kode}
-                  className="w-full bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 py-3 px-3 rounded-lg text-blue-600 font-bold cursor-not-allowed font-mono text-xs uppercase"
+                  className="w-full bg-slate-101 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 py-3 px-3 rounded-lg text-blue-600 font-bold cursor-not-allowed font-mono text-xs uppercase"
                 />
               </div>
 
@@ -294,20 +425,48 @@ export default function ProjectsView({
                 />
               </div>
 
+              <div className="flex flex-col gap-1.5 justify-center bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">NAMA CLIENT / DINAS RS</label>
+                <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+                  {client || currentUser?.siteTugas || "— Belum diatur —"}
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                  {editingProj ? "Terkunci (Mode Edit)" : "Otomatis diikat ke Site Tugas akun Anda"}
+                </span>
+              </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">MODUL UTAMA</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  MODUL UTAMA *
+                  {client ? ` (Terimplementasi di ${client})` : ""}
+                </label>
                 <select
+                  required
                   value={modul}
                   onChange={(e) => setModul(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
                 >
-                  {modulsList.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
+                  {!client.trim() ? (
+                    <option value="">-- Silahkan Pilih Client Terlebih Dahulu --</option>
+                  ) : availableModulesForForm.length > 0 ? (
+                    <>
+                      <option value="">-- Pilih Modul Utama --</option>
+                      {availableModulesForForm.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </>
+                  ) : (
+                    <option value="">-- Belum ada modul terimplementasi di site ini --</option>
+                  )}
                 </select>
+                {client.trim() && availableModulesForForm.length === 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold leading-relaxed bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 mt-1 block">
+                    ⚠️ Site <strong>"{client}"</strong> belum mendaftarkan Modul Utama di menu <strong>"Implementasi Modul per Site"</strong>. Silahkan daftarkan modul terlebih dahulu di menu tersebut agar dapat dipilih di sini.
+                  </span>
+                )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PIC PENYELENGGARA</label>
                 <select
                   value={pic}
@@ -319,6 +478,77 @@ export default function ProjectsView({
                   ))}
                 </select>
               </div>
+
+              {/* Fitur Modul (Koneksi Fitur) - Multi Select Checkbox */}
+              <div className="md:col-span-2 flex flex-col gap-2 mt-2">
+                <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-850">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" /> Fitur Modul ({fiturModul.length} terpilih)
+                  </span>
+                  {availableFeatures.length > 0 && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFiturModul(availableFeatures.map(f => f.name))}
+                        className="text-[10.5px] font-bold text-blue-600 hover:underline"
+                      >
+                        Pilih Semua
+                      </button>
+                      <span className="text-[10px] text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiturModul([])}
+                        className="text-[10.5px] font-bold text-red-500 hover:underline"
+                      >
+                        Hapus Semua
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {availableFeatures.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic p-3 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                    Tidak ada list rincian fitur / sub-modul yang didaftarkan untuk Modul Utama "{modul || '—'}" pada modul Registrasi SIMRS.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 p-4 bg-slate-50/50 dark:bg-slate-950/10 rounded-xl border border-slate-200 dark:border-slate-800">
+                    {availableFeatures.map((feat) => {
+                      const isChecked = fiturModul.includes(feat.name);
+                      return (
+                        <label 
+                          key={feat.id} 
+                          className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                            isChecked
+                              ? "bg-blue-50/30 dark:bg-blue-950/20 border-blue-500/30 text-blue-900 dark:text-blue-300 shadow-xs"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFiturModul([...fiturModul, feat.name]);
+                              } else {
+                                setFiturModul(fiturModul.filter(f => f !== feat.name));
+                              }
+                            }}
+                            className="mt-1 accent-blue-600 w-3.5 h-3.5"
+                          />
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-bold leading-tight select-none">{feat.name}</span>
+                            {feat.featureDesc && (
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 leading-snug line-clamp-2 select-none">
+                                {feat.featureDesc}
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -326,21 +556,10 @@ export default function ProjectsView({
           <div className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/60">
               <User2 className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <h3 className="font-extrabold text-[11px] text-slate-800 dark:text-slate-200 uppercase tracking-widest">Administrasi & Client (Dinas/Lembaga)</h3>
+              <h3 className="font-extrabold text-[11px] text-slate-800 dark:text-slate-200 uppercase tracking-widest">Administrasi Proyek & Milestone Status</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">NAMA CLIENT/DINAS</label>
-                <input
-                  type="text"
-                  value={client}
-                  onChange={(e) => setClient(e.target.value)}
-                  placeholder="Contoh: Diskominfo / Rumah Sakit"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-101 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-550 transition-all placeholder:font-normal placeholder:opacity-50"
-                />
-              </div>
-
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">SISTEM ASAL KONTRAK / SUMBER</label>
                 <select
@@ -515,26 +734,16 @@ export default function ProjectsView({
 
   return (
     <div className="space-y-6 fade-in font-sans pb-10">
-      
       {/* Upper info banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-101 flex items-center gap-2">
             <FolderLock className="w-5.5 h-5.5 text-blue-600" /> Project Master
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
             Gunakan portal ini untuk meregistrasi project baru, memantau milestones, target UAT, serta mencatat log kendala & solusi.
           </p>
         </div>
-        
-        {currentUser?.role !== "Client" && (
-          <button
-            onClick={openCreate}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm transition-all animate-pulse"
-          >
-            <Plus className="w-4 h-4" /> Tambah Project Baru
-          </button>
-        )}
       </div>
 
       {/* Search and Quick Filters bar */}
@@ -550,6 +759,30 @@ export default function ProjectsView({
           />
         </div>
         
+        {/* Dropdown Filter Site */}
+        <select
+          value={filterClient}
+          onChange={(e) => setFilterClient(e.target.value)}
+          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+        >
+          <option value="">Semua Site / RS</option>
+          {siteOptions.map(site => (
+            <option key={site} value={site}>{site}</option>
+          ))}
+        </select>
+
+        {/* Dropdown Filter Modul Utama */}
+        <select
+          value={filterModul}
+          onChange={(e) => setFilterModul(e.target.value)}
+          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+        >
+          <option value="">Semua Modul Utama</option>
+          {modulOptions.map(modName => (
+            <option key={modName} value={modName}>{modName}</option>
+          ))}
+        </select>
+
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -731,6 +964,22 @@ export default function ProjectsView({
                       >
                         <ExternalLink className="w-3.5 h-3.5" /> Buka Folder Project Master ↗
                       </a>
+                    </div>
+                  )}
+
+                  {/* Fitur Modul Terpantau Badge List */}
+                  {p.fiturModul && p.fiturModul.length > 0 && (
+                    <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-150/10 p-3.5 rounded-xl text-xs space-y-2">
+                      <p className="font-bold text-slate-500 uppercase text-[9px] tracking-wider flex items-center gap-1">
+                        <Layers className="w-3.5 h-3.5 text-blue-600" /> Fitur Modul Terpantau ({p.fiturModul.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.fiturModul.map((feat, idx) => (
+                          <span key={idx} className="bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 text-[10.5px] font-bold px-2 py-0.5 rounded-md border border-blue-150/10 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
+                            ✓ {feat}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 
