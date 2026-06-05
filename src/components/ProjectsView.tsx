@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Project, Task, LogEntry, User, Client, AppModule, SiteModuleImplementation } from "../types";
+import { Project, Task, LogEntry, User, Client, AppModule, SiteModuleImplementation, CommLog, MeetingLog } from "../types";
 import { 
   FolderLock, 
   Search, 
@@ -15,7 +15,9 @@ import {
   Trash2,
   Edit,
   ClipboardList,
-  Layers
+  Layers,
+  MessageSquare,
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -39,6 +41,8 @@ interface ProjectsViewProps {
   onDeleteDiagnosticLog: (id: string) => Promise<void>;
   siteImplementations?: SiteModuleImplementation[];
   appModules?: AppModule[];
+  commLogs?: CommLog[];
+  meetingLogs?: MeetingLog[];
 }
 
 export default function ProjectsView({
@@ -60,7 +64,9 @@ export default function ProjectsView({
   onAddDiagnosticLog,
   onDeleteDiagnosticLog,
   siteImplementations = [],
-  appModules = []
+  appModules = [],
+  commLogs = [],
+  meetingLogs = []
 }: ProjectsViewProps) {
   
   const [search, setSearch] = useState("");
@@ -88,6 +94,11 @@ export default function ProjectsView({
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
   const [fiturModul, setFiturModul] = useState<string[]>([]);
+  const [linkedCommLogIds, setLinkedCommLogIds] = useState<string[]>([]);
+  const [linkedMeetingLogIds, setLinkedMeetingLogIds] = useState<string[]>([]);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
+  const isKantorPusat = currentUser?.role === "Administrator" || currentUser?.siteTugas?.toLowerCase().trim() === "kantor pusat";
 
   // Get dynamic PIC options filter based on target site/client entered
   const getDynamicPicsList = () => {
@@ -180,16 +191,16 @@ export default function ProjectsView({
     return appMod?.subModules || [];
   }, [appModules, modul]);
 
-  // Sync selected modul selection with available options
+  // Sync selected modul selection with available options (Only if non-empty and not in list)
   useEffect(() => {
     if (isFormOpen) {
       if (availableModulesForForm.length === 0) {
         setModul("");
-      } else if (!modul || !availableModulesForForm.includes(modul)) {
+      } else if (modul && !availableModulesForForm.includes(modul)) {
         if (editingProj && editingProj.modul && availableModulesForForm.includes(editingProj.modul)) {
           setModul(editingProj.modul);
         } else {
-          setModul(availableModulesForForm[0]);
+          setModul("");
         }
       }
     }
@@ -214,6 +225,12 @@ export default function ProjectsView({
   const [activeLogProjId, setActiveLogProjId] = useState<string | null>(null);
   const [logType, setLogType] = useState<'kendala' | 'solusi' | 'fokus'>("kendala");
   const [logText, setLogText] = useState("");
+
+  // States for connecting collaboration logs to project (after creation)
+  const [collabModalProjId, setCollabModalProjId] = useState<string | null>(null);
+  const [collabModalType, setCollabModalType] = useState<'comm' | 'meeting' | null>(null);
+  const [tempCheckedCollabIds, setTempCheckedCollabIds] = useState<string[]>([]);
+  const [collabSearch, setCollabSearch] = useState("");
 
   const filtered = projects.filter((p) => {
     const sQuery = `${p.kode} ${p.nama} ${p.client}`.toLowerCase();
@@ -248,6 +265,8 @@ export default function ProjectsView({
     setNotes("");
     setUrl("");
     setFiturModul([]);
+    setLinkedCommLogIds([]);
+    setLinkedMeetingLogIds([]);
     setIsFormOpen(true);
   }
 
@@ -267,6 +286,8 @@ export default function ProjectsView({
     setNotes(p.notes);
     setUrl(p.url);
     setFiturModul(p.fiturModul || []);
+    setLinkedCommLogIds(p.linkedCommLogIds || []);
+    setLinkedMeetingLogIds(p.linkedMeetingLogIds || []);
     setIsFormOpen(true);
   }
 
@@ -279,10 +300,7 @@ export default function ProjectsView({
       return;
     }
 
-    if (!modul) {
-      alert("⚠️ Error: Silahkan pilih Modul Utama sesuai modul terimplementasi di site!");
-      return;
-    }
+    // Modul Utama is now optional, no validation mandatory check is required
 
     // Validation checks
     if (startDate && endDate && endDate < startDate) {
@@ -311,7 +329,9 @@ export default function ProjectsView({
       completionDate,
       prasyarat,
       notes,
-      url
+      url,
+      linkedCommLogIds,
+      linkedMeetingLogIds
     };
 
     try {
@@ -334,6 +354,20 @@ export default function ProjectsView({
     setLogText("");
     setActiveLogProjId(null);
   }
+
+  const handleSaveProjectCollab = async () => {
+    if (!collabModalProjId || !collabModalType) return;
+    try {
+      const field = collabModalType === 'comm' ? 'linkedCommLogIds' : 'linkedMeetingLogIds';
+      await onUpdateProject(collabModalProjId, {
+        [field]: tempCheckedCollabIds
+      });
+      setCollabModalProjId(null);
+      setCollabModalType(null);
+    } catch (err: any) {
+      alert("Gagal memperbarui koneksi arsip kolaborasi: " + err.message);
+    }
+  };
 
   // Early return for Create / Edit Form View instead of Modal Pop-up
   if (isFormOpen) {
@@ -425,23 +459,24 @@ export default function ProjectsView({
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5 justify-center bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">NAMA CLIENT / DINAS RS</label>
-                <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 mt-1">
-                  {client || currentUser?.siteTugas || "— Belum diatur —"}
-                </span>
-                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
-                  {editingProj ? "Terkunci (Mode Edit)" : "Otomatis diikat ke Site Tugas akun Anda"}
-                </span>
-              </div>
+              {isKantorPusat && (
+                <div className="flex flex-col gap-1.5 justify-center bg-slate-50 dark:bg-slate-955/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">NAMA CLIENT / DINAS RS</label>
+                  <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+                    {client || currentUser?.siteTugas || "— Belum diatur —"}
+                  </span>
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                    {editingProj ? "Terkunci (Mode Edit)" : "Otomatis diikat ke Site Tugas akun Anda"}
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  MODUL UTAMA *
-                  {client ? ` (Terimplementasi di ${client})` : ""}
+                  MODUL UTAMA (OPSIONAL)
+                  {isKantorPusat && client ? ` (Terimplementasi di ${client})` : ""}
                 </label>
                 <select
-                  required
                   value={modul}
                   onChange={(e) => setModul(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
@@ -752,7 +787,7 @@ export default function ProjectsView({
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Cari project, kode, client..."
+            placeholder={isKantorPusat ? "Cari project, kode, client..." : "Cari project, kode..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 pl-9 pr-4 text-xs font-sans text-slate-800 dark:text-slate-101 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
@@ -760,16 +795,18 @@ export default function ProjectsView({
         </div>
         
         {/* Dropdown Filter Site */}
-        <select
-          value={filterClient}
-          onChange={(e) => setFilterClient(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
-        >
-          <option value="">Semua Site / RS</option>
-          {siteOptions.map(site => (
-            <option key={site} value={site}>{site}</option>
-          ))}
-        </select>
+        {isKantorPusat && (
+          <select
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          >
+            <option value="">Semua Site / RS</option>
+            {siteOptions.map(site => (
+              <option key={site} value={site}>{site}</option>
+            ))}
+          </select>
+        )}
 
         {/* Dropdown Filter Modul Utama */}
         <select
@@ -847,9 +884,11 @@ export default function ProjectsView({
                       <span className="flex items-center gap-1">
                         <User2 className="w-4 h-4 text-slate-400" /> PIC: <strong>{p.pic || "—"}</strong>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Target className="w-4 h-4 text-slate-400" /> Client: <strong>{p.client || "—"}</strong>
-                      </span>
+                      {isKantorPusat && (
+                        <span className="flex items-center gap-1">
+                          <Target className="w-4 h-4 text-slate-400" /> Client: <strong>{p.client || "—"}</strong>
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <BookMarked className="w-4 h-4 text-slate-400" /> Asal: <strong>{p.asal || "—"}</strong>
                       </span>
@@ -1110,8 +1149,199 @@ export default function ProjectsView({
                         )}
                       </div>
                     </div>
-
                   </div>
+
+                  {/* Collaboration Section */}
+                  {(() => {
+                    const linkedComms = Array.from(new Map(
+                      commLogs.filter(l => 
+                        (p.linkedCommLogIds && p.linkedCommLogIds.includes(l.id)) || 
+                        (l.project === p.kode)
+                      ).map(l => [l.id, l])
+                    ).values());
+
+                    const linkedMoMs = Array.from(new Map(
+                      meetingLogs.filter(l => 
+                        (p.linkedMeetingLogIds && p.linkedMeetingLogIds.includes(l.id)) || 
+                        (l.project === p.kode)
+                      ).map(l => [l.id, l])
+                    ).values());
+
+                    return (
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-4 font-sans">
+                        <h5 className="text-xs font-black text-indigo-650 dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                          <MessageSquare className="w-4 h-4 text-indigo-550" /> Arsip Kolaborasi terhubung ({linkedComms.length + linkedMoMs.length})
+                        </h5>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Log Koordinasi */}
+                          <div className="space-y-2 font-sans">
+                            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/40 p-1.5 px-2 rounded-md border border-slate-100 dark:border-slate-800/40">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350">
+                                💬 Log Koordinasi / WA & Email ({linkedComms.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCollabModalProjId(p.id);
+                                  setCollabModalType('comm');
+                                  setTempCheckedCollabIds(p.linkedCommLogIds || []);
+                                  setCollabSearch("");
+                                }}
+                                className="text-[10px] text-blue-600 hover:underline font-bold"
+                              >
+                                + Hubungkan
+                              </button>
+                            </div>
+                            {linkedComms.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 italic font-medium p-1 text-center">Tidak ada log koordinasi terhubung proyek ini.</p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                {linkedComms.map((log) => {
+                                  const isExpanded = expandedLogId === log.id;
+                                  return (
+                                    <div 
+                                      key={log.id} 
+                                      className="border border-slate-150 dark:border-slate-800/80 rounded-xl p-2.5 bg-slate-50/45 dark:bg-slate-950/25 space-y-1 transition-all"
+                                    >
+                                      <div className="flex justify-between items-start gap-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          {log.noID && (
+                                            <span className="text-[9px] font-mono font-black text-indigo-700 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-100/30">
+                                              {log.noID}
+                                            </span>
+                                          )}
+                                          <span className="text-[9px] font-bold text-slate-400">
+                                            {new Date(log.date).toLocaleDateString("id-ID")}
+                                          </span>
+                                          <span className="bg-slate-100 dark:bg-slate-805 text-slate-550 dark:text-slate-455 text-[9px] font-bold px-1 rounded">
+                                            {log.type}
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold shrink-0"
+                                        >
+                                          {isExpanded ? "Tutup" : "Lihat Detail"}
+                                        </button>
+                                      </div>
+                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">
+                                        {log.summary}
+                                      </p>
+                                      {isExpanded && (
+                                        <div 
+                                          className="text-xs pt-2 border-t border-slate-200/50 dark:border-slate-800/60 mt-2 text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed"
+                                        >
+                                          <div>
+                                            <span className="font-bold text-[10px] text-slate-400 block uppercase tracking-wider">Partisipan / Pihak:</span>
+                                            <p className="font-semibold text-slate-700 dark:text-slate-300">{log.participants}</p>
+                                          </div>
+                                          <div>
+                                            <span className="font-bold text-[10px] text-slate-405 block uppercase tracking-wider font-extrabold text-blue-600 dark:text-blue-400">Detail Koordinasi:</span>
+                                            <p className="whitespace-pre-wrap mt-0.5 font-medium bg-white dark:bg-slate-905 border border-slate-100 dark:border-slate-805/50 p-2.5 rounded-lg leading-relaxed text-slate-705 dark:text-slate-300">{log.detail}</p>
+                                          </div>
+                                          {log.createdBy && (
+                                            <p className="text-[9px] text-slate-400 text-right">Dicatat oleh: {log.createdBy}</p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* MoM Logs */}
+                          <div className="space-y-2 font-sans">
+                            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/40 p-1.5 px-2 rounded-md border border-slate-100 dark:border-slate-800/40">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350">
+                                👥 Minutes of Meeting ({linkedMoMs.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCollabModalProjId(p.id);
+                                  setCollabModalType('meeting');
+                                  setTempCheckedCollabIds(p.linkedMeetingLogIds || []);
+                                  setCollabSearch("");
+                                }}
+                                className="text-[10px] text-blue-600 hover:underline font-bold"
+                              >
+                                + Hubungkan
+                              </button>
+                            </div>
+                            {linkedMoMs.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 italic font-medium font-sans p-1 text-center">Tidak ada MoM terhubung proyek ini.</p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                {linkedMoMs.map((log) => {
+                                  const isExpanded = expandedLogId === log.id;
+                                  return (
+                                    <div 
+                                      key={log.id} 
+                                      className="border border-slate-150 dark:border-slate-800/80 rounded-xl p-2.5 bg-slate-50/45 dark:bg-slate-950/25 space-y-1 transition-all"
+                                    >
+                                      <div className="flex justify-between items-start gap-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          {log.noID && (
+                                            <span className="text-[9px] font-mono font-black text-indigo-700 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-100/30">
+                                              {log.noID}
+                                            </span>
+                                          )}
+                                          <span className="text-[9px] font-bold text-slate-400">
+                                            {new Date(log.date).toLocaleDateString("id-ID")}
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold shrink-0"
+                                        >
+                                          {isExpanded ? "Tutup" : "Lihat Detail"}
+                                        </button>
+                                      </div>
+                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">
+                                        {log.title}
+                                      </p>
+                                      {isExpanded && (
+                                        <div 
+                                          className="text-xs pt-2 border-t border-slate-200/50 dark:border-slate-800/60 mt-2 text-slate-605 dark:text-slate-300 space-y-2 leading-relaxed"
+                                        >
+                                          <div>
+                                            <span className="font-bold text-[10px] text-slate-405 block uppercase tracking-wider">Peserta Rapat:</span>
+                                            <p className="font-semibold text-slate-700 dark:text-slate-300">{log.attendees}</p>
+                                          </div>
+                                          <div>
+                                            <span className="font-bold text-[10px] text-slate-405 block uppercase tracking-wider">Agenda Pembahasan:</span>
+                                            <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-300 font-medium bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-805/30 p-2.5 rounded-lg mt-0.5">{log.agenda}</p>
+                                          </div>
+                                          <div>
+                                            <span className="font-bold text-[10px] text-slate-405 block uppercase tracking-wider font-extrabold text-blue-600 dark:text-blue-400">Keputusan / Hasil (Decisions):</span>
+                                            <p className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 font-bold bg-blue-50/20 dark:bg-blue-900/10 border border-blue-105/30 p-2.5 rounded-lg mt-0.5">{log.decisions}</p>
+                                          </div>
+                                          {log.actions && (
+                                            <div>
+                                              <span className="font-bold text-[10px] text-slate-405 block uppercase tracking-wider font-extrabold text-amber-600 dark:text-amber-400">Tindak Lanjut (Actions):</span>
+                                              <p className="whitespace-pre-wrap text-slate-705 dark:text-slate-305 font-medium bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-lg mt-0.5">{log.actions}</p>
+                                            </div>
+                                          )}
+                                          {log.createdBy && (
+                                            <p className="text-[9px] text-slate-400 text-right">Dicatat oleh: {log.createdBy}</p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                 </div>
               </div>
@@ -1177,6 +1407,122 @@ export default function ProjectsView({
                   className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg hover:shadow-lg transition-all font-sans"
                 >
                   Simpan Catatan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: MANAGE COLLABORATION LOGS CONNECTION */}
+      <AnimatePresence>
+        {collabModalProjId && collabModalType && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 font-sans"
+            >
+              <div>
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">
+                  Hubungkan {collabModalType === 'comm' ? "Log Koordinasi" : "Minutes of Meeting (MoM)"}
+                </h3>
+                <p className="text-xs text-slate-400 font-medium font-sans">Pilih catatan kolaborasi yang ingin dipautkan ke project ini.</p>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative font-sans">
+                <input
+                  type="text"
+                  value={collabSearch}
+                  onChange={(e) => setCollabSearch(e.target.value)}
+                  placeholder="Cari berdasarkan kata kunci..."
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 px-3 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              {/* List of items with checkboxes */}
+              <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg p-2 space-y-1.5 bg-slate-50/50 dark:bg-slate-950/20 font-sans">
+                {(() => {
+                  const filteredLogs = (collabModalType === 'comm' ? commLogs : meetingLogs).filter(log => {
+                    const text = collabModalType === 'comm' 
+                      ? `${(log as any).noID || ""} ${(log as any).summary || ""} ${(log as any).detail || ""}`
+                      : `${(log as any).noID || ""} ${(log as any).title || ""} ${(log as any).agenda || ""}`;
+                    return text.toLowerCase().includes(collabSearch.toLowerCase());
+                  });
+
+                  if (filteredLogs.length === 0) {
+                    return <span className="text-[10px] text-slate-405 block p-2 italic text-center">Tidak ada data ditemukan</span>;
+                  }
+
+                  return filteredLogs.map((log) => {
+                    const isChecked = tempCheckedCollabIds.includes(log.id);
+                    return (
+                      <label
+                        key={log.id}
+                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition-all text-xs cursor-pointer ${
+                          isChecked
+                            ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-300 font-semibold"
+                            : "border-transparent text-slate-650 dark:text-slate-400 hover:bg-slate-100/55 dark:hover:bg-slate-850/55"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTempCheckedCollabIds([...tempCheckedCollabIds, log.id]);
+                            } else {
+                              setTempCheckedCollabIds(tempCheckedCollabIds.filter(id => id !== log.id));
+                            }
+                          }}
+                          className="mt-0.5 accent-indigo-600 rounded"
+                        />
+                        <div className="flex flex-col gap-0.5 max-w-[90%] font-sans text-left">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {log.noID && (
+                              <span className="text-[9px] font-mono font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/10 px-1 py-0.2 rounded">
+                                {log.noID}
+                              </span>
+                            )}
+                            <span className="text-[9px] font-bold text-slate-455 font-mono">
+                              {new Date(log.date).toLocaleDateString("id-ID")}
+                            </span>
+                            {log.project && (
+                              <span className="text-[9px] font-semibold text-blue-500 bg-blue-50 dark:bg-blue-900/10 px-1 py-0.2 rounded">
+                                {log.project}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-bold text-[11px] line-clamp-1">
+                            {collabModalType === 'comm' ? (log as any).summary : (log as any).title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium line-clamp-1">
+                            {collabModalType === 'comm' ? (log as any).detail : (log as any).agenda}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Footer action buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                <button
+                  type="button"
+                  onClick={() => { setCollabModalProjId(null); setCollabModalType(null); }}
+                  className="px-4 py-1.5 border border-slate-250 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-100 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProjectCollab}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg hover:shadow-lg transition-all"
+                >
+                  Simpan Koneksi
                 </button>
               </div>
             </motion.div>

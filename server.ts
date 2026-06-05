@@ -124,6 +124,17 @@ const DEFAULT_SETTINGS = {
     { value: "Aktif", active: true },
     { value: "Non Aktif", active: true },
     { value: "Dalam Pengembangan", active: true }
+  ],
+  jenisLaporan: [
+    { value: "Incident", active: true },
+    { value: "Request", active: true }
+  ],
+  kategoriLaporan: [
+    { value: "Software/SIMRS", active: true },
+    { value: "Hardware/PC", active: true },
+    { value: "Network/Internet", active: true },
+    { value: "Peripheral/Printer", active: true },
+    { value: "Access/Account", active: true }
   ]
 };
 
@@ -581,7 +592,74 @@ async function readDB() {
       }
     });
   }
-  if (modified) {
+  
+  // Backfill noID for existing records if they don't have it
+  let backfilled = false;
+  if (db.commLogs) {
+    let commCount = 0;
+    for (let i = db.commLogs.length - 1; i >= 0; i--) {
+      if (!db.commLogs[i].noID) {
+        commCount++;
+        db.commLogs[i].noID = `KRD-${String(commCount).padStart(3, '0')}`;
+        backfilled = true;
+      } else {
+        const match = db.commLogs[i].noID.match(/KRD-(\d+)/);
+        if (match) {
+          commCount = Math.max(commCount, parseInt(match[1], 10));
+        }
+      }
+    }
+  }
+
+  if (db.meetingLogs) {
+    let momCount = 0;
+    for (let i = db.meetingLogs.length - 1; i >= 0; i--) {
+      if (!db.meetingLogs[i].noID) {
+        momCount++;
+        db.meetingLogs[i].noID = `MOM-${String(momCount).padStart(3, '0')}`;
+        backfilled = true;
+      } else {
+        const match = db.meetingLogs[i].noID.match(/MOM-(\d+)/);
+        if (match) {
+          momCount = Math.max(momCount, parseInt(match[1], 10));
+        }
+      }
+    }
+  }
+
+  if (db.baLogs) {
+    let baCount = 0;
+    for (let i = db.baLogs.length - 1; i >= 0; i--) {
+      if (!db.baLogs[i].noID) {
+        baCount++;
+        db.baLogs[i].noID = `BA-${String(baCount).padStart(3, '0')}`;
+        backfilled = true;
+      } else {
+        const match = db.baLogs[i].noID.match(/BA-(\d+)/);
+        if (match) {
+          baCount = Math.max(baCount, parseInt(match[1], 10));
+        }
+      }
+    }
+  }
+
+  if (db.docs) {
+    let docCount = 0;
+    for (let i = db.docs.length - 1; i >= 0; i--) {
+      if (!db.docs[i].noID) {
+        docCount++;
+        db.docs[i].noID = `DOC-${String(docCount).padStart(3, '0')}`;
+        backfilled = true;
+      } else {
+        const match = db.docs[i].noID.match(/DOC-(\d+)/);
+        if (match) {
+          docCount = Math.max(docCount, parseInt(match[1], 10));
+        }
+      }
+    }
+  }
+
+  if (modified || backfilled) {
     await writeDB(db);
   }
   return db;
@@ -856,6 +934,23 @@ app.delete("/api/tasks/:id", async (req, res) => {
 });
 
 
+// Helper to generate sequential next ID for collaboration logs
+function generateNextId(prefix: string, list: any[]) {
+  let maxNum = 0;
+  if (list && list.length > 0) {
+    list.forEach(item => {
+      if (item.noID && item.noID.startsWith(prefix)) {
+        const numPart = parseInt(item.noID.substring(prefix.length), 10);
+        if (!isNaN(numPart) && numPart > maxNum) {
+          maxNum = numPart;
+        }
+      }
+    });
+  }
+  return `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+}
+
+
 // ── COMMUNICATION LOGS CRUD ──────────────────────────────────────────────
 app.get("/api/commlogs", async (req, res) => {
   try {
@@ -869,8 +964,14 @@ app.get("/api/commlogs", async (req, res) => {
 app.post("/api/commlogs", async (req, res) => {
   try {
     const db = await readDB();
-    const newComm: CommLog = { ...req.body, id: "c-" + Math.random().toString(36).slice(2, 9), date: req.body.date || new Date().toISOString().slice(0, 10) };
     if (!db.commLogs) db.commLogs = [];
+    const nextNoID = generateNextId("KRD-", db.commLogs);
+    const newComm: CommLog = { 
+      ...req.body, 
+      id: "c-" + Math.random().toString(36).slice(2, 9), 
+      date: req.body.date || new Date().toISOString().slice(0, 10),
+      noID: nextNoID
+    };
     db.commLogs.unshift(newComm);
     await writeDB(db);
     return res.status(201).json(newComm);
@@ -891,6 +992,23 @@ app.delete("/api/commlogs/:id", async (req, res) => {
   }
 });
 
+app.put("/api/commlogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.commLogs || []).findIndex((c: any) => c.id === id);
+    if (idx !== -1) {
+      db.commLogs[idx] = { ...db.commLogs[idx], ...req.body };
+      await writeDB(db);
+      return res.json(db.commLogs[idx]);
+    } else {
+      return res.status(404).json({ error: "Log koordinasi tidak ditemukan" });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ── MEETING MINUTES MOMLOGS CRUD ─────────────────────────────────────────
 app.get("/api/meetinglogs", async (req, res) => {
@@ -905,8 +1023,14 @@ app.get("/api/meetinglogs", async (req, res) => {
 app.post("/api/meetinglogs", async (req, res) => {
   try {
     const db = await readDB();
-    const newMeet: MeetingLog = { ...req.body, id: "m-" + Math.random().toString(36).slice(2, 9), date: req.body.date || new Date().toISOString().slice(0, 10) };
     if (!db.meetingLogs) db.meetingLogs = [];
+    const nextNoID = generateNextId("MOM-", db.meetingLogs);
+    const newMeet: MeetingLog = { 
+      ...req.body, 
+      id: "m-" + Math.random().toString(36).slice(2, 9), 
+      date: req.body.date || new Date().toISOString().slice(0, 10),
+      noID: nextNoID
+    };
     db.meetingLogs.unshift(newMeet);
     await writeDB(db);
     return res.status(201).json(newMeet);
@@ -927,6 +1051,23 @@ app.delete("/api/meetinglogs/:id", async (req, res) => {
   }
 });
 
+app.put("/api/meetinglogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.meetingLogs || []).findIndex((m: any) => m.id === id);
+    if (idx !== -1) {
+      db.meetingLogs[idx] = { ...db.meetingLogs[idx], ...req.body };
+      await writeDB(db);
+      return res.json(db.meetingLogs[idx]);
+    } else {
+      return res.status(404).json({ error: "Notula rapat tidak ditemukan" });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ── DOCUMENTATION CRUD ───────────────────────────────────────────────────
 app.get("/api/docs", async (req, res) => {
@@ -941,8 +1082,14 @@ app.get("/api/docs", async (req, res) => {
 app.post("/api/docs", async (req, res) => {
   try {
     const db = await readDB();
-    const newDoc: Documentation = { ...req.body, id: "d-" + Math.random().toString(36).slice(2, 9), date: req.body.date || new Date().toISOString().slice(0,10) };
     if (!db.docs) db.docs = [];
+    const nextNoID = generateNextId("DOC-", db.docs);
+    const newDoc: Documentation = { 
+      ...req.body, 
+      id: "d-" + Math.random().toString(36).slice(2, 9), 
+      date: req.body.date || new Date().toISOString().slice(0,10),
+      noID: nextNoID
+    };
     db.docs.unshift(newDoc);
     await writeDB(db);
     return res.status(201).json(newDoc);
@@ -963,6 +1110,23 @@ app.delete("/api/docs/:id", async (req, res) => {
   }
 });
 
+app.put("/api/docs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.docs || []).findIndex((d: any) => d.id === id);
+    if (idx !== -1) {
+      db.docs[idx] = { ...db.docs[idx], ...req.body };
+      await writeDB(db);
+      return res.json(db.docs[idx]);
+    } else {
+      return res.status(404).json({ error: "Dokumen tidak ditemukan" });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ── BERITA ACARA (BA) LOGS CRUD ──────────────────────────────────────────
 app.get("/api/balogs", async (req, res) => {
@@ -977,13 +1141,15 @@ app.get("/api/balogs", async (req, res) => {
 app.post("/api/balogs", async (req, res) => {
   try {
     const db = await readDB();
+    if (!db.baLogs) db.baLogs = [];
+    const nextNoID = generateNextId("BA-", db.baLogs);
     const newBA: BALog = { 
       ...req.body, 
       id: "ba-" + Math.random().toString(36).slice(2, 9), 
       date: req.body.date || new Date().toISOString().slice(0, 10),
-      status: req.body.status || "Draft"
+      status: req.body.status || "Draft",
+      noID: nextNoID
     };
-    if (!db.baLogs) db.baLogs = [];
     db.baLogs.unshift(newBA);
     await writeDB(db);
     return res.status(201).json(newBA);
@@ -999,6 +1165,23 @@ app.delete("/api/balogs/:id", async (req, res) => {
     db.baLogs = (db.baLogs || []).filter((ba: any) => ba.id !== id);
     await writeDB(db);
     return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/balogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.baLogs || []).findIndex((ba: any) => ba.id === id);
+    if (idx !== -1) {
+      db.baLogs[idx] = { ...db.baLogs[idx], ...req.body };
+      await writeDB(db);
+      return res.json(db.baLogs[idx]);
+    } else {
+      return res.status(404).json({ error: "Berita Acara tidak ditemukan" });
+    }
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -1337,7 +1520,7 @@ app.get("/api/settings", async (req, res) => {
       await writeDB(db);
     } else {
       let modified = false;
-      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul"];
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul", "jenisLaporan", "kategoriLaporan"];
       for (const key of keys) {
         if (!db.settings[key]) {
           db.settings[key] = (DEFAULT_SETTINGS as any)[key];

@@ -166,6 +166,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  async updateCommLog(id: string, data: Partial<CommLog>): Promise<CommLog> {
+    const res = await fetch(`${API_BASE}/commlogs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
   // Minutes of Meeting CRUD
   async getMeetingLogs(): Promise<MeetingLog[]> {
     const res = await fetch(`${API_BASE}/meetinglogs`);
@@ -188,6 +197,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  async updateMeetingLog(id: string, data: Partial<MeetingLog>): Promise<MeetingLog> {
+    const res = await fetch(`${API_BASE}/meetinglogs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
   // Documentations CRUD
   async getDocs(): Promise<Documentation[]> {
     const res = await fetch(`${API_BASE}/docs`);
@@ -206,6 +224,15 @@ export const api = {
   async deleteDoc(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/docs/${id}`, {
       method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  async updateDoc(id: string, data: Partial<Documentation>): Promise<Documentation> {
+    const res = await fetch(`${API_BASE}/docs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
     return handleResponse(res);
   },
@@ -296,6 +323,15 @@ export const api = {
   async deleteBALog(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/balogs/${id}`, {
       method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  async updateBALog(id: string, data: Partial<BALog>): Promise<BALog> {
+    const res = await fetch(`${API_BASE}/balogs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
     return handleResponse(res);
   },

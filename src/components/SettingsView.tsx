@@ -52,6 +52,8 @@ interface SettingsConfig {
   statusImplementasiSite?: ItemConfig[];
   statusPenggunaan?: ItemConfig[];
   kategoriImplementasi?: ItemConfig[];
+  jenisLaporan?: ItemConfig[];
+  kategoriLaporan?: ItemConfig[];
 }
 
 const AVAILABLE_VIEWS = [
@@ -136,6 +138,8 @@ export default function SettingsView({
       case "statusImplementasiSite":
       case "statusPenggunaan":
       case "kategoriImplementasi":
+      case "jenisLaporan":
+      case "kategoriLaporan":
         return false;
       default: return false;
     }
@@ -516,6 +520,22 @@ export default function SettingsView({
             <Layers className="w-4.5 h-4.5 shrink-0" />
             <span>Kategori Implementasi Site</span>
           </button>
+
+          <button
+            onClick={() => { setActiveTab("jenisLaporan"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "jenisLaporan" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <FileText className="w-4.5 h-4.5 shrink-0" />
+            <span>Jenis Laporan (Helpdesk)</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("kategoriLaporan"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "kategoriLaporan" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Layers className="w-4.5 h-4.5 shrink-0" />
+            <span>Kategori Laporan (Helpdesk)</span>
+          </button>
         </div>
 
         {/* Dynamic Detail Card Panels */}
@@ -710,6 +730,8 @@ export default function SettingsView({
                     {activeTab === "statusImplementasiSite" && "Katalog Status Implementasi Site (e.g. Berjalan, Tidak Berjalan)"}
                     {activeTab === "statusPenggunaan" && "Katalog Status Penggunaan Site (e.g. Optimal, Tidak Optimal)"}
                     {activeTab === "kategoriImplementasi" && "Kategori Kategori Implementasi Site (e.g. Request, Pengembangan)"}
+                    {activeTab === "jenisLaporan" && "Katalog Jenis Laporan Helpdesk (Incident/Request, dsb)"}
+                    {activeTab === "kategoriLaporan" && "Katalog Kategori Masalah Helpdesk (SIMRS, PC, Printer, dsb)"}
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Kelola data isian rujukan secara global, data lama tetap dipertahankan.</p>
                 </div>

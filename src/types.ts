@@ -51,12 +51,22 @@ export interface Project {
   fiturModul?: string[];
   createdAt: string;
   createdBy?: string;
+  linkedCommLogIds?: string[];
+  linkedMeetingLogIds?: string[];
 }
 
 export interface SubTask {
   id: string;
   title: string;
   done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  sender: string;
+  role: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface Task {
@@ -91,6 +101,9 @@ export interface Task {
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
+  linkedCommLogIds?: string[];
+  linkedMeetingLogIds?: string[];
+  comments?: TaskComment[];
 }
 
 export interface CommLog {
@@ -102,6 +115,7 @@ export interface CommLog {
   summary: string;
   detail: string;
   createdBy?: string;
+  noID?: string;
 }
 
 export interface MeetingLog {
@@ -114,6 +128,7 @@ export interface MeetingLog {
   decisions: string;
   actions: string;
   createdBy?: string;
+  noID?: string;
 }
 
 export interface Documentation {
@@ -125,6 +140,7 @@ export interface Documentation {
   desc: string;
   date: string;
   createdBy?: string;
+  noID?: string;
 }
 
 export interface LogEntry {
@@ -149,6 +165,7 @@ export interface BALog {
   fileUrl?: string; // Lampiran URL / Link Dokumen
   status: 'Draft' | 'Signed' | 'Approved' | string;
   createdBy?: string;
+  noID?: string;
 }
 
 export interface Ticket {
@@ -161,8 +178,12 @@ export interface Ticket {
   description: string;
   status: 'Open' | 'In Progress' | 'Resolved' | string;
   priority: string; // Low, Medium, High, Urgent
+  category?: string; // e.g. "Software/SIMRS", "Hardware/PC", "Network/Internet", etc.
   createdAt: string;
   createdBy?: string;
+  ticketNumber?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
 export interface SubModule {

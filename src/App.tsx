@@ -813,6 +813,15 @@ export default function App() {
     }
   }
 
+  async function handleUpdateCommLog(id: string, data: Partial<CommLog>) {
+    try {
+      const res = await api.updateCommLog(id, data);
+      setCommLogs(prev => prev.map(c => c.id === id ? res : c));
+    } catch (err) {
+      alert("Gagal memperbarui log komunikasi: " + err);
+    }
+  }
+
   // Collaboration: Meeting Logs
   async function handleAddMeetingLog(data: Partial<MeetingLog>) {
     try {
@@ -830,6 +839,15 @@ export default function App() {
       setMeetingLogs(prev => prev.filter(m => m.id !== id));
     } catch (err) {
       alert("Gagal menghapus MoM: " + err);
+    }
+  }
+
+  async function handleUpdateMeetingLog(id: string, data: Partial<MeetingLog>) {
+    try {
+      const res = await api.updateMeetingLog(id, data);
+      setMeetingLogs(prev => prev.map(m => m.id === id ? res : m));
+    } catch (err) {
+      alert("Gagal memperbarui MoM: " + err);
     }
   }
 
@@ -853,6 +871,15 @@ export default function App() {
     }
   }
 
+  async function handleUpdateDoc(id: string, data: Partial<Documentation>) {
+    try {
+      const res = await api.updateDoc(id, data);
+      setDocs(prev => prev.map(d => d.id === id ? res : d));
+    } catch (err) {
+      alert("Gagal memperbarui dokumen: " + err);
+    }
+  }
+
   // Collaboration: Berita Acara (BA) Logs
   async function handleAddBALog(data: Partial<BALog>) {
     try {
@@ -870,6 +897,15 @@ export default function App() {
       setBaLogs(prev => prev.filter(ba => ba.id !== id));
     } catch (err) {
       alert("Gagal menghapus Berita Acara (BA): " + err);
+    }
+  }
+
+  async function handleUpdateBALog(id: string, data: Partial<BALog>) {
+    try {
+      const res = await api.updateBALog(id, data);
+      setBaLogs(prev => prev.map(ba => ba.id === id ? res : ba));
+    } catch (err) {
+      alert("Gagal memperbarui Berita Acara (BA): " + err);
     }
   }
 
@@ -1673,6 +1709,8 @@ export default function App() {
               onDeleteDiagnosticLog={handleDeleteDiagnosticLog}
               appModules={appModules}
               siteImplementations={siteImplementations}
+              commLogs={scopedCommLogs}
+              meetingLogs={scopedMeetingLogs}
             />
           )}
 
@@ -1694,6 +1732,8 @@ export default function App() {
               onDeleteTask={handleDeleteTask}
               initialOpenWithStatus={quickTaskStatusLink}
               onClearInitialStatus={() => setQuickTaskStatusLink(null)}
+              commLogs={scopedCommLogs}
+              meetingLogs={scopedMeetingLogs}
             />
           )}
 
@@ -1741,12 +1781,16 @@ export default function App() {
               projects={scopedProjects}
               currentUser={currentUser}
               onAddCommLog={handleAddCommLog}
+              onUpdateCommLog={handleUpdateCommLog}
               onDeleteCommLog={handleDeleteCommLog}
               onAddMeetingLog={handleAddMeetingLog}
+              onUpdateMeetingLog={handleUpdateMeetingLog}
               onDeleteMeetingLog={handleDeleteMeetingLog}
               onAddBALog={handleAddBALog}
+              onUpdateBALog={handleUpdateBALog}
               onDeleteBALog={handleDeleteBALog}
               onAddDoc={handleAddDoc}
+              onUpdateDoc={handleUpdateDoc}
               onDeleteDoc={handleDeleteDoc}
               tipeMediaList={settings?.tipeMedia ? settings.tipeMedia.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
               jenisBeritaAcaraList={settings?.jenisBeritaAcara ? settings.jenisBeritaAcara.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
@@ -1759,6 +1803,7 @@ export default function App() {
               clients={scopedClients}
               projects={scopedProjects}
               currentUser={currentUser}
+              settings={settings}
               onAddTicket={handleAddTicket}
               onUpdateTicket={handleUpdateTicket}
               onDeleteTicket={handleDeleteTicket}

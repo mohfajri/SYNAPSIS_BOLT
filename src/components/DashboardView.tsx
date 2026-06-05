@@ -344,7 +344,7 @@ export default function DashboardView({
               <thead>
                 <tr className="text-slate-450 dark:text-slate-550 border-b border-slate-200 dark:border-slate-800 font-bold">
                   <th className="pb-2">Project</th>
-                  <th className="pb-2">Nama Tugas</th>
+                  <th className="pb-2">Judul</th>
                   <th className="pb-2">Eselon / PIC</th>
                   <th className="pb-2 text-rose-500">Batas Waktu</th>
                   <th className="pb-2">Progress</th>
