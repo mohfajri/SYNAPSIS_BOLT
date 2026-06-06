@@ -39,28 +39,33 @@ import { motion, AnimatePresence } from "motion/react";
 
 // Spell numbers in Indonesian language helper (e.g. 15000000 -> Lima Belas Juta Rupiah)
 function terbilang(nominal: number): string {
+  const num = Math.floor(Number(nominal || 0));
+  if (isNaN(num) || num <= 0) return "Nol";
+
   const bilangan = [
     "", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"
   ];
   let hasil = "";
-  if (nominal < 12) {
-    hasil = bilangan[nominal];
-  } else if (nominal < 20) {
-    hasil = terbilang(nominal - 10) + " Belas";
-  } else if (nominal < 100) {
-    hasil = terbilang(Math.floor(nominal / 10)) + " Puluh " + terbilang(nominal % 10);
-  } else if (nominal < 200) {
-    hasil = "Seratus " + terbilang(nominal - 100);
-  } else if (nominal < 1000) {
-    hasil = terbilang(Math.floor(nominal / 100)) + " Ratus " + terbilang(nominal % 100);
-  } else if (nominal < 2000) {
-    hasil = "Seribu " + terbilang(nominal - 1000);
-  } else if (nominal < 1000000) {
-    hasil = terbilang(Math.floor(nominal / 1000)) + " Ribu " + terbilang(nominal % 1000);
-  } else if (nominal < 1000000000) {
-    hasil = terbilang(Math.floor(nominal / 1000000)) + " Juta " + terbilang(nominal % 1000000);
-  } else if (nominal < 1000000000000) {
-    hasil = terbilang(Math.floor(nominal / 1000000000)) + " Milyar " + terbilang(nominal % 1000000000);
+  if (num < 12) {
+    hasil = bilangan[num] || "";
+  } else if (num < 20) {
+    hasil = terbilang(num - 10) + " Belas";
+  } else if (num < 100) {
+    hasil = terbilang(Math.floor(num / 10)) + " Puluh " + terbilang(num % 10);
+  } else if (num < 200) {
+    hasil = "Seratus " + terbilang(num - 100);
+  } else if (num < 1000) {
+    hasil = terbilang(Math.floor(num / 100)) + " Ratus " + terbilang(num % 100);
+  } else if (num < 2000) {
+    hasil = "Seribu " + terbilang(num - 1000);
+  } else if (num < 1000000) {
+    hasil = terbilang(Math.floor(num / 1000)) + " Ribu " + terbilang(num % 1000);
+  } else if (num < 1000000000) {
+    hasil = terbilang(Math.floor(num / 1000000)) + " Juta " + terbilang(num % 1000000);
+  } else if (num < 1000000000000) {
+    hasil = terbilang(Math.floor(num / 1000000000)) + " Milyar " + terbilang(num % 1000000000);
+  } else {
+    return "Jumlah Sangat Besar";
   }
   return hasil.trim();
 }
@@ -107,6 +112,58 @@ export default function BillingKSOView({
   const [serviceAmount, setServiceAmount] = useState<number>(0);
   const [ppnPercent, setPpnPercent] = useState<number>(11); // Standard PPN is 11% in Indonesia
   const [description, setDescription] = useState("");
+  const [rekapCounter, setRekapCounter] = useState<string>("");
+  const [rekapSuffix, setRekapSuffix] = useState<string>("");
+  const [namaPengurang, setNamaPengurang] = useState<string>("");
+
+  // Signature field states
+  const [namaDirektur, setNamaDirektur] = useState<string>("");
+  const [nipDirektur, setNipDirektur] = useState<string>("");
+  const [jabatanDirektur, setJabatanDirektur] = useState<string>("Direktur");
+  const [namaSiteCoordinator, setNamaSiteCoordinator] = useState<string>("");
+  const [jabatanSiteCoordinator, setJabatanSiteCoordinator] = useState<string>("Site Coordinator");
+  const [namaPerusahaanSite, setNamaPerusahaanSite] = useState<string>("PT. Medika KSO Indonesia");
+
+  // Helper to count / calculate next auto increment 3-character rekap code
+  const getNextAutoCounter = () => {
+    let maxVal = 0;
+    billings.forEach(b => {
+      if (b.noRekap) {
+        const match = b.noRekap.match(/^(\d{3})/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxVal) {
+            maxVal = num;
+          }
+        }
+      }
+    });
+    return (maxVal + 1).toString().padStart(3, '0');
+  };
+
+  // Detailed KSO states
+  const [isDetailedKSO, setIsDetailedKSO] = useState(false);
+  const [tunaiItems, setTunaiItems] = useState<{ id: string; name: string; value: number; admin?: number }[]>([]);
+  const [bpjsItems, setBpjsItems] = useState<{ id: string; name: string; value: number; admin?: number }[]>([]);
+  const [asuransiItems, setAsuransiItems] = useState<{ id: string; name: string; value: number; admin?: number }[]>([]);
+  const [pengurang, setPengurang] = useState<number>(0);
+  const [pengurangItems, setPengurangItems] = useState<{ id: string; name: string; value: number }[]>([]);
+  const [sharePercent, setSharePercent] = useState<number>(100);
+  const [taxTreatment, setTaxTreatment] = useState<"inklusif" | "eksklusif">("inklusif");
+
+  const addTunaiItem = () => {
+    setTunaiItems([...tunaiItems, { id: `t-${Date.now()}`, name: "", value: 0, admin: 0 }]);
+  };
+  const addBpjsItem = () => {
+    setBpjsItems([...bpjsItems, { id: `b-${Date.now()}`, name: "", value: 0, admin: 0 }]);
+  };
+  const addAsuransiItem = () => {
+    setAsuransiItems([...asuransiItems, { id: `a-${Date.now()}`, name: "", value: 0, admin: 0 }]);
+  };
+  const addPengurangItem = () => {
+    setPengurangItems([...pengurangItems, { id: `p-${Date.now()}`, name: "", value: 0 }]);
+  };
+
   const [status, setStatus] = useState<"Draft" | "Submitted" | "Verified" | "Paid" | "Cancelled">("Draft");
   const [tanggalKirim, setTanggalKirim] = useState("");
   const [tanggalBayar, setTanggalBayar] = useState("");
@@ -119,6 +176,7 @@ export default function BillingKSOView({
 
   // Print invoice overlay state
   const [printBill, setPrintBill] = useState<BillingKSO | null>(null);
+  const [printLayout, setPrintLayout] = useState<"invoice" | "rekap">("invoice");
 
   // Loading & error feedback
   const [isSaving, setIsSaving] = useState(false);
@@ -302,7 +360,19 @@ export default function BillingKSOView({
     if (searchTerm.trim() !== "") {
       const q = searchTerm.toLowerCase();
       const matchClient = b.clientRS.toLowerCase().includes(q);
-      const matchDesc = b.description.toLowerCase().includes(q);
+      
+      let textToSearch = b.description || "";
+      if (textToSearch.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(textToSearch);
+          if (parsed && parsed.isDetailed) {
+            textToSearch = parsed.originalDescription || "Rincian Penerimaan KSO";
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      const matchDesc = textToSearch.toLowerCase().includes(q);
       const matchPeriod = formatPeriod(b.periodMonth).toLowerCase().includes(q);
       return matchClient || matchDesc || matchPeriod;
     }
@@ -325,6 +395,32 @@ export default function BillingKSOView({
   const totalATKNominal = statsATKBillings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
   const totalPaid = accessibleBillings.filter(b => b.status === "Paid").reduce((sum, b) => sum + b.totalAmount, 0);
   const totalVerified = accessibleBillings.filter(b => b.status === "Verified").reduce((sum, b) => sum + b.totalAmount, 0);
+
+  // CALCULATIONS FOR DETAILED KSO
+  const tunaiSubtotal = tunaiItems.reduce((sum, item) => sum + (item.value || 0) - (item.admin || 0), 0);
+  const bpjsSubtotal = bpjsItems.reduce((sum, item) => sum + (item.value || 0) - (item.admin || 0), 0);
+  const asuransiSubtotal = asuransiItems.reduce((sum, item) => sum + (item.value || 0) - (item.admin || 0), 0);
+  const overallReceiptTotal = tunaiSubtotal + bpjsSubtotal + asuransiSubtotal;
+  const pengurangSubtotal = pengurangItems.reduce((sum, item) => sum + (item.value || 0), 0);
+  const totalPengurang = pengurangItems.length > 0 ? pengurangSubtotal : (pengurang || 0);
+  const nilaiPokokFinal = Math.max(0, overallReceiptTotal - totalPengurang);
+  const dasarPenagihan = (nilaiPokokFinal * (sharePercent || 0)) / 100;
+
+  let calculatedServiceAmount = serviceAmount;
+  let calculatedPpnAmount = Math.round((serviceAmount * ppnPercent) / 100);
+  let calculatedTotalAmount = serviceAmount + calculatedPpnAmount;
+
+  if (isDetailedKSO && type === "KSO") {
+    if (taxTreatment === "inklusif") {
+      calculatedServiceAmount = Math.round(dasarPenagihan / (1 + (ppnPercent || 0) / 100));
+      calculatedPpnAmount = dasarPenagihan - calculatedServiceAmount;
+      calculatedTotalAmount = dasarPenagihan;
+    } else {
+      calculatedServiceAmount = Math.round(dasarPenagihan);
+      calculatedPpnAmount = Math.round((calculatedServiceAmount * (ppnPercent || 0)) / 100);
+      calculatedTotalAmount = calculatedServiceAmount + calculatedPpnAmount;
+    }
+  }
 
   // Form Handlers
   const handleAddNewClick = () => {
@@ -349,8 +445,47 @@ export default function BillingKSOView({
     setAttachmentBeritaAcaraName("");
     setAttachmentRekapTagihan("");
     setAttachmentRekapTagihanName("");
+    
+    // Set custom states
+    setRekapCounter(getNextAutoCounter());
+    setRekapSuffix("");
+    setNamaPengurang("");
+
+    let defaultDirektur = "";
+    const activeSite = hasSiteRestriction ? userSite : (clients.length > 0 ? clients[0].namaRS : "");
+    const foundC = clients.find(item => item.namaRS === activeSite);
+    if (foundC) {
+      defaultDirektur = foundC.direkturRS || "";
+    }
+    setNamaDirektur(defaultDirektur);
+    setNipDirektur("");
+    setJabatanDirektur("Direktur");
+    setNamaSiteCoordinator("");
+    setJabatanSiteCoordinator("Site Coordinator");
+    setNamaPerusahaanSite("PT. Medika KSO Indonesia");
+
     setIsAddNew(true);
     setIsEditing(false);
+
+    // Reset detailed states & pre-populate examples based on user request examples!
+    setIsDetailedKSO(true);
+    setTunaiItems([
+      { id: "t-1", name: "Instalasi Rawat Jalan", value: 100000000, admin: 0 },
+      { id: "t-2", name: "Instalasi Rawat Inap", value: 250000000, admin: 0 }
+    ]);
+    setBpjsItems([
+      { id: "b-1", name: "BPJS Januari 2026", value: 10000000000, admin: 25000 }
+    ]);
+    setAsuransiItems([
+      { id: "a-1", name: "Jasaraharja", value: 10000, admin: 1000 }
+    ]);
+    setPengurang(0);
+    setPengurangItems([
+      { id: "p-1", name: "Audit BPJS", value: 10000 },
+      { id: "p-2", name: "VPK Kelebihan bayar", value: 50000 }
+    ]);
+    setSharePercent(100);
+    setTaxTreatment("inklusif");
   };
 
   const handleEditClick = (bill: BillingKSO) => {
@@ -373,7 +508,73 @@ export default function BillingKSOView({
     setPeriodMonth(bill.periodMonth || "");
     setServiceAmount(bill.serviceAmount || 0);
     setPpnPercent(bill.ppnPercent !== undefined ? bill.ppnPercent : 11);
-    setDescription(bill.description || "");
+
+    // Try to parse detailed JSON from description
+    let isDetailed = false;
+    try {
+      if (bill.description && bill.type === "KSO") {
+        const parsed = JSON.parse(bill.description);
+        if (parsed && parsed.isDetailed) {
+          isDetailed = true;
+          setIsDetailedKSO(true);
+          setTunaiItems(parsed.tunaiItems || []);
+          setBpjsItems(parsed.bpjsItems || []);
+          setAsuransiItems(parsed.asuransiItems || []);
+          setNamaPengurang(parsed.namaPengurang || "");
+          setPengurang(parsed.pengurang || 0);
+          if (parsed.pengurangItems) {
+            setPengurangItems(parsed.pengurangItems);
+          } else if (parsed.pengurang || parsed.namaPengurang) {
+            setPengurangItems([
+              { id: `p-legacy-${Date.now()}`, name: parsed.namaPengurang || "Potongan Pokok", value: parsed.pengurang || 0 }
+            ]);
+          } else {
+            setPengurangItems([]);
+          }
+          setSharePercent(parsed.sharePercent !== undefined ? parsed.sharePercent : 100);
+          setTaxTreatment(parsed.taxTreatment || "inklusif");
+          setDescription(parsed.originalDescription || "");
+        }
+      }
+    } catch (e) {
+      // not JSON
+    }
+
+    if (!isDetailed) {
+      setIsDetailedKSO(false);
+      setTunaiItems([]);
+      setBpjsItems([]);
+      setAsuransiItems([]);
+      setNamaPengurang("");
+      setPengurang(0);
+      setPengurangItems([]);
+      setSharePercent(100);
+      setTaxTreatment("inklusif");
+      setDescription(bill.description || "");
+    }
+
+    // Populate No Rekap Tagihan
+    if (bill.noRekap) {
+      const match = bill.noRekap.match(/^(\d{3})(.*)$/);
+      if (match) {
+        setRekapCounter(match[1]);
+        setRekapSuffix(match[2]);
+      } else {
+        setRekapCounter("001");
+        setRekapSuffix(bill.noRekap);
+      }
+    } else {
+      setRekapCounter(getNextAutoCounter());
+      setRekapSuffix("");
+    }
+
+    setNamaDirektur(bill.namaDirektur || "");
+    setNipDirektur(bill.nipDirektur || "");
+    setJabatanDirektur(bill.jabatanDirektur || "Direktur");
+    setNamaSiteCoordinator(bill.namaSiteCoordinator || "");
+    setJabatanSiteCoordinator(bill.jabatanSiteCoordinator || "Site Coordinator");
+    setNamaPerusahaanSite(bill.namaPerusahaanSite || "PT. Medika KSO Indonesia");
+
     setStatus(bill.status || "Draft");
     setTanggalKirim(bill.tanggalKirim || "");
     setTanggalBayar(bill.tanggalBayar || "");
@@ -397,27 +598,60 @@ export default function BillingKSOView({
       setErrorMessage("⚠️ Periode bulan pelayanan wajib diisi.");
       return;
     }
-    if (serviceAmount <= 0) {
+
+    const activeServiceAmount = (isDetailedKSO && type === "KSO") ? calculatedServiceAmount : serviceAmount;
+
+    if (activeServiceAmount <= 0) {
       setErrorMessage("⚠️ Nilai pokok penagihan harus di atas Rp 0 !");
       return;
     }
 
     setIsSaving(true);
     try {
-      const computedPpnAmount = Math.round((serviceAmount * ppnPercent) / 100);
-      const computedTotalAmount = serviceAmount + computedPpnAmount;
+      const computedPpnAmount = (isDetailedKSO && type === "KSO") ? calculatedPpnAmount : Math.round((activeServiceAmount * ppnPercent) / 100);
+      const computedTotalAmount = (isDetailedKSO && type === "KSO") ? calculatedTotalAmount : activeServiceAmount + computedPpnAmount;
 
       const finalStatus = forceSubmit ? "Submitted" : (isHQ ? status : "Draft");
+
+      const serializedDescription = (isDetailedKSO && type === "KSO")
+        ? JSON.stringify({
+            isDetailed: true,
+            originalDescription: description,
+            tunaiItems,
+            bpjsItems,
+            asuransiItems,
+            namaPengurang,
+            pengurang: totalPengurang,
+            pengurangItems,
+            sharePercent,
+            taxTreatment
+          })
+        : description;
+
+      const padDigits = (val: string) => {
+        if (/^\d+$/.test(val)) {
+          return val.padStart(3, '0');
+        }
+        return val;
+      };
+      const fullNoRekap = `${padDigits(rekapCounter)}${rekapSuffix}`;
 
       const payload: Partial<BillingKSO> = {
         type,
         clientRS,
         periodMonth,
-        serviceAmount,
+        noRekap: fullNoRekap,
+        namaDirektur,
+        nipDirektur,
+        jabatanDirektur,
+        namaSiteCoordinator,
+        jabatanSiteCoordinator,
+        namaPerusahaanSite,
+        serviceAmount: activeServiceAmount,
         ppnPercent,
         ppnAmount: computedPpnAmount,
         totalAmount: computedTotalAmount,
-        description,
+        description: serializedDescription,
         status: finalStatus,
         tanggalKirim: finalStatus === "Paid" || finalStatus === "Verified" ? (tanggalKirim || new Date().toISOString().slice(0, 10)) : "",
         tanggalBayar: finalStatus === "Paid" ? (tanggalBayar || new Date().toISOString().slice(0, 10)) : "",
@@ -577,8 +811,8 @@ export default function BillingKSOView({
   };
 
   // Helper values for current dynamic tax updates
-  const currentCalculatedPpn = Math.round((serviceAmount * ppnPercent) / 100);
-  const currentCalculatedTotal = serviceAmount + currentCalculatedPpn;
+  const currentCalculatedPpn = (isDetailedKSO && type === "KSO") ? calculatedPpnAmount : Math.round((serviceAmount * ppnPercent) / 100);
+  const currentCalculatedTotal = (isDetailedKSO && type === "KSO") ? calculatedTotalAmount : serviceAmount + currentCalculatedPpn;
 
   return (
     <div className="space-y-6" id="billing-kso-comp">
@@ -600,10 +834,28 @@ export default function BillingKSOView({
               className="bg-white text-slate-800 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden print:shadow-none print:my-0 print:mx-0 print:p-0 my-4"
             >
               {/* Modal Action Controls in header */}
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-100 border-b border-slate-200 print:hidden">
-                <div className="flex items-center gap-2">
-                  <Printer className="w-5 h-5 text-indigo-600" />
-                  <span className="font-extrabold text-sm text-slate-700">Preview Cetak Tagihan Resmi</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 bg-slate-100 border-b border-slate-200 gap-3 print:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Printer className="w-5 h-5 text-indigo-600" />
+                    <span className="font-extrabold text-sm text-slate-700">Preview Cetak Tagihan</span>
+                  </div>
+                  
+                  {/* Segment controller */}
+                  <div className="bg-slate-200/80 p-0.5 rounded-lg flex text-[10px] font-bold">
+                    <button
+                      onClick={() => setPrintLayout("invoice")}
+                      className={`px-3 py-1 rounded-md transition-all ${printLayout === "invoice" ? "bg-white text-indigo-650 shadow-xs font-extrabold" : "text-slate-600 hover:text-slate-800"}`}
+                    >
+                      Invoice & BA
+                    </button>
+                    <button
+                      onClick={() => setPrintLayout("rekap")}
+                      className={`px-3 py-1 rounded-md transition-all ${printLayout === "rekap" ? "bg-white text-indigo-650 shadow-xs font-extrabold" : "text-slate-600 hover:text-slate-800"}`}
+                    >
+                      Rekap Tagihan
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -622,8 +874,244 @@ export default function BillingKSOView({
                 </div>
               </div>
 
-              {/* Invoice Layout Area (Highly styled like real paper) */}
-              <div className="p-8 md:p-12 space-y-8 bg-white print:p-0 print:border-none" id="invoice-paper" style={{ fontFamily: "Inter, sans-serif" }}>
+              {/* Layout Content Selector */}
+              {(() => {
+                let printDetailObj: any = null;
+                if (printBill.type === "KSO" && printBill.description) {
+                  try {
+                    const parsed = JSON.parse(printBill.description);
+                    if (parsed && parsed.isDetailed) {
+                      printDetailObj = parsed;
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+
+                // Detailed collections fallback
+                const pTunaiItems = printDetailObj?.tunaiItems || [];
+                const pBpjsItems = printDetailObj?.bpjsItems || [];
+                const pAsuransiItems = printDetailObj?.asuransiItems || [];
+                const pPengurangItems = printDetailObj?.pengurangItems || [];
+                const pLegacyPengurang = printDetailObj?.pengurang || 0;
+                const pLegacyPengurangNama = printDetailObj?.namaPengurang || "";
+
+                const totalTunaiGross = pTunaiItems.reduce((s: number, i: any) => s + (i.value || 0), 0);
+                const totalTunaiNet = pTunaiItems.reduce((s: number, i: any) => s + (i.value || 0) - (i.admin || 0), 0);
+
+                const totalBpjsGross = pBpjsItems.reduce((s: number, i: any) => s + (i.value || 0), 0);
+                const totalBpjsNet = pBpjsItems.reduce((s: number, i: any) => s + (i.value || 0) - (i.admin || 0), 0);
+
+                const totalAsuransiGross = pAsuransiItems.reduce((s: number, i: any) => s + (i.value || 0), 0);
+                const totalAsuransiNet = pAsuransiItems.reduce((s: number, i: any) => s + (i.value || 0) - (i.admin || 0), 0);
+
+                const rekapTotalDeductions = pPengurangItems.length > 0 
+                  ? pPengurangItems.reduce((s: number, i: any) => s + (i.value || 0), 0)
+                  : pLegacyPengurang;
+
+                const overallTotalGross = totalTunaiGross + totalBpjsGross + totalAsuransiGross;
+                const totalRevenueNet = totalTunaiNet + totalBpjsNet + totalAsuransiNet - rekapTotalDeductions;
+
+                if (printLayout === "rekap") {
+                  return (
+                    <div className="p-8 md:p-12 space-y-8 bg-white print:p-0 print:border-none" id="invoice-paper" style={{ fontFamily: "Inter, sans-serif" }}>
+                      
+                      {/* Header Kop Surat & Document Info */}
+                      <div className="text-center border-b-4 border-double border-slate-350 pb-6 space-y-2">
+                        <div className="flex justify-center items-center gap-2">
+                          <FileSpreadsheet className="w-8 h-8 text-indigo-600 print:text-black shrink-0" />
+                          <h2 className="text-lg font-black tracking-tight text-slate-900 font-sans uppercase">
+                            LAPORAN REKAPITULASI TAGIHAN BULANAN
+                          </h2>
+                        </div>
+                        <p className="text-sm font-semibold text-indigo-705 print:text-black uppercase tracking-wide">
+                          {printBill.clientRS}
+                        </p>
+                        <div className="text-xs text-slate-550 space-y-0.5">
+                          <p><b>Periode Pelayanan:</b> {formatPeriod(printBill.periodMonth)}</p>
+                          {printBill.noRekap && (
+                            <p className="font-mono text-xs font-bold text-slate-850">
+                              <b>Nomor Dokumen:</b> {printBill.noRekap}
+                            </p>
+                          )}
+                          <p>Tanggal Cetak: <b>{new Date().toISOString().slice(0, 10)}</b></p>
+                        </div>
+                      </div>
+
+                      {/* Detailed Data Blocks */}
+                      <div className="space-y-6">
+                        
+                        {/* Tunai Data Card */}
+                        <div className="border border-slate-200 rounded-2xl p-4.5 space-y-2.5">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                              🟢 Penerimaan Tunai Terinput
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 pl-3.5">
+                            {pTunaiItems.length > 0 ? (
+                              pTunaiItems.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-xs text-slate-655">
+                                  <span>{idx + 1}. {item.name || "Penerimaan Tunai"}</span>
+                                  <span className="font-mono font-medium">{formatIDR(item.value)}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan tunai terinput.</p>
+                            )}
+                            <div className="flex justify-between items-center font-bold text-xs text-emerald-750 pt-2 border-t border-slate-100 mt-2">
+                              <span>TOTAL PENERIMAAN TUNAI:</span>
+                              <span className="font-mono">{formatIDR(totalTunaiGross)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* BPJS Data Card */}
+                        <div className="border border-slate-200 rounded-2xl p-4.5 space-y-2.5">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                              🔵 Penerimaan BPJS Terinput
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 pl-3.5">
+                            {pBpjsItems.length > 0 ? (
+                              pBpjsItems.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-xs text-slate-655">
+                                  <span>{idx + 1}. {item.name || "Klaim BPJS"}</span>
+                                  <span className="font-mono font-medium">{formatIDR(item.value)}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan BPJS terinput.</p>
+                            )}
+                            <div className="flex justify-between items-center font-bold text-xs text-blue-750 pt-2 border-t border-slate-100 mt-2">
+                              <span>TOTAL PENERIMAAN BPJS:</span>
+                              <span className="font-mono">{formatIDR(totalBpjsGross)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Asuransi Lain Data Card */}
+                        <div className="border border-slate-200 rounded-2xl p-4.5 space-y-2.5">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                              🟣 Penerimaan Asuransi Lain Terinput
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 pl-3.5">
+                            {pAsuransiItems.length > 0 ? (
+                              pAsuransiItems.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-xs text-slate-655">
+                                  <span>{idx + 1}. {item.name || "Asuransi"}</span>
+                                  <span className="font-mono font-medium">{formatIDR(item.value)}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan asuransi terinput.</p>
+                            )}
+                            <div className="flex justify-between items-center font-bold text-xs text-purple-750 pt-2 border-t border-slate-100 mt-2">
+                              <span>TOTAL PENERIMAAN ASURANSI LAIN:</span>
+                              <span className="font-mono">{formatIDR(totalAsuransiGross)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Deductions of KSO */}
+                        {rekapTotalDeductions > 0 && (
+                          <div className="border border-red-200 bg-red-50/10 rounded-2xl p-4.5 space-y-2">
+                            <span className="block text-xs font-black text-red-650 uppercase">🔴 Daftar Pengurang Pokok</span>
+                            <div className="space-y-1 pl-3.5 text-xs text-slate-650">
+                              {pPengurangItems.length > 0 ? (
+                                pPengurangItems.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between">
+                                    <span>{idx + 1}. {item.name}</span>
+                                    <span className="font-mono font-medium">-{formatIDR(item.value)}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="flex justify-between">
+                                  <span>1. {pLegacyPengurangNama || "Potongan Pokok"}</span>
+                                  <span className="font-mono font-medium">-{formatIDR(pLegacyPengurang)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Calculations summary block */}
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3.5">
+                          <span className="block text-[10px] text-indigo-750 font-extrabold uppercase tracking-wide">📐 RINGKASAN REKAPITULASI BAGI HASIL</span>
+                          
+                          <div className="space-y-2.5">
+                            <div className="flex justify-between items-center text-xs text-slate-700 font-sans">
+                              <span>💵 Total Keseluruhan Penerimaan Bruto (Gross):</span>
+                              <span className="font-mono font-bold text-slate-900">{formatIDR(overallTotalGross)}</span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center text-xs text-slate-700 font-sans">
+                              <span>💼 Total Penerimaan / Pendapatan Bersih (Net Base):</span>
+                              <span className="font-mono font-bold text-indigo-700">{formatIDR(totalRevenueNet)}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs text-slate-705 pt-2 border-t border-slate-250 font-black font-sans">
+                              <span>📊 TOTAL PENAGIHAN KSO {printDetailObj?.sharePercent !== undefined ? `(${printDetailObj.sharePercent}% Share + Pajak)` : ""}:</span>
+                              <span className="font-mono text-sm text-indigo-850">{formatIDR(printBill.totalAmount)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Terbilang Translation */}
+                      <div className="p-4 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 font-sans italic text-xs leading-relaxed text-slate-650 print:bg-transparent">
+                        <span className="font-extrabold text-slate-900">Terbilang: </span>
+                        "{terbilang(printBill.totalAmount)} Rupiah"
+                      </div>
+
+                      {/* Signatures Footer columns */}
+                      <div className="grid grid-cols-2 gap-8 pt-12 text-center text-xs">
+                        {/* Left Side: RS Client */}
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-700 uppercase tracking-wide">{printBill.clientRS}</p>
+                          <p className="text-[11px] text-slate-500 italic mb-2">Pihak Pertama ({printBill.jabatanDirektur || "Direktur"})</p>
+                          <div className="h-20" />
+                          <p className="font-black border-b border-slate-350 pb-0.5 text-slate-900 mx-auto max-w-xs inline-block">
+                            {printBill.namaDirektur || "(Nama Direktur)"}
+                          </p>
+                          <p className="text-[10px] text-slate-450 mt-1 font-mono">
+                            {printBill.nipDirektur ? `NIP: ${printBill.nipDirektur}` : "RS Client"}
+                          </p>
+                        </div>
+
+                        {/* Right Side: Site Coordinator */}
+                        <div className="space-y-1">
+                          <p className="font-bold text-indigo-700 uppercase tracking-wide">{printBill.jabatanSiteCoordinator || "Site Coordinator"}</p>
+                          <p className="text-[11px] text-indigo-500 italic mb-2">Pihak Kedua ({printBill.namaPerusahaanSite || "PT. Medika KSO Indonesia"})</p>
+                          <div className="h-20" />
+                          <p className="font-black border-b border-slate-350 pb-0.5 text-slate-900 mx-auto max-w-xs inline-block">
+                            {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
+                          </p>
+                          <p className="text-[10px] text-slate-450 mt-1">
+                            {printBill.namaPerusahaanSite || "PT. Medika KSO Indonesia"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Footer Info */}
+                      <div className="pt-8 border-t border-slate-150 text-[10px] text-slate-400 leading-relaxed font-sans flex justify-between select-none">
+                        <span>* Rekap cetak ini sah diterbitkan secara elektronik oleh Medika KSO Sistem Nusantara.</span>
+                        <span className="font-mono">ID: {printBill.id}</span>
+                      </div>
+
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-8 md:p-12 space-y-8 bg-white print:p-0 print:border-none" id="invoice-paper" style={{ fontFamily: "Inter, sans-serif" }}>
                 
                 {/* Header Kop Surat */}
                 <div className="flex flex-col md:flex-row justify-between items-start border-b-4 border-double border-slate-350 pb-6">
@@ -643,6 +1131,11 @@ export default function BillingKSOView({
                       INVOICE TAGIHAN {printBill.type}
                     </h2>
                     <p className="text-[11px] text-slate-450 mt-0.5 font-mono">Invoice ID: #{printBill.id}</p>
+                    {printBill.noRekap && (
+                      <p className="text-[11.5px] text-indigo-700 print:text-black font-extrabold font-mono mt-0.5">
+                        No Rekap: {printBill.noRekap}
+                      </p>
+                    )}
                     <p className="text-[11px] text-slate-500 mt-1">Tanggal: <b>{printBill.tanggalKirim || printBill.createdAt.slice(0, 10)}</b></p>
                   </div>
                 </div>
@@ -684,18 +1177,157 @@ export default function BillingKSOView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
-                      <tr>
-                        <td className="px-5 py-8 border-r border-slate-200 space-y-1.5">
-                          <p className="font-extrabold text-slate-900">{printBill.type === "KSO" ? "Layanan Penagihan KSO Bulanan" : "Pengadaan Belanja ATK Kantor RS"}</p>
-                          <p className="text-slate-550 italic leading-relaxed whitespace-pre-wrap">{printBill.description || "Uraian klaim tagihan berdasarkan Berita Acara (BA) Pelayanan yang disetujui."}</p>
-                        </td>
-                        <td className="px-5 py-8 text-right border-r border-slate-200 font-mono font-medium text-slate-700">
-                          {formatIDR(printBill.serviceAmount)}
-                        </td>
-                        <td className="px-5 py-8 text-right font-mono font-medium text-slate-700">
-                          {formatIDR(printBill.ppnAmount)}
-                        </td>
-                      </tr>
+                      {(() => {
+                        let printDetailObj: any = null;
+                        if (printBill.type === "KSO" && printBill.description) {
+                          try {
+                            const parsed = JSON.parse(printBill.description);
+                            if (parsed && parsed.isDetailed) {
+                              printDetailObj = parsed;
+                            }
+                          } catch (e) {
+                            // ignore
+                          }
+                        }
+
+                        if (printDetailObj) {
+                          return (
+                            <>
+                              <tr>
+                                <td colSpan={3} className="px-5 py-3 bg-slate-50 font-bold text-[10px] uppercase text-indigo-700 tracking-wider">
+                                  📂 Rincian Item Pekerjaan & Penerimaan KSO
+                                </td>
+                              </tr>
+                              
+                              {/* Tunai items */}
+                              {printDetailObj.tunaiItems && printDetailObj.tunaiItems.map((item: any, idx: number) => (
+                                <tr key={`pt-${idx}`}>
+                                  <td className="px-5 py-2 border-r border-slate-200 font-medium">
+                                    <div className="font-semibold text-slate-800">🟢 Penerimaan Tunai: {item.name || "Item Tunai"}</div>
+                                    {item.admin > 0 && (
+                                      <div className="text-[9px] text-slate-500 font-medium italic pl-2 leading-none mt-0.5">
+                                        (Nilai Kotor: {formatIDR(item.value)} • Potongan Admin: -{formatIDR(item.admin)})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-2 text-right border-r border-slate-200 font-mono text-slate-700 font-medium">
+                                    {formatIDR(item.value - (item.admin || 0))}
+                                  </td>
+                                  <td className="px-5 py-2 text-right font-mono text-slate-400">
+                                    -
+                                  </td>
+                                </tr>
+                              ))}
+
+                              {/* BPJS items */}
+                              {printDetailObj.bpjsItems && printDetailObj.bpjsItems.map((item: any, idx: number) => (
+                                <tr key={`bpjs-${idx}`}>
+                                  <td className="px-5 py-2 border-r border-slate-200 font-medium">
+                                    <div className="font-semibold text-slate-800">🔵 Penerimaan BPJS: {item.name || "BPJS Item"}</div>
+                                    {item.admin > 0 && (
+                                      <div className="text-[9px] text-slate-500 font-medium italic pl-2 leading-none mt-0.5">
+                                        (Nilai Kotor: {formatIDR(item.value)} • Potongan Admin: -{formatIDR(item.admin)})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-2 text-right border-r border-slate-200 font-mono text-slate-700 font-medium">
+                                    {formatIDR(item.value - (item.admin || 0))}
+                                  </td>
+                                  <td className="px-5 py-2 text-right font-mono text-slate-400">
+                                    -
+                                  </td>
+                                </tr>
+                              ))}
+
+                              {/* Asuransi items */}
+                              {printDetailObj.asuransiItems && printDetailObj.asuransiItems.map((item: any, idx: number) => (
+                                <tr key={`asuransi-${idx}`}>
+                                  <td className="px-5 py-2 border-r border-slate-200 font-medium font-sans">
+                                    <div className="font-semibold text-slate-800">🟣 Penerimaan Asuransi Lain: {item.name || "Asuransi Item"}</div>
+                                    {item.admin > 0 && (
+                                      <div className="text-[9px] text-slate-500 font-medium italic pl-2 leading-none mt-0.5">
+                                        (Nilai Kotor: {formatIDR(item.value)} • Potongan Admin: -{formatIDR(item.admin)})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-2 text-right border-r border-slate-200 font-mono text-slate-700 font-medium">
+                                    {formatIDR(item.value - (item.admin || 0))}
+                                  </td>
+                                  <td className="px-5 py-2 text-right font-mono text-slate-400">
+                                    -
+                                  </td>
+                                </tr>
+                              ))}
+
+                              {/* Deductions & share percent summaries */}
+                              {printDetailObj.pengurangItems && printDetailObj.pengurangItems.length > 0 ? (
+                                printDetailObj.pengurangItems.map((item: any, idx: number) => (
+                                  <tr key={`pengurang-${idx}`} className="bg-rose-50/10">
+                                    <td className="px-5 py-2 border-r border-slate-200 font-bold text-red-650">
+                                      🔴 Pengurang: {item.name || "(Potongan Pokok)"}
+                                    </td>
+                                    <td className="px-5 py-2 text-right border-r border-slate-200 font-mono font-bold text-red-600">
+                                      -{formatIDR(item.value)}
+                                    </td>
+                                    <td className="px-5 py-2 text-right font-mono text-slate-400">
+                                      -
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                printDetailObj.pengurang > 0 && (
+                                  <tr className="bg-rose-50/10">
+                                    <td className="px-5 py-2 border-r border-slate-200 font-bold text-red-600">
+                                      🔴 Pengurang: {printDetailObj.namaPengurang ? `"${printDetailObj.namaPengurang}"` : "(Potongan Pokok)"}
+                                    </td>
+                                    <td className="px-5 py-2 text-right border-r border-slate-200 font-mono font-bold text-red-600">
+                                      -{formatIDR(printDetailObj.pengurang)}
+                                    </td>
+                                    <td className="px-5 py-2 text-right font-mono text-slate-400">
+                                      -
+                                    </td>
+                                  </tr>
+                                )
+                              )}
+
+                              <tr className="bg-indigo-50/10 print:bg-slate-50">
+                                <td className="px-5 py-3 border-r border-slate-200 font-extrabold text-slate-700">
+                                  ⚖️ Dasar Penagihan KSO (Rasio Sharing {printDetailObj.sharePercent}%)
+                                </td>
+                                <td className="px-5 py-3 text-right border-r border-slate-200 font-mono font-bold text-slate-900">
+                                  {formatIDR(printBill.serviceAmount)}
+                                </td>
+                                <td className="px-5 py-3 text-right font-mono font-bold text-slate-900">
+                                  {formatIDR(printBill.ppnAmount)}
+                                </td>
+                              </tr>
+                              
+                              {printDetailObj.originalDescription && (
+                                <tr>
+                                  <td colSpan={3} className="px-5 py-4 border-t border-slate-200 text-[10px] text-slate-500 italic max-w-lg whitespace-pre-wrap leading-relaxed">
+                                    <b>Catatan Tambahan Pekerjaan:</b> {printDetailObj.originalDescription}
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        }
+
+                        return (
+                          <tr>
+                            <td className="px-5 py-8 border-r border-slate-200 space-y-1.5">
+                              <p className="font-extrabold text-slate-900">{printBill.type === "KSO" ? "Layanan Penagihan KSO Bulanan" : "Pengadaan Belanja ATK Kantor RS"}</p>
+                              <p className="text-slate-550 italic leading-relaxed whitespace-pre-wrap">{printBill.description || "Uraian klaim tagihan berdasarkan Berita Acara (BA) Pelayanan yang disetujui."}</p>
+                            </td>
+                            <td className="px-5 py-8 text-right border-r border-slate-200 font-mono font-medium text-slate-700">
+                              {formatIDR(printBill.serviceAmount)}
+                            </td>
+                            <td className="px-5 py-8 text-right font-mono font-medium text-slate-700">
+                              {formatIDR(printBill.ppnAmount)}
+                            </td>
+                          </tr>
+                        );
+                      })()}
                       
                       {/* Subtotal calculations */}
                       <tr className="bg-slate-50/50 print:bg-transparent font-sans">
@@ -723,31 +1355,41 @@ export default function BillingKSOView({
                 {/* Signature Block */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-8 text-center text-xs">
                   <div>
-                    <span className="text-slate-400 block font-bold text-[10px] uppercase">Dibuat Oleh (Site):</span>
+                    <span className="text-slate-400 block font-bold text-[10px] uppercase">
+                      {printBill.jabatanSiteCoordinator || "Dibuat Oleh (Site)"}:
+                    </span>
                     <div className="h-16 flex items-end justify-center">
                       <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
-                        {printBill.createdBy || "Supervisor Site"}
+                        {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-450 block mt-1">Supervisor RS / Site</span>
+                    <span className="text-[10px] text-slate-450 block mt-1">
+                      {printBill.namaPerusahaanSite || "Supervisor RS / Site"}
+                    </span>
                   </div>
 
                   <div className="hidden md:block">
                     <span className="text-slate-400 block font-bold text-[10px] uppercase">Ditinjau oleh (HQ):</span>
                     <div className="h-16 flex items-end justify-center">
-                      <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
+                      <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800 font-sans">
                         {printBill.verifiedBy || "Manager HQ"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-400 block mt-1">Manager Verifikasi Kantor Pusat</span>
+                    <span className="text-[10px] text-slate-450 block mt-1">Manager Verifikasi Kantor Pusat</span>
                   </div>
 
                   <div>
-                    <span className="text-slate-400 block font-bold text-[10px] uppercase">Mengetahui (Penerima RS):</span>
+                    <span className="text-slate-400 block font-bold text-[10px] uppercase">
+                      {printBill.jabatanDirektur || "Mengetahui (Penerima RS)"}:
+                    </span>
                     <div className="h-16 flex items-end justify-center">
-                      <div className="w-1/2 border-b border-dashed border-slate-400 h-1" />
+                      <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
+                        {printBill.namaDirektur || "Direktur / Keuangan RS Client"}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-450 block mt-1">Direktur / Keuangan RS Client</span>
+                    <span className="text-[10px] text-slate-450 block mt-1 font-mono">
+                      {printBill.nipDirektur ? `NIP: ${printBill.nipDirektur}` : "RS Client"}
+                    </span>
                   </div>
                 </div>
 
@@ -758,6 +1400,8 @@ export default function BillingKSOView({
                 </div>
 
               </div>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
@@ -1062,9 +1706,24 @@ export default function BillingKSOView({
 
                         {/* Description */}
                         <td className="px-5 py-4">
-                          <div className="max-w-xs truncate text-slate-600 dark:text-slate-350" title={bill.description}>
-                            {bill.description || "-"}
-                          </div>
+                          {(() => {
+                            let displayDesc = bill.description || "-";
+                            if (bill.description && bill.description.trim().startsWith("{")) {
+                              try {
+                                const parsed = JSON.parse(bill.description);
+                                if (parsed && parsed.isDetailed) {
+                                  displayDesc = parsed.originalDescription || "Rincian Penerimaan KSO";
+                                }
+                              } catch (e) {
+                                // ignore
+                              }
+                            }
+                            return (
+                              <div className="max-w-xs truncate text-slate-600 dark:text-slate-350" title={displayDesc}>
+                                {displayDesc}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Document Attachment Indicators */}
@@ -1295,57 +1954,716 @@ export default function BillingKSOView({
                     />
                   </div>
 
-                  {/* Net Service amount */}
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Nilai Pokok / DPP (Sebelum PPN)</label>
-                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-extrabold font-mono">
-                        {formatIDR(serviceAmount)}
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 font-bold pointer-events-none">Rp</span>
-                      <input
-                        type="number"
-                        placeholder="e.g. 15000000"
-                        value={serviceAmount || ""}
-                        onChange={e => setServiceAmount(Math.max(0, parseInt(e.target.value, 10)) || 0)}
-                        required
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-indigo-500 dark:text-slate-100"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Live PPN details and calculations */}
-                  <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200/50 dark:border-slate-850 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-550 dark:text-slate-450 font-extrabold uppercase">Persentase PPN (%)</span>
-                      <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2 py-1 border border-slate-200/70 dark:border-slate-800 rounded-lg">
-                        <input
-                          type="number"
-                          value={ppnPercent}
-                          onChange={e => setPpnPercent(Math.max(0, parseInt(e.target.value, 10)) || 0)}
-                          className="w-8 text-center text-xs font-extrabold focus:outline-none bg-transparent dark:text-slate-100 font-mono"
-                        />
-                        <span className="text-xs text-slate-400 font-bold">%</span>
+                  {/* No Rekap Tagihan */}
+                  <div className="bg-slate-50/50 dark:bg-slate-950/20 p-3.5 border border-slate-200/50 dark:border-slate-850 rounded-2xl">
+                    <span className="block text-[10px] text-indigo-700 dark:text-indigo-400 font-extrabold uppercase tracking-wider mb-2.5">📋 No Rekap Tagihan</span>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-1">
+                        <label className="block text-[9px] text-slate-400 font-extrabold uppercase tracking-wide mb-1">
+                          Auto Count (3 Digit)
+                        </label>
+                        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                          <input
+                            type="text"
+                            maxLength={3}
+                            placeholder="001"
+                            value={rekapCounter}
+                            onChange={e => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setRekapCounter(val);
+                            }}
+                            className="w-full bg-transparent border-0 p-0 text-center text-xs font-mono font-black text-indigo-600 dark:text-indigo-400 focus:outline-none focus:ring-0"
+                          />
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="space-y-1.5 text-[11px] pt-2 border-t border-slate-210 dark:border-slate-800/60 font-medium text-slate-600 dark:text-slate-400">
-                      <div className="flex justify-between">
-                        <span>Nilai DPP (Pokok):</span>
-                        <span className="font-mono">{formatIDR(serviceAmount)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Nilai PPN ({ppnPercent}%):</span>
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400">+{formatIDR(currentCalculatedPpn)}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-900 dark:text-slate-200 font-extrabold text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
-                        <span>Total Penagihan:</span>
-                        <span className="font-mono text-indigo-600 dark:text-indigo-300">{formatIDR(currentCalculatedTotal)}</span>
+                      <div className="col-span-2">
+                        <label className="block text-[9px] text-slate-400 font-extrabold uppercase tracking-wide mb-1">
+                          Format Suffix (Free Text)
+                        </label>
+                        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-2xs">
+                          <input
+                            type="text"
+                            placeholder="e.g. /BA-KSO/VI/2026"
+                            value={rekapSuffix}
+                            onChange={e => setRekapSuffix(e.target.value)}
+                            className="w-full bg-transparent border-0 p-0 text-left text-xs font-semibold focus:outline-none focus:ring-0 dark:text-slate-100"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Pengaturan Kolom Tanda Tangan Cetakan */}
+                  <div className="bg-slate-50/50 dark:bg-slate-950/20 p-4 border border-slate-200/50 dark:border-slate-850 rounded-2xl space-y-4">
+                    <span className="block text-[10px] text-indigo-700 dark:text-indigo-400 font-extrabold uppercase tracking-wide">✍️ Pengaturan Kolom Tanda Tangan Cetakan</span>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Left: RS Sign-off (Direktur) */}
+                      <div className="space-y-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 shadow-3xs rounded-xl">
+                        <span className="block text-[9.5px] font-black text-rose-600 dark:text-red-400 uppercase tracking-wide">Direktur RS Client (Kiri Bawah)</span>
+                        <div>
+                          <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">Nama Direktur</label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: dr. Fauzi, Sp.A"
+                            value={namaDirektur}
+                            onChange={(e) => setNamaDirektur(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">NIP (Optional)</label>
+                            <input
+                              type="text"
+                              placeholder="NIP"
+                              value={nipDirektur}
+                              onChange={(e) => setNipDirektur(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">Jabatan</label>
+                            <input
+                              type="text"
+                              placeholder="Direktur"
+                              value={jabatanDirektur}
+                              onChange={(e) => setJabatanDirektur(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Site Coordinator Medika (Kanan Bawah) */}
+                      <div className="space-y-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 shadow-3xs rounded-xl">
+                        <span className="block text-[9.5px] font-black text-indigo-650 dark:text-indigo-400 uppercase tracking-wide">Site Coordinator KSO (Kanan Bawah)</span>
+                        <div>
+                          <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">Nama Site Coordinator</label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: Fajri Fanani"
+                            value={namaSiteCoordinator}
+                            onChange={(e) => setNamaSiteCoordinator(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">Nama Perusahaan</label>
+                            <input
+                              type="text"
+                              placeholder="PT. Medika KSO Indonesia"
+                              value={namaPerusahaanSite}
+                              onChange={(e) => setNamaPerusahaanSite(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] text-slate-400 font-extrabold uppercase mb-1">Jabatan</label>
+                            <input
+                              type="text"
+                              placeholder="Site Coordinator"
+                              value={jabatanSiteCoordinator}
+                              onChange={(e) => setJabatanSiteCoordinator(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 dark:text-slate-100 placeholder:opacity-50"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Service amount & PPN calculations */}
+                  {type === "KSO" && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-4 sm:p-5 space-y-5 shadow-xs">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/70 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Receipt className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200">Perhitungan Rincian Nilai Pokok (DPP)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsDetailedKSO(!isDetailedKSO)}
+                          className="text-[10px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-indigo-600 dark:text-indigo-400 font-extrabold px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          {isDetailedKSO ? "🔄 Ganti ke Input Manual" : "📊 Ganti ke Rincian Item"}
+                        </button>
+                      </div>
+
+                      {isDetailedKSO ? (
+                        <div className="space-y-5">
+                          {/* Category 1: Penerimaan Tunai */}
+                          <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                            <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-2">
+                              <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Penerimaan Tunai
+                              </span>
+                              <span className="text-xs font-mono font-extrabold text-slate-700 dark:text-slate-350">{formatIDR(tunaiSubtotal)}</span>
+                            </div>
+                            
+                            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                              {tunaiItems.map((item, idx) => (
+                                <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-slate-400 font-extrabold shrink-0">{idx + 1}.</span>
+                                    <input
+                                      type="text"
+                                      placeholder="Nama Penerimaan Tunai"
+                                      value={item.name}
+                                      onChange={(e) => {
+                                        const next = [...tunaiItems];
+                                        next[idx].name = e.target.value;
+                                        setTunaiItems(next);
+                                      }}
+                                      className="w-full bg-transparent border-none p-0 text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:font-normal placeholder:opacity-55"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setTunaiItems(tunaiItems.filter(t => t.id !== item.id))}
+                                      className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0 transition-all"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-slate-100 dark:border-slate-800/50">
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">NILAI KOTOR</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-slate-400 font-mono">Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Nilai Tunai"
+                                          value={item.value || ""}
+                                          onChange={(e) => {
+                                            const next = [...tunaiItems];
+                                            next[idx].value = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setTunaiItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-slate-800 dark:text-slate-100"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">POTONGAN ADMIN (OPTIONAL)</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-red-400 font-mono">-Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Admin"
+                                          value={item.admin || ""}
+                                          onChange={(e) => {
+                                            const next = [...tunaiItems];
+                                            next[idx].admin = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setTunaiItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-red-550"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex justify-end text-[9px] font-bold text-slate-400 pt-1 border-t border-slate-50 dark:border-slate-850">
+                                    Total item Tunai: <span className="font-mono text-emerald-600 dark:text-emerald-450 ml-1.5">{formatIDR(item.value - (item.admin || 0))}</span>
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {tunaiItems.length === 0 && (
+                                <p className="text-[10px] italic text-slate-400 text-center font-medium my-2 py-1">Belum ada item penerimaan tunai.</p>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={addTunaiItem}
+                              className="w-full py-2 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-450 bg-emerald-50/40 hover:bg-emerald-50 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 border border-dashed border-emerald-250 dark:border-emerald-900/40 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            >
+                              ➕ Tambah Penerimaan Tunai
+                            </button>
+                          </div>
+
+                          {/* Category 2: Penerimaan BPJS */}
+                          <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                            <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-2">
+                              <span className="text-[10.5px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                Penerimaan BPJS
+                              </span>
+                              <span className="text-xs font-mono font-extrabold text-slate-700 dark:text-slate-350">{formatIDR(bpjsSubtotal)}</span>
+                            </div>
+                            
+                            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                              {bpjsItems.map((item, idx) => (
+                                <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-slate-400 font-extrabold shrink-0">{idx + 1}.</span>
+                                    <input
+                                      type="text"
+                                      placeholder="Nama Penerimaan BPJS"
+                                      value={item.name}
+                                      onChange={(e) => {
+                                        const next = [...bpjsItems];
+                                        next[idx].name = e.target.value;
+                                        setBpjsItems(next);
+                                      }}
+                                      className="w-full bg-transparent border-none p-0 text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:font-normal placeholder:opacity-55"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setBpjsItems(bpjsItems.filter(b => b.id !== item.id))}
+                                      className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0 transition-all"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-slate-100 dark:border-slate-800/50">
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">NILAI KOTOR</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-slate-400 font-mono">Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Nilai BPJS"
+                                          value={item.value || ""}
+                                          onChange={(e) => {
+                                            const next = [...bpjsItems];
+                                            next[idx].value = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setBpjsItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-slate-800 dark:text-slate-100"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">POTONGAN ADMIN (OPTIONAL)</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-red-400 font-mono">-Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Admin"
+                                          value={item.admin || ""}
+                                          onChange={(e) => {
+                                            const next = [...bpjsItems];
+                                            next[idx].admin = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setBpjsItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-red-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex justify-end text-[9px] font-bold text-slate-400 pt-1 border-t border-slate-50 dark:border-slate-850">
+                                    Total item BPJS: <span className="font-mono text-blue-600 dark:text-blue-400 ml-1.5">{formatIDR(item.value - (item.admin || 0))}</span>
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {bpjsItems.length === 0 && (
+                                <p className="text-[10px] italic text-slate-400 text-center font-medium my-2 py-1">Belum ada item penerimaan BPJS.</p>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={addBpjsItem}
+                              className="w-full py-2 text-[10px] font-extrabold text-blue-600 dark:text-blue-450 bg-blue-50/40 hover:bg-blue-50 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 border border-dashed border-blue-250 dark:border-blue-900/40 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            >
+                              ➕ Tambah Penerimaan BPJS
+                            </button>
+                          </div>
+
+                          {/* Category 3: Penerimaan Asuransi Lain */}
+                          <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                            <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-2">
+                              <span className="text-[10.5px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                                Penerimaan Asuransi Lain
+                              </span>
+                              <span className="text-xs font-mono font-extrabold text-slate-700 dark:text-slate-350">{formatIDR(asuransiSubtotal)}</span>
+                            </div>
+                            
+                            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                              {asuransiItems.map((item, idx) => (
+                                <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-slate-400 font-extrabold shrink-0">{idx + 1}.</span>
+                                    <input
+                                      type="text"
+                                      placeholder="Nama Asuransi Lain"
+                                      value={item.name}
+                                      onChange={(e) => {
+                                        const next = [...asuransiItems];
+                                        next[idx].name = e.target.value;
+                                        setAsuransiItems(next);
+                                      }}
+                                      className="w-full bg-transparent border-none p-0 text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:font-normal placeholder:opacity-55"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setAsuransiItems(asuransiItems.filter(a => a.id !== item.id))}
+                                      className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0 transition-all"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-slate-100 dark:border-slate-800/50">
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">NILAI KOTOR</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-slate-400 font-mono">Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Nilai Asuransi"
+                                          value={item.value || ""}
+                                          onChange={(e) => {
+                                            const next = [...asuransiItems];
+                                            next[idx].value = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setAsuransiItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-slate-800 dark:text-slate-100"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">POTONGAN ADMIN (OPTIONAL)</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-red-400 font-mono">-Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Admin"
+                                          value={item.admin || ""}
+                                          onChange={(e) => {
+                                            const next = [...asuransiItems];
+                                            next[idx].admin = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setAsuransiItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-red-550"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex justify-end text-[9px] font-bold text-slate-400 pt-1 border-t border-slate-50 dark:border-slate-850">
+                                    Total item Asuransi: <span className="font-mono text-indigo-600 dark:text-indigo-400 ml-1.5">{formatIDR(item.value - (item.admin || 0))}</span>
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {asuransiItems.length === 0 && (
+                                <p className="text-[10px] italic text-slate-400 text-center font-medium my-2 py-1">Belum ada item penerimaan asuransian.</p>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={addAsuransiItem}
+                              className="w-full py-2 text-[10px] font-extrabold text-indigo-600 dark:text-indigo-450 bg-indigo-50/40 hover:bg-indigo-50 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 border border-dashed border-indigo-250 dark:border-indigo-900/40 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            >
+                              ➕ Tambah Penerimaan Asuransi Lain
+                            </button>
+                          </div>
+
+                          {/* Category 4: Pengurang Pokok (Deductions) */}
+                          <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                            <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-2">
+                              <span className="text-[10.5px] text-rose-600 dark:text-rose-450 font-black uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                                🔴 Daftar Pengurang Pokok (Optional)
+                              </span>
+                              <span className="text-xs font-mono font-extrabold text-rose-650 dark:text-rose-455">-{formatIDR(pengurangSubtotal)}</span>
+                            </div>
+                            
+                            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                              {pengurangItems.map((item, idx) => (
+                                <div key={item.id} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-2xs space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-slate-400 font-extrabold shrink-0">{idx + 1}.</span>
+                                    <input
+                                      type="text"
+                                      placeholder="Nama pengurang (contoh: Audit BPJS)"
+                                      value={item.name}
+                                      onChange={(e) => {
+                                        const next = [...pengurangItems];
+                                        next[idx].name = e.target.value;
+                                        setPengurangItems(next);
+                                      }}
+                                      className="w-full bg-transparent border-none p-0 text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:font-normal placeholder:opacity-55"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setPengurangItems(pengurangItems.filter(p => p.id !== item.id))}
+                                      className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0 transition-all"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-1 pt-2 border-t border-dashed border-slate-100 dark:border-slate-800/50">
+                                    <div>
+                                      <label className="text-[9px] text-slate-400 font-extrabold block mb-0.5">NILAI POTONGAN PENGURANG</label>
+                                      <div className="flex items-center gap-1 bg-slate-50/50 dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[9px] text-red-500 font-bold">-Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Nilai Pengurang"
+                                          value={item.value || ""}
+                                          onChange={(e) => {
+                                            const next = [...pengurangItems];
+                                            next[idx].value = Math.max(0, parseInt(e.target.value, 10)) || 0;
+                                            setPengurangItems(next);
+                                          }}
+                                          className="w-full bg-transparent border-none p-0.5 text-xs font-mono font-bold focus:ring-0 text-red-550 focus:outline-none"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {pengurangItems.length === 0 && (
+                                <p className="text-[10px] italic text-slate-400 text-center font-medium my-2 py-1">Belum ada item pengurang pokok.</p>
+                              )}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={addPengurangItem}
+                              className="w-full py-2 text-[10px] font-extrabold text-rose-600 dark:text-rose-455 bg-rose-50/40 hover:bg-rose-50 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 border border-dashed border-rose-250 dark:border-rose-900/40 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            >
+                              ➕ Tambah Item Pengurang Pokok
+                            </button>
+                          </div>
+
+                          {/* Calculations summaries */}
+                          <div className="border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 bg-indigo-50/10 dark:bg-indigo-950/5 space-y-3">
+                            <h4 className="text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-400 tracking-wider">📊 Ringkasan Kalkulasi Akumulasi</h4>
+                            
+                            <div className="text-xs space-y-1.5 pl-1">
+                              <div className="flex justify-between text-slate-650 dark:text-slate-400">
+                                <span>🟢 Subtotal Penerimaan Tunai (Net):</span>
+                                <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-450">{formatIDR(tunaiSubtotal)}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-650 dark:text-slate-400">
+                                <span>🔵 Subtotal Penerimaan BPJS (Net):</span>
+                                <span className="font-mono font-semibold text-blue-600 dark:text-blue-450">{formatIDR(bpjsSubtotal)}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-650 dark:text-slate-400">
+                                <span>🟣 Subtotal Penerimaan Asuransi (Net):</span>
+                                <span className="font-mono font-semibold text-indigo-650 dark:text-indigo-400">{formatIDR(asuransiSubtotal)}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                              <span>Total Penerimaan Keseluruhan:</span>
+                              <span className="font-mono font-extrabold text-slate-900 dark:text-slate-100">{formatIDR(overallReceiptTotal)}</span>
+                            </div>
+
+                            {/* Aggregated Pengurang display */}
+                            <div className="flex items-center justify-between gap-4 pt-1.5 border-t border-dashed border-slate-200/50 dark:border-slate-800 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                              <span>🔴 Total Potongan Pengurang Pokok ({pengurangItems.length} Item):</span>
+                              <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400">-{formatIDR(totalPengurang)}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs font-extrabold text-slate-850 dark:text-slate-200 pt-2 border-t border-slate-200/50 dark:border-slate-800">
+                              <span>⚖️ Nilai Pokok Final (Net):</span>
+                              <span className="font-mono text-slate-950 dark:text-slate-50">{formatIDR(nilaiPokokFinal)}</span>
+                            </div>
+
+                            {/* KSO share percent input */}
+                            <div className="flex items-center justify-between gap-4 pt-2 border-t border-dashed border-slate-200/50 dark:border-slate-800">
+                              <span className="text-xs font-semibold text-slate-650 dark:text-slate-400">📈 Persentase Sharing KSO (%):</span>
+                              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-xl transition-all">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={sharePercent}
+                                  onChange={e => setSharePercent(Math.max(0, parseFloat(e.target.value)) || 0)}
+                                  className="w-16 text-center text-xs font-black focus:outline-none bg-transparent dark:text-slate-100 font-mono"
+                                />
+                                <span className="text-xs text-slate-400 font-bold">%</span>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs font-extrabold text-slate-850 dark:text-slate-200">
+                              <span>💼 Dasar Penagihan (Sharing KSO):</span>
+                              <span className="font-mono text-indigo-700 dark:text-indigo-400 font-extrabold">{formatIDR(dasarPenagihan)}</span>
+                            </div>
+
+                            {/* Tax treatment options */}
+                            <div className="flex items-center justify-between text-xs font-semibold text-slate-650 dark:text-slate-400 pt-1.5 border-t border-dashed border-slate-200/50 dark:border-slate-800">
+                              <span>Metode Perlakuan PPN:</span>
+                              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 p-0.5 rounded-xl border border-slate-105 dark:border-slate-800">
+                                <button
+                                  type="button"
+                                  onClick={() => setTaxTreatment("inklusif")}
+                                  className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all ${
+                                    taxTreatment === "inklusif"
+                                      ? "bg-indigo-600 text-white shadow"
+                                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                  }`}
+                                >
+                                  Inklusif
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setTaxTreatment("eksklusif")}
+                                  className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all ${
+                                    taxTreatment === "eksklusif"
+                                      ? "bg-indigo-600 text-white shadow"
+                                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                  }`}
+                                >
+                                  Eksklusif
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Persentase PPN (%) */}
+                            <div className="flex items-center justify-between pt-1 border-t border-dashed border-slate-200/50 dark:border-slate-800">
+                              <span className="text-xs font-semibold text-slate-650 dark:text-slate-400">Persentase Tarip PPN (%):</span>
+                              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 px-2 py-1 border border-slate-200 dark:border-slate-800 rounded-xl transition-all">
+                                <input
+                                  type="number"
+                                  value={ppnPercent}
+                                  onChange={e => setPpnPercent(Math.max(0, parseInt(e.target.value, 10)) || 0)}
+                                  className="w-10 text-center text-xs font-extrabold focus:outline-none bg-transparent dark:text-slate-100 font-mono"
+                                />
+                                <span className="text-xs text-slate-400 font-bold">%</span>
+                              </div>
+                            </div>
+
+                            {/* Calculated Result Box */}
+                            <div className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-indigo-100/55 dark:border-slate-850 text-xs font-semibold space-y-1 text-slate-650 dark:text-slate-400 shadow-3xs">
+                              <div className="flex justify-between">
+                                  <span>Hasil Nilai Penagihan (DPP):</span>
+                                  <span className="font-mono text-slate-800 dark:text-slate-250 font-bold">{formatIDR(calculatedServiceAmount)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                  <span>Tarif Pajak PPN ({ppnPercent}%):</span>
+                                  <span className="font-mono text-indigo-500">+{formatIDR(calculatedPpnAmount)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs font-black text-slate-900 dark:text-slate-100 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+                                  <span>Total Tagihan Akhir (Net):</span>
+                                  <span className="font-mono text-indigo-650 dark:text-indigo-400 text-sm font-extrabold">{formatIDR(calculatedTotalAmount)}</span>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      ) : (
+                        /* Simple mode input if toggled off */
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider font-bold">Nilai Pokok / DPP (Sebelum PPN)</label>
+                              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-black">
+                                {formatIDR(serviceAmount)}
+                              </span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 font-bold pointer-events-none">Rp</span>
+                              <input
+                                type="number"
+                                placeholder="e.g. 15000000"
+                                value={serviceAmount || ""}
+                                onChange={e => setServiceAmount(Math.max(0, parseInt(e.target.value, 10)) || 0)}
+                                required
+                                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-850 rounded-xl text-xs font-mono font-extrabold focus:outline-none focus:border-indigo-500 dark:text-slate-105"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200/50 dark:border-slate-850 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-550 dark:text-slate-450 font-extrabold uppercase">Persentase PPN (%)</span>
+                              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2 py-1 border border-slate-205 dark:border-slate-800 rounded-lg">
+                                <input
+                                  type="number"
+                                  value={ppnPercent}
+                                  onChange={e => setPpnPercent(Math.max(0, parseInt(e.target.value, 10)) || 0)}
+                                  className="w-8 text-center text-xs font-extrabold focus:outline-none bg-transparent dark:text-slate-100 font-mono"
+                                />
+                                <span className="text-xs text-slate-400 font-bold">%</span>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5 text-[11px] pt-2 border-t border-slate-200 dark:border-slate-800/60 font-medium text-slate-600 dark:text-slate-400">
+                              <div className="flex justify-between">
+                                <span>Nilai DPP (Pokok):</span>
+                                <span className="font-mono">{formatIDR(serviceAmount)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Nilai PPN ({ppnPercent}%):</span>
+                                <span className="font-mono text-indigo-600 dark:text-indigo-400">+{formatIDR(currentCalculatedPpn)}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-900 dark:text-slate-100 font-extrabold text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+                                <span>Total Penagihan:</span>
+                                <span className="font-mono text-indigo-600 dark:text-indigo-400">{formatIDR(currentCalculatedTotal)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {type === "ATK" && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider font-bold">Nilai Pokok / DPP (Sebelum PPN)</label>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-450 font-mono font-black">
+                            {formatIDR(serviceAmount)}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs text-slate-400 font-bold pointer-events-none">Rp</span>
+                          <input
+                            type="number"
+                            placeholder="e.g. 15000000"
+                            value={serviceAmount || ""}
+                            onChange={e => setServiceAmount(Math.max(0, parseInt(e.target.value, 10)) || 0)}
+                            required
+                            className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-850 rounded-xl text-xs font-mono font-extrabold focus:outline-none focus:border-indigo-500 dark:text-slate-105"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200/50 dark:border-slate-850 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-550 dark:text-slate-450 font-extrabold uppercase">Persentase PPN (%)</span>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2 py-1 border border-slate-205 dark:border-slate-800 rounded-lg">
+                            <input
+                              type="number"
+                              value={ppnPercent}
+                              onChange={e => setPpnPercent(Math.max(0, parseInt(e.target.value, 10)) || 0)}
+                              className="w-8 text-center text-xs font-extrabold focus:outline-none bg-transparent dark:text-slate-100 font-mono"
+                            />
+                            <span className="text-xs text-slate-400 font-bold">%</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 text-[11px] pt-2 border-t border-slate-200 dark:border-slate-800/60 font-medium text-slate-600 dark:text-slate-400">
+                          <div className="flex justify-between">
+                            <span>Nilai DPP (Pokok):</span>
+                            <span className="font-mono">{formatIDR(serviceAmount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Nilai PPN ({ppnPercent}%):</span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400">+{formatIDR(currentCalculatedPpn)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-900 dark:text-slate-100 font-extrabold text-xs pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+                            <span>Total Tagihan ATK:</span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-450">{formatIDR(currentCalculatedTotal)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* NEW FILE UPLOAD: Attachment Berita Acara (BA) */}
                   <div className="space-y-1.5">
@@ -1777,6 +3095,15 @@ export default function BillingKSOView({
                     </div>
                   </div>
 
+                  {selectedBill.noRekap && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-850">
+                      <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">📋 No Rekap Tagihan</span>
+                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-1 block text-xs">
+                        {selectedBill.noRekap}
+                      </span>
+                    </div>
+                  )}
+
                   {selectedBill.tanggalKirim ? (
                     <div className="grid grid-cols-2 gap-4 pt-1 border-t border-slate-50 dark:border-slate-850">
                       <div>
@@ -1868,12 +3195,190 @@ export default function BillingKSOView({
                   </div>
 
                   {/* Description segment */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">📝 Deskripsi / Uraian Rincian</span>
-                    <p className="mt-1.5 p-3 bg-slate-50/65 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 leading-relaxed text-slate-750 dark:text-slate-300 font-sans whitespace-pre-wrap">
-                      {selectedBill.description || "Tidak ada deskripsi tambahan."}
-                    </p>
-                  </div>
+                  {(() => {
+                    let selectedDetailedObj: any = null;
+                    if (selectedBill && selectedBill.type === "KSO" && selectedBill.description) {
+                      try {
+                        const parsed = JSON.parse(selectedBill.description);
+                        if (parsed && parsed.isDetailed) {
+                          selectedDetailedObj = parsed;
+                        }
+                      } catch (e) {
+                        // ignore
+                      }
+                    }
+
+                    if (selectedDetailedObj) {
+                      return (
+                        <div className="space-y-4 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                          <div>
+                            <span className="block text-[10px] text-indigo-650 dark:text-indigo-400 font-extrabold uppercase tracking-wider mb-2">📊 Rincian Penerimaan KSO</span>
+                            <div className="text-[11px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+                              
+                              {/* Tunai items */}
+                              {selectedDetailedObj.tunaiItems && selectedDetailedObj.tunaiItems.length > 0 && (
+                                <div className="p-3 bg-slate-50/30 dark:bg-slate-950/20 space-y-1.5 font-sans">
+                                  <div className="flex justify-between text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                                    <span>🟢 Penerimaan Tunai</span>
+                                    <span className="font-mono">{formatIDR(selectedDetailedObj.tunaiItems.reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0))}</span>
+                                  </div>
+                                  <div className="space-y-1 pl-1.5 border-l-2 border-emerald-100 dark:border-emerald-900/60">
+                                    {selectedDetailedObj.tunaiItems.map((item: any, idx: number) => (
+                                      <div key={idx} className="text-slate-600 dark:text-slate-355 text-[10px]">
+                                        <div className="flex justify-between font-semibold font-sans">
+                                          <span className="truncate">{idx + 1}. {item.name || "Item Tunai"}</span>
+                                          <span className="font-mono font-bold shrink-0">{formatIDR(item.value - (item.admin || 0))}</span>
+                                        </div>
+                                        {item.admin > 0 && (
+                                          <div className="flex justify-between text-[8px] text-slate-400 font-mono">
+                                            <span>&nbsp;&nbsp;- Nilai Kotor: {formatIDR(item.value)}</span>
+                                            <span className="text-red-400">- Pot. Admin: {formatIDR(item.admin)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* BPJS items */}
+                              {selectedDetailedObj.bpjsItems && selectedDetailedObj.bpjsItems.length > 0 && (
+                                <div className="p-3 bg-slate-50/30 dark:bg-slate-950/20 space-y-1.5 font-sans">
+                                  <div className="flex justify-between text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    <span>🔵 Penerimaan BPJS</span>
+                                    <span className="font-mono">{formatIDR(selectedDetailedObj.bpjsItems.reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0))}</span>
+                                  </div>
+                                  <div className="space-y-1 pl-1.5 border-l-2 border-blue-105 dark:border-blue-900/60">
+                                    {selectedDetailedObj.bpjsItems.map((item: any, idx: number) => (
+                                      <div key={idx} className="text-slate-600 dark:text-slate-355 text-[10px]">
+                                        <div className="flex justify-between font-semibold font-sans">
+                                          <span className="truncate">{idx + 1}. {item.name || "BPJS Item"}</span>
+                                          <span className="font-mono font-bold shrink-0">{formatIDR(item.value - (item.admin || 0))}</span>
+                                        </div>
+                                        {item.admin > 0 && (
+                                          <div className="flex justify-between text-[8px] text-slate-400 font-mono">
+                                            <span>&nbsp;&nbsp;- Nilai Kotor: {formatIDR(item.value)}</span>
+                                            <span className="text-red-400">- Pot. Admin: {formatIDR(item.admin)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Asuransi items */}
+                              {selectedDetailedObj.asuransiItems && selectedDetailedObj.asuransiItems.length > 0 && (
+                                <div className="p-3 bg-slate-50/30 dark:bg-slate-950/20 space-y-1.5 font-sans">
+                                  <div className="flex justify-between text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-wide">
+                                    <span>🟣 Penerimaan Asuransi Lain</span>
+                                    <span className="font-mono">{formatIDR(selectedDetailedObj.asuransiItems.reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0))}</span>
+                                  </div>
+                                  <div className="space-y-1 pl-1.5 border-l-2 border-indigo-105 dark:border-indigo-900/60">
+                                    {selectedDetailedObj.asuransiItems.map((item: any, idx: number) => (
+                                      <div key={idx} className="text-slate-600 dark:text-slate-355 text-[10px]">
+                                        <div className="flex justify-between font-semibold font-sans">
+                                          <span className="truncate">{idx + 1}. {item.name || "Asuransi Item"}</span>
+                                          <span className="font-mono font-bold shrink-0">{formatIDR(item.value - (item.admin || 0))}</span>
+                                        </div>
+                                        {item.admin > 0 && (
+                                          <div className="flex justify-between text-[8px] text-slate-400 font-mono">
+                                            <span>&nbsp;&nbsp;- Nilai Kotor: {formatIDR(item.value)}</span>
+                                            <span className="text-red-400">- Pot. Admin: {formatIDR(item.admin)}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Pengurang items detail list */}
+                              {((selectedDetailedObj.pengurangItems && selectedDetailedObj.pengurangItems.length > 0) || (selectedDetailedObj.pengurang > 0)) && (
+                                <div className="p-3 bg-red-50/10 dark:bg-slate-950/20 space-y-1.5 font-sans">
+                                  <div className="flex justify-between text-[10px] font-extrabold text-red-650 dark:text-red-400 uppercase tracking-wide">
+                                    <span>🔴 Daftar Pengurang Pokok</span>
+                                    <span className="font-mono">-{formatIDR(selectedDetailedObj.pengurangItems ? selectedDetailedObj.pengurangItems.reduce((sum: number, i: any) => sum + (i.value || 0), 0) : selectedDetailedObj.pengurang)}</span>
+                                  </div>
+                                  <div className="space-y-1 pl-1.5 border-l-2 border-red-200 dark:border-red-900/60">
+                                    {selectedDetailedObj.pengurangItems && selectedDetailedObj.pengurangItems.length > 0 ? (
+                                      selectedDetailedObj.pengurangItems.map((item: any, idx: number) => (
+                                        <div key={idx} className="text-slate-600 dark:text-slate-355 text-[10px]">
+                                          <div className="flex justify-between font-semibold font-sans">
+                                            <span className="truncate">{idx + 1}. {item.name || "Item Pengurang"}</span>
+                                            <span className="font-mono font-bold shrink-0">-{formatIDR(item.value)}</span>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="text-slate-600 dark:text-slate-355 text-[10px]">
+                                        <div className="flex justify-between font-semibold font-sans">
+                                          <span className="truncate">1. {selectedDetailedObj.namaPengurang || "Potongan Pokok"}</span>
+                                          <span className="font-mono font-bold shrink-0">-{formatIDR(selectedDetailedObj.pengurang)}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Calculations */}
+                              <div className="p-3 bg-indigo-50/10 dark:bg-slate-950/45 text-[10.5px] space-y-1 text-slate-600 dark:text-slate-400 font-sans">
+                                <div className="flex justify-between font-black text-slate-800 dark:text-slate-100">
+                                  <span>Total Nilai Pokok Final:</span>
+                                  <span className="font-mono">
+                                    {formatIDR(
+                                      (selectedDetailedObj.tunaiItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) +
+                                      (selectedDetailedObj.bpjsItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) +
+                                      (selectedDetailedObj.asuransiItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) -
+                                      (selectedDetailedObj.pengurangItems ? selectedDetailedObj.pengurangItems.reduce((sum: number, i: any) => sum + (i.value || 0), 0) : (selectedDetailedObj.pengurang || 0))
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between font-semibold">
+                                  <span>Rasio Sharing KSO:</span>
+                                  <span className="font-mono">{selectedDetailedObj.sharePercent}%</span>
+                                </div>
+                                <div className="flex justify-between font-black text-indigo-650 dark:text-indigo-400 border-t border-slate-150/50 dark:border-slate-850 pt-1 mt-1">
+                                  <span>Dasar Penagihan (Sharing):</span>
+                                  <span className="font-mono">
+                                    {formatIDR(
+                                      (((selectedDetailedObj.tunaiItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) +
+                                        (selectedDetailedObj.bpjsItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) +
+                                        (selectedDetailedObj.asuransiItems || []).reduce((sum: number, i: any) => sum + (i.value || 0) - (i.admin || 0), 0) -
+                                        (selectedDetailedObj.pengurangItems ? selectedDetailedObj.pengurangItems.reduce((sum: number, i: any) => sum + (i.value || 0), 0) : (selectedDetailedObj.pengurang || 0))) * (selectedDetailedObj.sharePercent || 0)) / 100
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-[9px] text-slate-400 font-medium">
+                                  <span>Metode Pajak PPN:</span>
+                                  <span className="font-black uppercase">{selectedDetailedObj.taxTreatment === "inklusif" ? "Inklusif (Dalam)" : "Eksklusif (Luar)"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {selectedDetailedObj.originalDescription && (
+                            <div>
+                              <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">📝 Catatan Tambahan</span>
+                              <p className="mt-1.5 p-3 bg-slate-50/65 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 leading-relaxed text-slate-755 dark:text-slate-300 font-sans whitespace-pre-wrap">
+                                {selectedDetailedObj.originalDescription}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">📝 Deskripsi / Uraian Rincian</span>
+                        <p className="mt-1.5 p-3 bg-slate-50/65 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 leading-relaxed text-slate-755 dark:text-slate-300 font-sans whitespace-pre-wrap">
+                          {selectedBill.description || "Tidak ada deskripsi tambahan."}
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-810 flex items-center justify-between text-[10px] text-slate-400 font-bold">
                     <span>Invoice ID: #{selectedBill.id}</span>

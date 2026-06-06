@@ -170,7 +170,7 @@ export default function ProjectsView({
     }
 
     const filteredImpls = (siteImplementations || []).filter(
-      impl => !impl.subModuleId && impl.clientRS.trim().toLowerCase() === clientName.toLowerCase()
+      impl => !impl.subModuleId && impl.clientRS && impl.clientRS.trim().toLowerCase() === clientName.toLowerCase()
     );
     const uniqueForClient = Array.from(new Set(filteredImpls.map(impl => impl.appModuleName))).filter(Boolean);
     const result = uniqueForClient.sort();

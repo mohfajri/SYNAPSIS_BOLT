@@ -67,6 +67,8 @@ export interface TaskComment {
   role: string;
   text: string;
   createdAt: string;
+  attachmentName?: string;
+  attachmentData?: string;
 }
 
 export interface Task {
@@ -104,6 +106,7 @@ export interface Task {
   linkedCommLogIds?: string[];
   linkedMeetingLogIds?: string[];
   comments?: TaskComment[];
+  taskFileName?: string;
 }
 
 export interface CommLog {
@@ -309,6 +312,13 @@ export interface BillingKSO {
   totalAmount: number; // Nilai Total setelah PPN (serviceAmount + ppnAmount)
   description: string; // Uraian penagihan atau detail ATK yang dibeli
   status: 'Draft' | 'Submitted' | 'Verified' | 'Paid' | 'Cancelled'; // Status penagihan
+  noRekap?: string; // No rekap tagihan otomatis + free text
+  namaDirektur?: string; // Nama Direktur RS
+  nipDirektur?: string; // NIP Direktur RS
+  jabatanDirektur?: string; // Jabatan Direktur (default: Direktur)
+  namaSiteCoordinator?: string; // Nama Site Coordinator
+  jabatanSiteCoordinator?: string; // Jabatan Site Coordinator (default: Site Coordinator)
+  namaPerusahaanSite?: string; // Nama perusahaan Site Coordinator (default: PT. Medika KSO Indonesia)
   tanggalKirim?: string; // Tanggal dikirimnya penagihan
   tanggalBayar?: string; // Tanggal pembayarannya
   attachmentBeritaAcara?: string; // Base64 content or url

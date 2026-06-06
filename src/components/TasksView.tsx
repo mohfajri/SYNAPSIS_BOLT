@@ -24,10 +24,165 @@ import {
   MessageSquare,
   Send,
   Check,
+  ChevronDown,
   Columns,
-  Sidebar
+  Sidebar,
+  CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+interface SearchOption {
+  value: string;
+  label: string;
+}
+
+interface SearchableSelectProps {
+  label: string;
+  placeholder: string;
+  options: SearchOption[];
+  value: string;
+  onChange: (val: string) => void;
+  optionalText?: string;
+  className?: string;
+}
+
+function SearchableSelect({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+  optionalText
+}: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  // Filter options based on search terms
+  // opsian data tidak ditampilkan dahulu, wait until search is filled
+  const filteredOptions = searchTerm.trim() === "" 
+    ? [] 
+    : options.filter(o => 
+        o.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        o.value.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-1.5 relative w-full">
+      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+        {label}
+      </label>
+      
+      <div className="relative">
+        <div 
+          onClick={() => setIsOpen(true)}
+          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 pr-10 text-slate-800 dark:text-slate-200 font-semibold focus-within:ring-2 focus-within:ring-blue-500/25 transition-all flex items-center justify-between cursor-pointer text-left"
+        >
+          {isOpen ? (
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Ketik untuk mencari..."
+              className="w-full bg-transparent border-0 p-0 text-slate-800 dark:text-slate-200 font-semibold focus:ring-0 focus:outline-none placeholder:font-normal placeholder:opacity-55"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className={selectedOption ? "text-slate-800 dark:text-slate-100" : "text-slate-450 font-normal opacity-70"}>
+              {selectedOption ? selectedOption.label : optionalText || placeholder}
+            </span>
+          )}
+          
+          <div className="absolute right-3 flex items-center gap-1.5 text-slate-400">
+            {isOpen && searchTerm ? (
+              <button 
+                type="button" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearchTerm("");
+                }}
+                className="hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <ChevronDown className="w-4 h-4 shrink-0" />
+            )}
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-880 rounded-xl shadow-lg max-h-56 overflow-y-auto select-none p-1 shrink-0">
+            {optionalText && (
+              <div 
+                onClick={() => {
+                  onChange("");
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                  value === "" 
+                    ? "bg-blue-50 dark:bg-blue-955/40 text-blue-600 dark:text-blue-400" 
+                    : "text-slate-705 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/65"
+                }`}
+              >
+                <span>{optionalText}</span>
+                {value === "" && <Check className="w-3.5 h-3.5" />}
+              </div>
+            )}
+            
+            {searchTerm.trim() === "" ? (
+              <div className="p-3 text-center text-[11px] font-bold text-slate-450 dark:text-slate-500">
+                🔍 Silakan ketik kata kunci untuk mencari...
+              </div>
+            ) : filteredOptions.length === 0 ? (
+              <div className="p-3 text-center text-[11px] font-bold text-slate-450 dark:text-slate-500">
+                ⚠️ Tidak menemukan data pencarian
+              </div>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSelected = value === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setIsOpen(false);
+                      setSearchTerm("");
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                      isSelected
+                        ? "bg-blue-50 dark:bg-blue-800/30 text-blue-600 dark:text-blue-400"
+                        : "text-slate-705 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800/65"
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface TasksViewProps {
   tasks: Task[];
@@ -97,6 +252,11 @@ export default function TasksView({
   useEffect(() => {
     if (selectedTask) {
       setActiveDetailTab("detail");
+      setDraftStatus(selectedTask.status || "Not Started");
+      setDraftProgress(selectedTask.progress || 0);
+    } else {
+      setDraftStatus("");
+      setDraftProgress(0);
     }
   }, [selectedTask?.id]);
 
@@ -136,6 +296,16 @@ export default function TasksView({
   const [progressManual, setProgressManual] = useState(0);
   const [notes, setNotes] = useState("");
   const [url, setUrl] = useState("");
+  const [inputFileName, setInputFileName] = useState("");
+
+  // Local state drafts for detailing status/progress save flow
+  const [draftStatus, setDraftStatus] = useState<string>("");
+  const [draftProgress, setDraftProgress] = useState<number>(0);
+
+  // Local state for comment attachments
+  const [commentAttachmentName, setCommentAttachmentName] = useState("");
+  const [commentAttachmentData, setCommentAttachmentData] = useState("");
+
   const [tempSubTasks, setTempSubTasks] = useState<SubTask[]>([]);
   const [newSubTitle, setNewSubTitle] = useState("");
   const [linkedCommLogIds, setLinkedCommLogIds] = useState<string[]>([]);
@@ -556,6 +726,7 @@ export default function TasksView({
     setProgressManual(0);
     setNotes("");
     setUrl("");
+    setInputFileName("");
     setTempSubTasks([]);
     setTaskCategoryType("Project");
     setIsBroadcast(false);
@@ -582,6 +753,10 @@ export default function TasksView({
   }, [initialOpenWithStatus, onClearInitialStatus]);
 
   function openEdit(t: Task) {
+    if (t.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diedit. Silakan pulihkan tugas terlebih dahulu!");
+      return;
+    }
     setEditingTask(t);
     setProjectCode(t.project || "");
     setModulName(t.modul || "");
@@ -596,6 +771,7 @@ export default function TasksView({
     setProgressManual(t.progress || 0);
     setNotes(t.notes || "");
     setUrl(t.url || "");
+    setInputFileName(t.taskFileName || "");
     setTempSubTasks(t.subtasks || []);
     setTaskCategoryType(t.taskCategoryType || "Project");
     setIsBroadcast(false);
@@ -632,6 +808,8 @@ export default function TasksView({
       errorMsg = "Tugas yang sudah selesai / terchecklist (dengan status Selesai/Closed atau progress 100%) tidak dapat langsung dihapus. Harap ubah status atau unchecklist terlebih dahulu sebelum di-delete dari sistem!";
     }
 
+    // Dismiss the Add/Edit form overlay immediately so the options show up cleanly
+    setIsFormOpen(false);
     setTaskToDelete(task);
     setDeleteErrorReason(errorMsg);
   };
@@ -795,7 +973,8 @@ export default function TasksView({
       parentTaskId: editingTask ? (editingTask.parentTaskId || "") : "",
       delegationNotes: editingTask ? (editingTask.delegationNotes || "") : "",
       linkedCommLogIds,
-      linkedMeetingLogIds
+      linkedMeetingLogIds,
+      taskFileName: inputFileName || undefined
     };
 
     try {
@@ -834,6 +1013,10 @@ export default function TasksView({
 
   // Live checker modifier on view popup
   async function handleLiveSubToggle(t: Task, subId: string) {
+    if (t.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diubah checklist subtasknya!");
+      return;
+    }
     const nextSubs = t.subtasks.map(s => s.id === subId ? { ...s, done: !s.done } : s);
     const completed = nextSubs.filter(s => s.done).length;
     let progress = Math.round((completed / nextSubs.length) * 100);
@@ -856,6 +1039,10 @@ export default function TasksView({
   // Live progress value updater from details panel
   async function handleLiveProgressChange(prog: number) {
     if (!selectedTask) return;
+    if (selectedTask.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diubah!");
+      return;
+    }
     let nextStatus = selectedTask.status;
     if (prog === 100) nextStatus = "Done";
     else if (prog === 0) nextStatus = "Not Started";
@@ -873,6 +1060,10 @@ export default function TasksView({
   // Live status updater from details panel
   async function handleLiveStatusChange(nextStatus: string) {
     if (!selectedTask) return;
+    if (selectedTask.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diubah!");
+      return;
+    }
     let prog = selectedTask.progress;
     if (nextStatus === "Done") prog = 100;
     else if (nextStatus === "Not Started" || nextStatus === "Open") prog = 0;
@@ -886,9 +1077,57 @@ export default function TasksView({
     setSelectedTask(updated);
   }
 
+  // Draft-based state managers for non-auto-saving status/progress updates
+  const onDraftStatusChange = (statusVal: string) => {
+    setDraftStatus(statusVal);
+    if (statusVal === "Done") {
+      setDraftProgress(100);
+    } else if (statusVal === "Not Started" || statusVal === "Open") {
+      setDraftProgress(0);
+    } else if (draftProgress === 100) {
+      setDraftProgress(75);
+    }
+  };
+
+  const onDraftProgressChange = (progVal: number) => {
+    setDraftProgress(progVal);
+    if (progVal === 100) {
+      setDraftStatus("Done");
+    } else if (progVal === 0) {
+      setDraftStatus("Not Started");
+    } else if (draftStatus === "Not Started" || draftStatus === "Done") {
+      setDraftStatus("In Progress");
+    }
+  };
+
+  const handleSaveStatusProgress = async () => {
+    if (!selectedTask) return;
+    if (selectedTask.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diperbarui. Silakan pulihkan tugas terlebih dahulu!");
+      return;
+    }
+    try {
+      const updated = {
+        ...selectedTask,
+        status: draftStatus,
+        progress: draftProgress
+      };
+      await onUpdateTask(selectedTask.id, { status: draftStatus, progress: draftProgress });
+      setSelectedTask(updated);
+      alert("✅ Status & Progress berhasil disimpan secara resmi!");
+    } catch (err: any) {
+      alert("⚠️ Gagal memperbarui status & progress: " + err.message);
+    }
+  };
+
   // Add Comment/Message into Chat room for the task
   async function handleAddComment() {
-    if (!selectedTask || !chatInput.trim()) return;
+    if (!selectedTask) return;
+    if (selectedTask.isDeleted) {
+      alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diinput diskusi/koordinasi!");
+      return;
+    }
+    if (!chatInput.trim()) return;
     
     // Auto populate custom role text for display
     let roleName = currentUser?.role || "Staff";
@@ -905,7 +1144,9 @@ export default function TasksView({
       sender: currentUser?.name || currentUser?.username || "Pengguna",
       role: roleName,
       text: chatInput.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      attachmentName: commentAttachmentName || undefined,
+      attachmentData: commentAttachmentData || undefined
     };
 
     const nextComments = [...(selectedTask.comments || []), newComment];
@@ -917,6 +1158,8 @@ export default function TasksView({
     await onUpdateTask(selectedTask.id, { comments: nextComments });
     setSelectedTask(updated);
     setChatInput("");
+    setCommentAttachmentName("");
+    setCommentAttachmentData("");
   }
 
   // Custom pill binders
@@ -1183,41 +1426,23 @@ export default function TasksView({
 
               {taskCategoryType === "Project" || taskCategoryType === "Mandiri" ? (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      {taskCategoryType === "Mandiri" ? "PROYEK TERKAIT (OPSIONAL)" : "PROJECT SELECTION"}
-                    </label>
-                    <select
-                      value={projectCode}
-                      onChange={(e) => setProjectCode(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                    >
-                      {taskCategoryType === "Mandiri" && (
-                        <option value="">-- Tidak Terkait Proyek (Umum / Mandiri Umum) --</option>
-                      )}
-                      {projects.map(p => (
-                        <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    label={taskCategoryType === "Mandiri" ? "PROYEK TERKAIT (OPSIONAL)" : "PROJECT SELECTION"}
+                    placeholder="Cari & pilih project..."
+                    options={projects.map(p => ({ value: p.kode, label: `${p.kode} – ${p.nama}` }))}
+                    value={projectCode}
+                    onChange={(val) => setProjectCode(val)}
+                    optionalText={taskCategoryType === "Mandiri" ? "-- Tidak Terkait Proyek (Umum / Mandiri Umum) --" : undefined}
+                  />
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      {taskCategoryType === "Mandiri" ? "MODUL TERKAIT (OPSIONAL)" : "MODULE / MODUL TERKAIT"}
-                    </label>
-                    <select
-                      value={modulName}
-                      onChange={(e) => setModulName(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg p-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                    >
-                      {taskCategoryType === "Mandiri" && (
-                        <option value="">-- Tidak Terkait Modul --</option>
-                      )}
-                      {modulsList.map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    label={taskCategoryType === "Mandiri" ? "MODUL TERKAIT (OPSIONAL)" : "MODULE / MODUL TERKAIT"}
+                    placeholder="Cari & pilih modul..."
+                    options={modulsList.map(m => ({ value: m, label: m }))}
+                    value={modulName}
+                    onChange={(val) => setModulName(val)}
+                    optionalText={taskCategoryType === "Mandiri" ? "-- Tidak Terkait Modul --" : undefined}
+                  />
                 </>
               ) : (
                 <>
@@ -1607,6 +1832,56 @@ export default function TasksView({
                     placeholder="Berikan deskripsi detail tugas, rincian fungsional, atau petunjuk teknis di sini... Klik tombol toolbar di atas untuk memasukkan format tebal (bold), miring (italic), atau butir daftar."
                     className="w-full bg-transparent border-0 p-3 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-0 transition-all leading-relaxed text-xs font-sans rounded-b-lg"
                   />
+                </div>
+              </div>
+
+              {/* Fitur Upload Data File Lampiran */}
+              <div className="flex flex-col gap-1.5 bg-slate-50/50 dark:bg-slate-950/20 p-3.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">UPLOAD DATA / FILE LAMPIRAN</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-all select-none">
+                    <Paperclip className="w-4 h-4 shrink-0" />
+                    <span>{inputFileName ? "Ganti File Lampiran" : "Pilih & Upload File"}</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert("⚠️ Ukuran file maksimal 10MB!");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setUrl(event.target.result as string);
+                            setInputFileName(file.name);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  {inputFileName ? (
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-emerald-500/35 px-2.5 py-1 rounded-lg">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px]">✓</span>
+                      <span className="text-[11px] font-black font-sans text-slate-800 dark:text-slate-100 truncate max-w-[200px]" title={inputFileName}>{inputFileName}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUrl("");
+                          setInputFileName("");
+                        }}
+                        className="text-red-500 hover:text-red-700 font-extrabold text-sm ml-1 cursor-pointer"
+                        title="Hapus Lampiran"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-400 italic">Belum ada file terlampir</span>
+                  )}
                 </div>
               </div>
 
@@ -2322,11 +2597,12 @@ export default function TasksView({
                 {/* 1. Status & Progress Live Updates */}
                 <div className="space-y-2.5 bg-slate-50/50 dark:bg-slate-950/20 p-3 rounded-2xl border border-slate-100 dark:border-slate-850/50">
                   <div className="space-y-1">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Status & Progress Saat Ini</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Status Pekerjaan</span>
                     <select
-                      value={selectedTask.status}
-                      onChange={(e) => handleLiveStatusChange(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                      value={draftStatus}
+                      onChange={(e) => onDraftStatusChange(e.target.value)}
+                      disabled={!!selectedTask.isDeleted}
+                      className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTask.isDeleted ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {progressStatusesList.map(st => (
                         <option key={st} value={st}>{st}</option>
@@ -2342,14 +2618,48 @@ export default function TasksView({
                         min="0"
                         max="100"
                         step="5"
-                        value={selectedTask.progress}
-                        onChange={(e) => handleLiveProgressChange(parseInt(e.target.value, 10))}
-                        className="flex-grow accent-blue-600 h-1 bg-slate-200 dark:bg-slate-800 rounded-full cursor-pointer"
+                        value={draftProgress}
+                        onChange={(e) => onDraftProgressChange(parseInt(e.target.value, 10))}
+                        disabled={!!selectedTask.isDeleted}
+                        className={`flex-grow h-1 bg-slate-200 dark:bg-slate-800 rounded-full ${selectedTask.isDeleted ? "opacity-40 cursor-not-allowed" : "accent-blue-600 cursor-pointer"}`}
                       />
                       <span className="font-mono text-xs font-black min-w-[32px] text-right text-slate-850 dark:text-slate-200">
-                        {selectedTask.progress}%
+                        {draftProgress}%
                       </span>
                     </div>
+                  </div>
+
+                  {/* Explicit Simpan Button or Trash recovery option */}
+                  <div className="pt-1.5 border-t border-slate-200/50 dark:border-slate-800/60 mt-2">
+                    {selectedTask.isDeleted ? (
+                      <div className="space-y-2">
+                        <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-405 text-[10.5px] font-bold rounded-xl border border-amber-200/30 dark:border-amber-900/30 leading-normal text-center">
+                          ⚠️ Tugas ada di Tong Sampah. Pulihkan terlebih dahulu untuk mengubah status & progress.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => executeRestoreTask(selectedTask)}
+                          className="w-full py-2 px-3 text-[10.5px] font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                          <span>Pulihkan Sekarang</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSaveStatusProgress}
+                        className={`w-full py-2 px-3 text-[10.5px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          draftStatus !== selectedTask.status || draftProgress !== selectedTask.progress
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-extrabold focus:ring-2 focus:ring-emerald-500/20"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                        }`}
+                        disabled={draftStatus === selectedTask.status && draftProgress === selectedTask.progress}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{draftStatus !== selectedTask.status || draftProgress !== selectedTask.progress ? "Simpan Perubahan" : "Status Sudah Sinkron"}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2555,6 +2865,10 @@ export default function TasksView({
                   <button
                     type="button"
                     onClick={() => {
+                      if (selectedTask.isDeleted) {
+                        alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diedit. Silakan pulihkan tugas terlebih dahulu!");
+                        return;
+                      }
                       const canModify = !selectedTask.createdBy || selectedTask.createdBy === currentUser?.username || currentUser?.role === "Administrator";
                       if (canModify) {
                         setSelectedTask(null);
@@ -2563,7 +2877,12 @@ export default function TasksView({
                         alert(`Hanya pembuat tugas (${selectedTask.createdBy}) yang dapat mengubah rincian`);
                       }
                     }}
-                    className="flex-grow py-2 bg-slate-105 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-755 dark:text-slate-350 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
+                    disabled={!!selectedTask.isDeleted}
+                    className={`flex-grow py-2 text-xs font-bold rounded-xl transition-all text-center ${
+                      selectedTask.isDeleted
+                        ? "bg-slate-100 dark:bg-slate-805 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                        : "bg-slate-105 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-755 dark:text-slate-350 cursor-pointer"
+                    }`}
                   >
                     Edit Tugas
                   </button>
@@ -2633,12 +2952,25 @@ export default function TasksView({
                           
                           <div className={`p-2.5 rounded-2xl text-xs font-medium leading-relaxed font-sans ${
                             isMe 
-                              ? "bg-blue-600 text-white rounded-tr-none shadow-xs" 
-                              : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/50 dark:border-slate-750 rounded-tl-none shadow-3xs"
+                              ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-750/80 rounded-tr-none shadow-3xs" 
+                              : "bg-slate-50/80 dark:bg-slate-900/60 text-slate-705 dark:text-slate-250 border border-slate-200/40 dark:border-slate-850 rounded-tl-none shadow-3xs"
                           }`}>
-                            <div className={isMe ? "chat-text-white" : ""}>
+                            <div>
                               {renderFormattedText(msg.text)}
                             </div>
+                            {msg.attachmentName && msg.attachmentData && (
+                              <div className="mt-2 pt-2 border-t border-slate-200/40 dark:border-slate-700/60">
+                                <a
+                                  href={msg.attachmentData}
+                                  download={msg.attachmentName}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                  title="Klik untuk mengunduh lampiran diskusi"
+                                >
+                                  <Paperclip className="w-3 h-3 shrink-0" />
+                                  <span>{msg.attachmentName}</span>
+                                </a>
+                              </div>
+                            )}
                           </div>
                           <span className="text-[8px] text-slate-400 font-mono font-bold mt-0.5 self-end">
                             {new Date(msg.createdAt).toLocaleTimeString("id-ID", {hour: '2-digit', minute: '2-digit'})}
@@ -2650,64 +2982,117 @@ export default function TasksView({
                 </div>
 
                 {/* 2. Text message send box */}
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleAddComment();
-                  }}
-                  className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3"
-                >
-                  <div className="border border-slate-250 dark:border-slate-800 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/10 bg-slate-50 dark:bg-slate-950">
-                    <div className="flex items-center gap-1 bg-slate-105/55 dark:bg-slate-900/60 p-1.5 border-b border-slate-200 dark:border-slate-850 select-none">
-                      <button
-                        type="button"
-                        onClick={() => handleInsertFormat('chat-comment-textarea', chatInput, setChatInput, 'bold')}
-                        className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold cursor-pointer"
-                        title="Tebal"
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleInsertFormat('chat-comment-textarea', chatInput, setChatInput, 'italic')}
-                        className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic cursor-pointer"
-                        title="Miring"
-                      >
-                        I
-                      </button>
-                      <div className="w-[1px] h-3 bg-slate-300 dark:bg-slate-800 mx-1" />
-                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Toolbar Format: **teks** / *teks*</span>
-                    </div>
-
-                    <div className="flex items-end p-2 gap-2">
-                      <textarea
-                        id="chat-comment-textarea"
-                        rows={2}
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleAddComment();
-                          }
-                        }}
-                        placeholder="Tulis pesan diskusi koordinasi..."
-                        className="flex-grow bg-transparent border-0 text-slate-850 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-0 resize-none max-h-20"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!chatInput.trim()}
-                        className={`p-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
-                          chatInput.trim() 
-                            ? "bg-blue-600 hover:bg-blue-700 text-white shadow-xs hover:scale-103" 
-                            : "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                        }`}
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                {selectedTask.isDeleted ? (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-bold rounded-xl text-center leading-relaxed">
+                    ⚠️ Fitur Diskusi Dinonaktifkan karena tugas berada di Tong Sampah.
                   </div>
-                </form>
+                ) : (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAddComment();
+                    }}
+                    className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3"
+                  >
+                    <div className="border border-slate-250 dark:border-slate-800 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/10 bg-slate-50 dark:bg-slate-950">
+                      <div className="flex items-center justify-between bg-slate-105/55 dark:bg-slate-900/60 p-1.5 border-b border-slate-205 dark:border-slate-850 select-none">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleInsertFormat('chat-comment-textarea', chatInput, setChatInput, 'bold')}
+                            className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold cursor-pointer"
+                            title="Tebal"
+                          >
+                            B
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleInsertFormat('chat-comment-textarea', chatInput, setChatInput, 'italic')}
+                            className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic cursor-pointer"
+                            title="Miring"
+                          >
+                            I
+                          </button>
+                        </div>
+
+                        {/* Attachment uploader inside Chat panel */}
+                        <div className="flex items-center">
+                          <label className="flex items-center gap-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-lg border border-blue-150 dark:border-blue-900/40 transition-all select-none">
+                            <Paperclip className="w-2.8 h-2.8 shrink-0" />
+                            <span>{commentAttachmentName ? "Ganti" : "Lampirkan"}</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 5 * 1024 * 1024) {
+                                  alert("⚠️ Ukuran file terlalu besar! (Maks 5MB)");
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  if (event.target?.result) {
+                                    setCommentAttachmentName(file.name);
+                                    setCommentAttachmentData(event.target.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Pending comments attachment block */}
+                      {commentAttachmentName && (
+                        <div className="px-2.5 py-1.5 bg-blue-50/50 dark:bg-blue-950/20 border-b border-blue-105/30 dark:border-blue-900/20 flex items-center justify-between text-[10px] text-slate-705 dark:text-slate-350 select-none">
+                          <span className="truncate flex items-center gap-1 font-bold">
+                            📎 Lampiran siap kirim: <strong className="text-blue-600 dark:text-blue-400 break-all">{commentAttachmentName}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCommentAttachmentName("");
+                              setCommentAttachmentData("");
+                            }}
+                            className="text-red-500 hover:text-red-700 font-extrabold ml-2 shrink-0 cursor-pointer text-[9px]"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex items-end p-2 gap-2">
+                        <textarea
+                          id="chat-comment-textarea"
+                          rows={2}
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleAddComment();
+                            }
+                          }}
+                          placeholder="Tulis pesan diskusi koordinasi..."
+                          className="flex-grow bg-transparent border-0 text-slate-855 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-0 resize-none max-h-20"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!chatInput.trim() && !commentAttachmentName}
+                          className={`p-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+                            chatInput.trim() || commentAttachmentName
+                              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-xs hover:scale-103" 
+                              : "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                          }`}
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
               </div>
             )}
           </motion.div>
@@ -2883,9 +3268,10 @@ export default function TasksView({
                         <div className="space-y-1.5">
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block font-mono">Status Pekerjaan</span>
                           <select
-                            value={selectedTask.status}
-                            onChange={(e) => handleLiveStatusChange(e.target.value)}
-                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                            value={draftStatus}
+                            onChange={(e) => onDraftStatusChange(e.target.value)}
+                            disabled={!!selectedTask.isDeleted}
+                            className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 ${selectedTask.isDeleted ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                           >
                             {progressStatusesList.map(st => (
                               <option key={st} value={st}>{st}</option>
@@ -2897,7 +3283,7 @@ export default function TasksView({
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block font-mono">Progress Penyelesaian</span>
                             <span className="font-mono text-xs font-black text-blue-600 dark:text-blue-400">
-                              {selectedTask.progress}%
+                              {draftProgress}%
                             </span>
                           </div>
                           
@@ -2907,11 +3293,45 @@ export default function TasksView({
                               min="0"
                               max="100"
                               step="5"
-                              value={selectedTask.progress}
-                              onChange={(e) => handleLiveProgressChange(parseInt(e.target.value, 10))}
-                              className="flex-grow accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full cursor-pointer cursor-ew-resize"
+                              value={draftProgress}
+                              onChange={(e) => onDraftProgressChange(parseInt(e.target.value, 10))}
+                              disabled={!!selectedTask.isDeleted}
+                              className={`flex-grow h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full ${selectedTask.isDeleted ? "opacity-40 cursor-not-allowed" : "accent-blue-600 cursor-pointer cursor-ew-resize"}`}
                             />
                           </div>
+                        </div>
+
+                        {/* Explicit Save Action or Trash recovery option */}
+                        <div className="pt-2 border-t border-slate-200/50 dark:border-slate-800/60">
+                          {selectedTask.isDeleted ? (
+                            <div className="space-y-2 text-center md:text-left">
+                              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-405 text-[10.5px] font-bold rounded-lg border border-amber-200/30 dark:border-amber-900/30 leading-normal">
+                                ⚠️ Tugas ada di Tong Sampah. Pulihkan terlebih dahulu untuk mengubah status & progress.
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => executeRestoreTask(selectedTask)}
+                                className="w-full py-2.5 px-3.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                                <span>Pulihkan Sekarang</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSaveStatusProgress}
+                              className={`w-full py-2.5 px-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                draftStatus !== selectedTask.status || draftProgress !== selectedTask.progress
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-extrabold focus:ring-2 focus:ring-emerald-500/20"
+                                  : "bg-slate-150/70 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                              }`}
+                              disabled={draftStatus === selectedTask.status && draftProgress === selectedTask.progress}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              <span>{draftStatus !== selectedTask.status || draftProgress !== selectedTask.progress ? "Simpan Perubahan" : "Status Sudah Sinkron"}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -3062,12 +3482,25 @@ export default function TasksView({
                               
                               <div className={`p-3 rounded-2xl text-xs font-medium leading-relaxed font-sans ${
                                 isMe 
-                                  ? "bg-blue-600 text-white rounded-tr-none shadow-xs" 
-                                  : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/50 dark:border-slate-750 rounded-tl-none shadow-3xs"
+                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-750/85 rounded-tr-none shadow-3xs" 
+                                  : "bg-slate-5/80 dark:bg-slate-900/60 text-slate-705 dark:text-slate-250 border border-slate-200/40 dark:border-slate-850 rounded-tl-none shadow-3xs"
                               }`}>
-                                <div className={isMe ? "chat-text-white" : ""}>
+                                <div>
                                   {renderFormattedText(msg.text)}
                                 </div>
+                                {msg.attachmentName && msg.attachmentData && (
+                                  <div className="mt-2 pt-2 border-t border-slate-200/40 dark:border-slate-700/60 text-left">
+                                    <a
+                                      href={msg.attachmentData}
+                                      download={msg.attachmentName}
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-605 dark:text-blue-400 hover:underline break-all"
+                                      title="Klik untuk mengunduh lampiran diskusi"
+                                    >
+                                      <Paperclip className="w-3 h-3 shrink-0" />
+                                      <span>{msg.attachmentName}</span>
+                                    </a>
+                                  </div>
+                                )}
                               </div>
                               <span className="text-[8.5px] text-slate-400 font-mono font-bold mt-0.5 self-end">
                                 {new Date(msg.createdAt).toLocaleTimeString("id-ID", {hour: '2-digit', minute: '2-digit'})} | {new Date(msg.createdAt).toLocaleDateString("id-ID", {day: 'numeric', month: 'short'})}
@@ -3079,64 +3512,117 @@ export default function TasksView({
                     </div>
 
                     {/* Chat messaging keyboard */}
-                    <form 
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleAddComment();
-                      }}
-                      className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3"
-                    >
-                      <div className="border border-slate-250 dark:border-slate-800 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/10 bg-slate-50 dark:bg-slate-950">
-                        <div className="flex items-center gap-1 bg-slate-105/55 dark:bg-slate-900/60 p-1.5 border-b border-slate-205 dark:border-slate-850 select-none">
-                          <button
-                            type="button"
-                            onClick={() => handleInsertFormat('chat-comment-textarea-drawer', chatInput, setChatInput, 'bold')}
-                            className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold cursor-pointer"
-                            title="Tebal"
-                          >
-                            B
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleInsertFormat('chat-comment-textarea-drawer', chatInput, setChatInput, 'italic')}
-                            className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic cursor-pointer"
-                            title="Miring"
-                          >
-                            I
-                          </button>
-                          <div className="w-[1px] h-3 bg-slate-300 dark:bg-slate-800 mx-1" />
-                          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Toolbar Format: **teks** / *teks*</span>
-                        </div>
-
-                        <div className="flex items-end p-2 gap-2">
-                          <textarea
-                            id="chat-comment-textarea-drawer"
-                            rows={2}
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleAddComment();
-                              }
-                            }}
-                            placeholder="Tulis pesan diskusi koordinasi..."
-                            className="flex-grow bg-transparent border-0 text-slate-855 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-0 resize-none max-h-20"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!chatInput.trim()}
-                            className={`p-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
-                              chatInput.trim() 
-                                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-xs hover:scale-103" 
-                                : "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                            }`}
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                    {selectedTask.isDeleted ? (
+                      <div className="p-3 my-2 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-bold rounded-xl text-center leading-relaxed">
+                        ⚠️ Fitur Diskusi Dinonaktifkan karena tugas berada di Tong Sampah.
                       </div>
-                    </form>
+                    ) : (
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleAddComment();
+                        }}
+                        className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3"
+                      >
+                        <div className="border border-slate-250 dark:border-slate-800 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/10 bg-slate-50 dark:bg-slate-950">
+                          <div className="flex items-center justify-between bg-slate-105/55 dark:bg-slate-900/60 p-1.5 border-b border-slate-205 dark:border-slate-850 select-none">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleInsertFormat('chat-comment-textarea-drawer', chatInput, setChatInput, 'bold')}
+                                className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold cursor-pointer"
+                                title="Tebal"
+                              >
+                                B
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleInsertFormat('chat-comment-textarea-drawer', chatInput, setChatInput, 'italic')}
+                                className="p-1 px-2 text-[10px] text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic cursor-pointer"
+                                title="Miring"
+                              >
+                                I
+                              </button>
+                            </div>
+
+                            {/* Attachment button trigger for Drawer Chat */}
+                            <div className="flex items-center">
+                              <label className="flex items-center gap-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-lg border border-blue-150 dark:border-blue-900/40 transition-all select-none">
+                                <Paperclip className="w-2.8 h-2.8 shrink-0" />
+                                <span>{commentAttachmentName ? "Ganti" : "Lampirkan"}</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    if (file.size > 5 * 1024 * 1024) {
+                                      alert("⚠️ Ukuran file terlalu besar! (Maks 5MB)");
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      if (event.target?.result) {
+                                        setCommentAttachmentName(file.name);
+                                        setCommentAttachmentData(event.target.result as string);
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Pending comment attachment display */}
+                          {commentAttachmentName && (
+                            <div className="px-2.5 py-1.5 bg-blue-50/50 dark:bg-blue-950/20 border-b border-blue-105/30 dark:border-blue-900/20 flex items-center justify-between text-[10px] text-slate-705 dark:text-slate-350 select-none">
+                              <span className="truncate flex items-center gap-1 font-bold">
+                                📎 Lampiran siap kirim: <strong className="text-blue-600 dark:text-blue-400 break-all">{commentAttachmentName}</strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCommentAttachmentName("");
+                                  setCommentAttachmentData("");
+                                }}
+                                className="text-red-500 hover:text-red-700 font-extrabold ml-2 shrink-0 cursor-pointer text-[9px]"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="flex items-end p-2 gap-2">
+                            <textarea
+                              id="chat-comment-textarea-drawer"
+                              rows={2}
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAddComment();
+                                }
+                              }}
+                              placeholder="Tulis pesan diskusi koordinasi..."
+                              className="flex-grow bg-transparent border-0 text-slate-855 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-0 resize-none max-h-20"
+                            />
+                            <button
+                              type="submit"
+                              disabled={!chatInput.trim() && !commentAttachmentName}
+                              className={`p-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+                                chatInput.trim() || commentAttachmentName
+                                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-xs hover:scale-103" 
+                                  : "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                              }`}
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 )}
               </div>
@@ -3147,6 +3633,10 @@ export default function TasksView({
                   <button
                     type="button"
                     onClick={() => {
+                      if (selectedTask.isDeleted) {
+                        alert("⚠️ Tugas ini berada di Tong Sampah dan tidak bisa diedit. Silakan pulihkan tugas terlebih dahulu!");
+                        return;
+                      }
                       const canModify = !selectedTask.createdBy || selectedTask.createdBy === currentUser?.username || currentUser?.role === "Administrator";
                       if (canModify) {
                         setSelectedTask(null);
@@ -3155,9 +3645,14 @@ export default function TasksView({
                         alert(`Hanya pembuat tugas (${selectedTask.createdBy}) yang dapat mengubah rincian`);
                       }
                     }}
-                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-805 dark:text-slate-200 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
+                    disabled={!!selectedTask.isDeleted}
+                    className={`px-4 py-2 text-xs font-extrabold rounded-xl transition-all ${
+                      selectedTask.isDeleted
+                        ? "bg-slate-100 dark:bg-slate-805 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                        : "bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-805 dark:text-slate-200 cursor-pointer"
+                    }`}
                   >
-                    Edit Detail Lengkap
+                    {selectedTask.isDeleted ? "Detail Hanya Lihat (Tong Sampah)" : "Edit Detail Lengkap"}
                   </button>
 
                   {currentUser?.role !== "Client" && (() => {
@@ -3438,7 +3933,7 @@ export default function TasksView({
               className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-3xl p-6 shadow-2xl max-w-lg w-full overflow-hidden relative"
             >
               {(() => {
-                const isTaskDeleted = taskToDelete.isDeleted === true || taskToDelete.isDeleted === "true";
+                const isTaskDeleted = !!taskToDelete.isDeleted;
                 return (
                   <>
                     {/* Header */}
