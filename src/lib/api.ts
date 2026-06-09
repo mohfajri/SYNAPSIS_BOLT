@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder } from "../types";
 
 const API_BASE = "/api";
 
@@ -517,6 +517,68 @@ export const api = {
 
   async deleteBilling(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/billing/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // ATK Master Items API
+  async getAtkItems(): Promise<AtkItem[]> {
+    const res = await fetch(`${API_BASE}/atk/items`);
+    return handleResponse(res);
+  },
+
+  async createAtkItem(data: Partial<AtkItem>): Promise<AtkItem> {
+    const res = await fetch(`${API_BASE}/atk/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateAtkItem(id: string, data: Partial<AtkItem>): Promise<AtkItem> {
+    const res = await fetch(`${API_BASE}/atk/items/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteAtkItem(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/atk/items/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // ATK Orders API
+  async getAtkOrders(): Promise<AtkOrder[]> {
+    const res = await fetch(`${API_BASE}/atk/orders`);
+    return handleResponse(res);
+  },
+
+  async createAtkOrder(data: Partial<AtkOrder>): Promise<AtkOrder> {
+    const res = await fetch(`${API_BASE}/atk/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateAtkOrder(id: string, data: Partial<AtkOrder>): Promise<AtkOrder> {
+    const res = await fetch(`${API_BASE}/atk/orders/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteAtkOrder(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/atk/orders/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);

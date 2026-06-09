@@ -19,6 +19,7 @@ import {
   Inbox,
   Clock,
   Check,
+  Upload,
   UploadCloud,
   Download,
   Eye,
@@ -266,6 +267,31 @@ export default function BillingKSOView({
     }
   }, [hasSiteRestriction, userSite, clients]);
 
+  // Synchronize dynamic client parameters (Persentase KSO, active director details) when adding a brand new bill
+  useEffect(() => {
+    if (!selectedBillId && clientRS) {
+      const foundClient = clients.find(c => c.namaRS === clientRS);
+      if (foundClient) {
+        // Set persentaseKSO
+        if (foundClient.persentaseKSO !== undefined) {
+          setSharePercent(foundClient.persentaseKSO);
+        } else {
+          setSharePercent(100);
+        }
+        
+        // Find active director in the list if available, else fallback to standard client field
+        const activeDir = foundClient.directors?.find(d => d.isActive);
+        if (activeDir) {
+          setNamaDirektur(activeDir.name);
+          setNipDirektur(activeDir.nip || "");
+        } else {
+          setNamaDirektur(foundClient.direkturRS || "");
+          setNipDirektur("");
+        }
+      }
+    }
+  }, [clientRS, selectedBillId, clients]);
+
   // Handle Detail Load
   const selectedBill = billings.find(b => b.id === selectedBillId) || null;
 
@@ -306,6 +332,38 @@ export default function BillingKSOView({
     }
   };
 
+  const [isUploadingDetailFile, setIsUploadingDetailFile] = useState(false);
+
+  const handleUploadDetailFileDirectly = async (e: React.ChangeEvent<HTMLInputElement>, fileType: "BA" | "Rekap") => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedBill) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert("⚠️ Ukuran berkas terlalu besar! Maksimal 15MB.");
+      return;
+    }
+
+    setIsUploadingDetailFile(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        if (typeof reader.result === "string") {
+          const payload: Partial<BillingKSO> = fileType === "BA" 
+            ? { attachmentBeritaAcara: reader.result, attachmentBeritaAcaraName: file.name }
+            : { attachmentRekapTagihan: reader.result, attachmentRekapTagihanName: file.name };
+          
+          await onUpdateBilling(selectedBill.id, payload);
+          alert(`🎉 Berkas ${fileType === "BA" ? "Berita Acara / Lampiran TTD Basah" : "Rekap Tagihan"} berhasil diunggah & disimpan!`);
+        }
+      } catch (err: any) {
+        alert("Gagal mengunggah berkas: " + err.message);
+      } finally {
+        setIsUploadingDetailFile(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle actual file reads to Base64
   const processFileToAttachment = (e: React.ChangeEvent<HTMLInputElement>, fileType: "BA" | "Rekap") => {
     const file = e.target.files?.[0];
@@ -338,6 +396,16 @@ export default function BillingKSOView({
       if (b.clientRS.toLowerCase() !== userSite.toLowerCase()) {
         return false;
       }
+    }
+
+    // Hide Draft bills from HQ/Managers (Drafts are only visible to Site Coordinators/Creators)
+    if (isHQ && b.status === "Draft") {
+      return false;
+    }
+
+    // Hide Draft & Submitted bills from Finance Manager (Manager Keuangan)
+    if ((currentUser?.role === "Manager Keuangan" || currentUser?.role?.toLowerCase().includes("keuangan")) && (b.status === "Submitted" || b.status === "Draft")) {
+      return false;
     }
 
     // 2. Tab Navigation Filter: If inside manager's verification tab, show only "Submitted"
@@ -383,10 +451,18 @@ export default function BillingKSOView({
   // Submitted items count for verification counts badge (Manager alert)
   const submittedCount = billings.filter(b => b.status === "Submitted").length;
 
-  // Calculating statistics for stats cards (based on accessible scoped records)
-  const accessibleBillings = hasSiteRestriction 
+  // Calculating statistics for stats cards (based on accessible scoped records, hiding drafts from Managers)
+  const accessibleBillings = (hasSiteRestriction 
     ? billings.filter(b => b.clientRS.toLowerCase() === userSite.toLowerCase())
-    : billings;
+    : billings)
+    .filter(b => !(isHQ && b.status === "Draft"))
+    .filter(b => {
+      // For Manager Keuangan, exclude Draft and Submitted records from charts/metrics
+      if (currentUser?.role === "Manager Keuangan" || currentUser?.role?.toLowerCase().includes("keuangan")) {
+        return b.status !== "Draft" && b.status !== "Submitted";
+      }
+      return true;
+    });
 
   const statsKSOBillings = accessibleBillings.filter(b => b.type === "KSO");
   const statsATKBillings = accessibleBillings.filter(b => b.type === "ATK");
@@ -467,23 +543,13 @@ export default function BillingKSOView({
     setIsAddNew(true);
     setIsEditing(false);
 
-    // Reset detailed states & pre-populate examples based on user request examples!
+    // Reset detailed states & keep them empty by default when adding a new billing
     setIsDetailedKSO(true);
-    setTunaiItems([
-      { id: "t-1", name: "Instalasi Rawat Jalan", value: 100000000, admin: 0 },
-      { id: "t-2", name: "Instalasi Rawat Inap", value: 250000000, admin: 0 }
-    ]);
-    setBpjsItems([
-      { id: "b-1", name: "BPJS Januari 2026", value: 10000000000, admin: 25000 }
-    ]);
-    setAsuransiItems([
-      { id: "a-1", name: "Jasaraharja", value: 10000, admin: 1000 }
-    ]);
+    setTunaiItems([]);
+    setBpjsItems([]);
+    setAsuransiItems([]);
     setPengurang(0);
-    setPengurangItems([
-      { id: "p-1", name: "Audit BPJS", value: 10000 },
-      { id: "p-2", name: "VPK Kelebihan bayar", value: 50000 }
-    ]);
+    setPengurangItems([]);
     setSharePercent(100);
     setTaxTreatment("inklusif");
   };
@@ -512,28 +578,35 @@ export default function BillingKSOView({
     // Try to parse detailed JSON from description
     let isDetailed = false;
     try {
-      if (bill.description && bill.type === "KSO") {
-        const parsed = JSON.parse(bill.description);
-        if (parsed && parsed.isDetailed) {
-          isDetailed = true;
-          setIsDetailedKSO(true);
-          setTunaiItems(parsed.tunaiItems || []);
-          setBpjsItems(parsed.bpjsItems || []);
-          setAsuransiItems(parsed.asuransiItems || []);
-          setNamaPengurang(parsed.namaPengurang || "");
-          setPengurang(parsed.pengurang || 0);
-          if (parsed.pengurangItems) {
-            setPengurangItems(parsed.pengurangItems);
-          } else if (parsed.pengurang || parsed.namaPengurang) {
-            setPengurangItems([
-              { id: `p-legacy-${Date.now()}`, name: parsed.namaPengurang || "Potongan Pokok", value: parsed.pengurang || 0 }
-            ]);
-          } else {
-            setPengurangItems([]);
+      if (bill.description) {
+        if (bill.type === "KSO" && bill.description.trim().startsWith("{")) {
+          const parsed = JSON.parse(bill.description);
+          if (parsed && parsed.isDetailed) {
+            isDetailed = true;
+            setIsDetailedKSO(true);
+            setTunaiItems(parsed.tunaiItems || []);
+            setBpjsItems(parsed.bpjsItems || []);
+            setAsuransiItems(parsed.asuransiItems || []);
+            setNamaPengurang(parsed.namaPengurang || "");
+            setPengurang(parsed.pengurang || 0);
+            if (parsed.pengurangItems) {
+              setPengurangItems(parsed.pengurangItems);
+            } else if (parsed.pengurang || parsed.namaPengurang) {
+              setPengurangItems([
+                { id: `p-legacy-${Date.now()}`, name: parsed.namaPengurang || "Potongan Pokok", value: parsed.pengurang || 0 }
+              ]);
+            } else {
+              setPengurangItems([]);
+            }
+            setSharePercent(parsed.sharePercent !== undefined ? parsed.sharePercent : 100);
+            setTaxTreatment(parsed.taxTreatment || "inklusif");
+            setDescription(parsed.originalDescription || "");
           }
-          setSharePercent(parsed.sharePercent !== undefined ? parsed.sharePercent : 100);
-          setTaxTreatment(parsed.taxTreatment || "inklusif");
-          setDescription(parsed.originalDescription || "");
+        } else if (bill.type === "ATK" && bill.description.trim().startsWith("{")) {
+          const parsed = JSON.parse(bill.description);
+          if (parsed && (parsed.isAtkDetailed || parsed.isDetailedAtk)) {
+            setDescription(parsed.originalDescription || "");
+          }
         }
       }
     } catch (e) {
@@ -613,20 +686,39 @@ export default function BillingKSOView({
 
       const finalStatus = forceSubmit ? "Submitted" : (isHQ ? status : "Draft");
 
-      const serializedDescription = (isDetailedKSO && type === "KSO")
-        ? JSON.stringify({
-            isDetailed: true,
-            originalDescription: description,
-            tunaiItems,
-            bpjsItems,
-            asuransiItems,
-            namaPengurang,
-            pengurang: totalPengurang,
-            pengurangItems,
-            sharePercent,
-            taxTreatment
-          })
-        : description;
+      let serializedDescription = description;
+      if (isDetailedKSO && type === "KSO") {
+        serializedDescription = JSON.stringify({
+          isDetailed: true,
+          originalDescription: description,
+          tunaiItems,
+          bpjsItems,
+          asuransiItems,
+          namaPengurang,
+          pengurang: totalPengurang,
+          pengurangItems,
+          sharePercent,
+          taxTreatment
+        });
+      } else if (type === "ATK") {
+        let prevJson: any = null;
+        if (selectedBillId) {
+          const prevBill = billings.find(b => b.id === selectedBillId);
+          if (prevBill && prevBill.description && prevBill.description.trim().startsWith("{")) {
+            try {
+              prevJson = JSON.parse(prevBill.description);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        if (prevJson && (prevJson.isAtkDetailed || prevJson.isDetailedAtk)) {
+          serializedDescription = JSON.stringify({
+            ...prevJson,
+            originalDescription: description
+          });
+        }
+      }
 
       const padDigits = (val: string) => {
         if (/^\d+$/.test(val)) {
@@ -876,6 +968,326 @@ export default function BillingKSOView({
 
               {/* Layout Content Selector */}
               {(() => {
+                if (printBill.type === "ATK") {
+                  // Try to parse detailed ATK JSON from printBill.description
+                  let printAtkObj: any = null;
+                  if (printBill.description) {
+                    try {
+                      const parsed = JSON.parse(printBill.description);
+                      if (parsed && (parsed.isDetailedAtk || parsed.isAtkDetailed)) {
+                        printAtkObj = parsed;
+                      }
+                    } catch (e) {
+                      // ignore
+                    }
+                  }
+
+                  // Default mock or parsed items list
+                  const itemsList = printAtkObj?.items || [
+                    {
+                      itemId: "legacy",
+                      name: printAtkObj?.originalDescription || printBill.description || "Pengadaan Belanja Logistik ATK Kantor & Printer SIMRS",
+                      unit: "Paket",
+                      qtyReceived: 1,
+                      price: printBill.serviceAmount
+                    }
+                  ];
+
+                  const formatPeriodLong = (period: string) => {
+                    return formatPeriod(period).toUpperCase();
+                  };
+
+                  if (printLayout === "rekap") {
+                    // ATK REKAPITULASI LAYOUT - Matches Faktur Sementara style
+                    return (
+                      <div className="p-8 md:p-12 space-y-6 bg-white print:p-0 print:border-none text-slate-900" style={{ fontFamily: "Inter, sans-serif" }}>
+                        
+                        {/* Kop Surat / Header */}
+                        <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4 text-slate-900">
+                          <div>
+                            <h1 className="text-sm font-black tracking-widest uppercase font-serif">PT. MEDIKA KSO INDONESIA</h1>
+                            <p className="text-[10px] font-sans text-emerald-605 uppercase font-black tracking-wide leading-tight mt-0.5">DIVISI LOGISTIK & SUPPLY CHAIN MANAGEMENT (ATK)</p>
+                            <p className="text-[9px] font-sans text-slate-500 mt-1">Penyedia Khusus Kertas Thermal, Ribbon Printer, & Alat Tulis Kantor Terintegrasi SIMRS</p>
+                            <p className="text-[8px] font-sans text-slate-400">Head Office: Grand Synapsis Tower, Floor 12A, Jakarta | Email: logistik@medika-kso.co.id</p>
+                          </div>
+                          <div className="text-right font-sans shrink-0">
+                            <span className="border-2 border-emerald-600 text-emerald-605 bg-emerald-50 text-[9px] font-black px-2 py-1 rounded uppercase tracking-wider block">
+                              REKAP REALISASI LOGISTIK ATK
+                            </span>
+                            <div className="text-[8px] font-mono text-slate-400 mt-1">Sistem Ref ID: {printBill.id}</div>
+                          </div>
+                        </div>
+
+                        {/* Title block */}
+                        <div className="text-center space-y-1 py-1 text-slate-900">
+                          <h3 className="font-serif font-black uppercase text-xs tracking-wider border-b border-dashed border-emerald-500 pb-1 w-fit mx-auto">
+                            REKAPITULASI LAPORAN REALISASI & PENERIMAAN BARANG ATK
+                          </h3>
+                          <p className="text-xs font-sans font-extrabold text-indigo-700">PERIODE BULAN: {formatPeriodLong(printBill.periodMonth)}</p>
+                          {printBill.noRekap && (
+                            <p className="text-[10px] font-mono tracking-wider font-bold text-slate-600">No. Rekap Dokumen: &nbsp;{printBill.noRekap}</p>
+                          )}
+                        </div>
+
+                        {/* Metadata Details */}
+                        <div className="grid grid-cols-2 gap-4 text-[11px] font-sans border border-slate-200 p-3 rounded-xl bg-slate-50/50 text-slate-800">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">PENGIRIM / LOGISTIK:</p>
+                            <p className="text-slate-804 font-bold">PT. Medika KSO Indonesia (Gudang Central SCM)</p>
+                            <p className="text-slate-600">Diserahkan Melalui: <b>{printBill.namaSiteCoordinator || "Site Coordinator"}</b></p>
+                            <p className="text-slate-600">No. Ref Pemesanan: <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1 rounded">{printAtkObj?.noPemesanan || "Legacy/Manual"}</span></p>
+                          </div>
+                          <div className="space-y-1 border-l border-slate-205 pl-4">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-sans">UNIT PENERIMA:</p>
+                            <p className="text-emerald-700 font-black uppercase font-sans">{printBill.clientRS}</p>
+                            <p className="text-slate-600">PIC Penerima RS: <b>{printBill.namaDirektur || "Tim Logistik Rumah Sakit"}</b></p>
+                            <p className="text-slate-600">No. Faktur Sementara: <span className="font-sans font-bold text-slate-800">{printAtkObj?.fakturSementaraNo || "Sesuai Berita Acara"}</span></p>
+                          </div>
+                        </div>
+
+                        {/* Table */}
+                        <table className="w-full border-collapse border border-slate-300 text-[11px] font-serif text-slate-900 bg-white">
+                          <thead>
+                            <tr className="bg-slate-50 font-bold border-b border-slate-300 text-slate-804">
+                              <th className="border border-slate-300 p-2 text-center w-8">No</th>
+                              <th className="border border-slate-300 p-2 text-left">Deskripsi Barang (Atribut Kertas & ATK SIMRS)</th>
+                              <th className="border border-slate-300 p-2 text-center w-14">Satuan</th>
+                              <th className="border border-slate-300 p-2 text-center w-12">Qty</th>
+                              <th className="border border-slate-300 p-2 text-right w-24">Harga (Rp)</th>
+                              <th className="border border-slate-300 p-2 text-right w-24">Subtotal (Rp)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((it: any, idx: number) => {
+                              const qty = it.qtyReceived !== undefined ? it.qtyReceived : (it.qtyShipped !== undefined ? it.qtyShipped : (it.qtyOrdered || 1));
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="border border-slate-300 p-2 text-center font-sans text-slate-600">{idx + 1}</td>
+                                  <td className="border border-slate-300 p-2 font-serif font-semibold text-slate-800">{it.name}</td>
+                                  <td className="border border-slate-300 p-2 text-center font-sans uppercase text-[10px] text-slate-500">{it.unit}</td>
+                                  <td className="border border-slate-300 p-2 text-center font-sans font-bold text-slate-900">{qty}</td>
+                                  <td className="border border-slate-300 p-2 text-right font-sans text-slate-600">{it.price.toLocaleString("id-ID")}</td>
+                                  <td className="border border-slate-300 p-2 text-right font-sans font-bold text-slate-950">{(it.price * qty).toLocaleString("id-ID")}</td>
+                                </tr>
+                              );
+                            })}
+                            
+                            <tr className="border-t border-slate-400 font-bold bg-slate-50/30">
+                              <td colSpan={5} className="border border-slate-300 p-2 text-right uppercase tracking-wider text-[10px] text-slate-500 font-sans">Total Belanja Bruto:</td>
+                              <td className="border border-slate-300 p-2 text-right font-sans font-black text-slate-900">
+                                {printBill.serviceAmount.toLocaleString("id-ID")}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td colSpan={5} className="border border-slate-300 p-2 text-right text-[10px] text-slate-500 font-sans">Estimasi PPN (Pajak Pertambahan Nilai {printBill.ppnPercent}%):</td>
+                              <td className="border border-slate-300 p-2 text-right font-sans text-slate-700">
+                                {printBill.ppnAmount.toLocaleString("id-ID")}
+                              </td>
+                            </tr>
+                            <tr className="font-bold underline text-xs bg-emerald-50/20 text-emerald-900">
+                              <td colSpan={5} className="border border-slate-300 p-2 text-right uppercase tracking-wider text-[10px] text-emerald-800 font-sans font-black">Total Akhir Penagihan Logistik ATK:</td>
+                              <td className="border border-slate-300 p-2 text-right font-sans font-black text-emerald-900">
+                                {printBill.totalAmount.toLocaleString("id-ID")}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Terbilang Translation */}
+                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200 font-sans italic text-xs leading-relaxed text-slate-600">
+                          <span className="font-extrabold text-slate-900">Terbilang: </span>
+                          "{terbilang(printBill.totalAmount)} Rupiah"
+                        </div>
+
+                        {/* Signatures Footer Column */}
+                        <div className="pt-4 font-sans text-slate-800">
+                          <div className="grid grid-cols-2 text-center text-xs">
+                            <div className="space-y-12">
+                              <p className="text-slate-600">PIHAK PERTAMA (YANG MENYERAHKAN)<br /><span className="font-bold text-slate-800">PT. Medika KSO Indonesia (SCM Site)</span></p>
+                              <div className="space-y-0.5">
+                                <p className="font-bold underline text-slate-900">(&nbsp;{printBill.namaSiteCoordinator || printBill.createdBy || "......................................."}&nbsp;)</p>
+                                <p className="text-[10px] text-slate-500 leading-none">{printBill.jabatanSiteCoordinator || "Site Coordinator"}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-12">
+                              <p className="text-slate-600">PIHAK KEDUA (YANG MENERIMA)<br /><span className="font-bold text-slate-800">Logistik & Manajemen RS Client</span></p>
+                              <div className="space-y-0.5">
+                                <p className="font-bold underline text-slate-900">(&nbsp;{printBill.namaDirektur || "......................................."}&nbsp;)</p>
+                                <p className="text-[10px] text-slate-500 leading-none">{printBill.nipDirektur ? `NIP. ${printBill.nipDirektur}` : "Perwakilan Rumah Sakit"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Catatan Khusus */}
+                        <div className="border-t border-emerald-300 pt-3 text-[10px] text-slate-500 font-sans italic space-y-1">
+                          <p><b>Catatan Khusus KSO ATK:</b></p>
+                          <p>* Bukti rekap penyerahan logistik ini sah apabila ditandatangani serta dicap resmi.</p>
+                          <p>** Laporan realisasi real riil logistik ATK ini diverifikasi oleh coordinator dan disinkronisasikan ke sistem Penagihan Pusat Medika.</p>
+                        </div>
+
+                      </div>
+                    );
+                  } else {
+                    // ATK INVOICE & BA LAYOUT - Matches professional invoice format
+                    return (
+                      <div className="p-8 md:p-12 space-y-8 bg-white print:p-0 print:border-none text-slate-900" style={{ fontFamily: "Inter, sans-serif" }}>
+                        
+                        {/* Header Kop Surat */}
+                        <div className="flex flex-col md:flex-row justify-between items-start border-b-4 border-double border-slate-350 pb-6 text-slate-800">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Receipt className="w-7 h-7 text-emerald-600 print:text-black" />
+                              <span className="text-xl font-black tracking-tight text-slate-900 font-sans">
+                                MEDIKA KSO INDONESIA
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 max-w-sm mt-1 leading-relaxed">
+                              Lantai 4 Gedung Pusat KSO Nusantara, Jl. RE Martadinata No. 129, Bandung, Jawa Barat. Telp: (022) 412490
+                            </p>
+                          </div>
+                          <div className="text-right mt-4 md:mt-0 font-sans select-none shrink-0">
+                            <h2 className="text-xl font-extrabold tracking-tight text-emerald-750 print:text-black uppercase">
+                              INVOICE TAGIHAN DISTRIBUSI ATK
+                            </h2>
+                            <p className="text-[11px] text-slate-500 mt-0.5 font-mono">Invoice ID: #{printBill.id}</p>
+                            {printBill.noRekap && (
+                              <p className="text-[11.5px] text-emerald-700 print:text-black font-extrabold font-mono mt-0.5">
+                                No Rekap: {printBill.noRekap}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-slate-500 mt-1">Tanggal: <b>{printBill.tanggalKirim || printBill.createdAt.slice(0, 10)}</b></p>
+                          </div>
+                        </div>
+
+                        {/* Billing Addresses Target */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 text-slate-800">
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 print:bg-transparent print:border-none print:p-0">
+                            <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">Penerima Tagihan (Client RS):</span>
+                            <h4 className="text-sm font-extrabold text-slate-900 mt-1 flex items-center gap-1.5">
+                              <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                              {printBill.clientRS}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed font-sans">
+                              Bagian Logistik & Rumah Tangga Rumah Sakit.<br />
+                              Pengadaan alat tulis kantor & kertas thermal pendukung SIMRS Medika.
+                            </p>
+                          </div>
+
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 print:bg-transparent print:border-none print:p-0 md:text-right font-sans">
+                            <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">Periode Pelayanan Logistik:</span>
+                            <h4 className="text-sm font-extrabold text-emerald-700 print:text-black mt-1">
+                              {formatPeriod(printBill.periodMonth)}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 mt-1.5 font-sans">
+                              Tipe Penagihan: Pengadaan ATK & Kertas Printer SIMRS<br />
+                              Status Tagihan: <b>Resmi / Terverifikasi</b>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Items Table */}
+                        <div className="mt-4">
+                          <table className="w-full text-left border-collapse border border-slate-200 text-slate-900">
+                            <thead>
+                              <tr className="bg-slate-100 text-[10px] text-slate-650 font-bold uppercase tracking-wider border-b border-slate-200 print:bg-slate-200">
+                                <th className="px-5 py-3 border-r border-slate-200">Uraian / Realisasi Barang Logistik ATK</th>
+                                <th className="px-5 py-3 text-center border-r border-slate-200 w-20">Satuan</th>
+                                <th className="px-5 py-3 text-center border-r border-slate-200 w-20">Qty</th>
+                                <th className="px-5 py-3 text-right border-r border-slate-200 w-28">Harga Pokok (Rp)</th>
+                                <th className="px-5 py-3 text-right w-28">Subtotal (Rp)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs font-sans">
+                              {itemsList.map((it: any, idx: number) => {
+                                const qty = it.qtyReceived !== undefined ? it.qtyReceived : (it.qtyShipped !== undefined ? it.qtyShipped : (it.qtyOrdered || 1));
+                                return (
+                                  <tr key={idx} className="hover:bg-slate-50/50">
+                                    <td className="px-5 py-2.5 border-r border-slate-200 font-serif font-semibold text-slate-800">{it.name}</td>
+                                    <td className="px-5 py-2.5 border-r border-slate-200 text-center uppercase text-[10px] text-slate-500">{it.unit || "Pcs"}</td>
+                                    <td className="px-5 py-2.5 border-r border-slate-200 text-center font-bold text-slate-900">{qty}</td>
+                                    <td className="px-5 py-2.5 border-r border-slate-200 text-right font-mono text-slate-600">{it.price.toLocaleString("id-ID")}</td>
+                                    <td className="px-5 py-2.5 text-right font-mono font-bold text-slate-950">{(it.price * qty).toLocaleString("id-ID")}</td>
+                                  </tr>
+                                );
+                              })}
+
+                              {/* Summary Rows */}
+                              <tr className="bg-slate-50/50 font-sans">
+                                <td colSpan={4} className="px-5 py-2 text-right font-bold text-slate-505 border-r border-slate-200 uppercase text-[10px]">Nilai DPP Belanja ATK:</td>
+                                <td className="px-5 py-2 text-right font-mono font-bold text-slate-705">{formatIDR(printBill.serviceAmount)}</td>
+                              </tr>
+                              <tr className="bg-slate-50/50 font-sans">
+                                <td colSpan={4} className="px-5 py-2 text-right font-bold text-slate-505 border-r border-slate-200 uppercase text-[10px]">Pajak PPN ({printBill.ppnPercent}%):</td>
+                                <td className="px-5 py-2 text-right font-mono font-bold text-slate-705">+{formatIDR(printBill.ppnAmount)}</td>
+                              </tr>
+                              <tr className="bg-emerald-50/10 text-emerald-955 font-sans border-t border-slate-200">
+                                <td colSpan={4} className="px-5 py-3 text-right font-black text-emerald-900 border-r border-slate-200 uppercase text-[11px] tracking-wider">TOTAL TAGIHAN LOGISTIK (NET):</td>
+                                <td className="px-5 py-3 text-right font-mono font-black text-emerald-900 text-sm">{formatIDR(printBill.totalAmount)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Terbilang Translation */}
+                        <div className="p-4 bg-slate-50/65 border border-dashed border-slate-200 font-sans italic text-xs leading-relaxed text-slate-600">
+                          <span className="font-extrabold text-slate-900">Terbilang: </span>
+                          "{terbilang(printBill.totalAmount)} Rupiah"
+                        </div>
+
+                        {/* Signature Block */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-8 text-center text-xs text-slate-800">
+                          <div>
+                            <span className="text-slate-400 block font-bold text-[10px] uppercase">
+                              Yang Menyerahkan (SCM):
+                            </span>
+                            <div className="h-16 flex items-end justify-center">
+                              <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
+                                {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-450 block mt-1">
+                              {printBill.namaPerusahaanSite || "PT. Medika KSO Indonesia"}
+                            </span>
+                          </div>
+
+                          <div className="hidden md:block">
+                            <span className="text-slate-400 block font-bold text-[10px] uppercase">Ditinjau oleh (HQ):</span>
+                            <div className="h-16 flex items-end justify-center">
+                              <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800 font-sans">
+                                {printBill.verifiedBy || "Manager HQ"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-450 block mt-1 font-sans">Logistik Manager Kantor Pusat</span>
+                          </div>
+
+                          <div>
+                            <span className="text-slate-400 block font-bold text-[10px] uppercase">
+                              {printBill.jabatanDirektur || "Mengetahui (Penerima RS)"}:
+                            </span>
+                            <div className="h-16 flex items-end justify-center">
+                              <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
+                                {printBill.namaDirektur || "Tim Logistik & Keuangan RS"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-450 block mt-1 font-mono">
+                              {printBill.nipDirektur ? `NIP: ${printBill.nipDirektur}` : "RS Client"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Legal Footnote */}
+                        <div className="pt-8 border-t border-slate-150 text-[10px] text-slate-400 leading-relaxed font-sans flex flex-col md:flex-row md:items-center justify-between gap-2">
+                          <span>* Invoice cetak logistik ini sah diterbitkan secara elektronik oleh Medika KSO Sistem Nusantara.</span>
+                          <span className="font-mono text-slate-400">IP: system_verification_key_atk_{printBill.id}</span>
+                        </div>
+
+                      </div>
+                    );
+                  }
+                }
+
+                // If KSO, proceed with the original logic
                 let printDetailObj: any = null;
                 if (printBill.type === "KSO" && printBill.description) {
                   try {
@@ -921,20 +1333,19 @@ export default function BillingKSOView({
                         <div className="flex justify-center items-center gap-2">
                           <FileSpreadsheet className="w-8 h-8 text-indigo-600 print:text-black shrink-0" />
                           <h2 className="text-lg font-black tracking-tight text-slate-900 font-sans uppercase">
-                            LAPORAN REKAPITULASI TAGIHAN BULANAN
+                            REKAPITULASI LAPORAN PENDAPATAN DAN PENERIMAAN
                           </h2>
                         </div>
                         <p className="text-sm font-semibold text-indigo-705 print:text-black uppercase tracking-wide">
                           {printBill.clientRS}
                         </p>
                         <div className="text-xs text-slate-550 space-y-0.5">
-                          <p><b>Periode Pelayanan:</b> {formatPeriod(printBill.periodMonth)}</p>
+                          <p className="font-extrabold text-xs text-slate-800">PERIODE {formatPeriod(printBill.periodMonth).toUpperCase()}</p>
                           {printBill.noRekap && (
                             <p className="font-mono text-xs font-bold text-slate-850">
                               <b>Nomor Dokumen:</b> {printBill.noRekap}
                             </p>
                           )}
-                          <p>Tanggal Cetak: <b>{new Date().toISOString().slice(0, 10)}</b></p>
                         </div>
                       </div>
 
@@ -946,7 +1357,7 @@ export default function BillingKSOView({
                           <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                             <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                              🟢 Penerimaan Tunai Terinput
+                              🟢 Penerimaan Tunai
                             </span>
                           </div>
                           <div className="space-y-1.5 pl-3.5">
@@ -958,7 +1369,7 @@ export default function BillingKSOView({
                                 </div>
                               ))
                             ) : (
-                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan tunai terinput.</p>
+                              <p className="text-xs text-slate-400 italic">Tidak ada data penerimaan tunai.</p>
                             )}
                             <div className="flex justify-between items-center font-bold text-xs text-emerald-750 pt-2 border-t border-slate-100 mt-2">
                               <span>TOTAL PENERIMAAN TUNAI:</span>
@@ -972,7 +1383,7 @@ export default function BillingKSOView({
                           <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                             <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-                              🔵 Penerimaan BPJS Terinput
+                              🔵 Penerimaan BPJS
                             </span>
                           </div>
                           <div className="space-y-1.5 pl-3.5">
@@ -984,7 +1395,7 @@ export default function BillingKSOView({
                                 </div>
                               ))
                             ) : (
-                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan BPJS terinput.</p>
+                              <p className="text-xs text-slate-400 italic">Tidak ada data penerimaan BPJS.</p>
                             )}
                             <div className="flex justify-between items-center font-bold text-xs text-blue-750 pt-2 border-t border-slate-100 mt-2">
                               <span>TOTAL PENERIMAAN BPJS:</span>
@@ -998,7 +1409,7 @@ export default function BillingKSOView({
                           <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                             <span className="text-xs font-black text-slate-800 uppercase flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
-                              🟣 Penerimaan Asuransi Lain Terinput
+                              🟣 Penerimaan Asuransi Lain
                             </span>
                           </div>
                           <div className="space-y-1.5 pl-3.5">
@@ -1010,7 +1421,7 @@ export default function BillingKSOView({
                                 </div>
                               ))
                             ) : (
-                              <p className="text-xs text-slate-400 italic">Tidak ada item penerimaan asuransi terinput.</p>
+                              <p className="text-xs text-slate-400 italic">Tidak ada data penerimaan asuransi.</p>
                             )}
                             <div className="flex justify-between items-center font-bold text-xs text-purple-750 pt-2 border-t border-slate-100 mt-2">
                               <span>TOTAL PENERIMAAN ASURANSI LAIN:</span>
@@ -1179,6 +1590,7 @@ export default function BillingKSOView({
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {(() => {
                         let printDetailObj: any = null;
+                        let isAtkDetailedObj = false;
                         if (printBill.type === "KSO" && printBill.description) {
                           try {
                             const parsed = JSON.parse(printBill.description);
@@ -1188,9 +1600,57 @@ export default function BillingKSOView({
                           } catch (e) {
                             // ignore
                           }
+                        } else if (printBill.type === "ATK" && printBill.description) {
+                          try {
+                            const parsed = JSON.parse(printBill.description);
+                            if (parsed && parsed.isAtkDetailed) {
+                              printDetailObj = parsed;
+                              isAtkDetailedObj = true;
+                            }
+                          } catch (e) {
+                            // ignore
+                          }
                         }
 
                         if (printDetailObj) {
+                          if (isAtkDetailedObj) {
+                            return (
+                              <>
+                                <tr>
+                                  <td colSpan={3} className="px-5 py-3 bg-slate-50 font-bold text-[10px] uppercase text-emerald-700 tracking-wider">
+                                    📂 Rincian Penyerahan Alat Tulis Kantor (ATK) - No Faktur: {printDetailObj.noFakturSementara || printBill.noRekap || printBill.id}
+                                  </td>
+                                </tr>
+                                {printDetailObj.items && printDetailObj.items.map((item: any, idx: number) => {
+                                  const qty = item.qtyReceived > 0 ? item.qtyReceived : (item.qtyShipped > 0 ? item.qtyShipped : item.qtyOrdered);
+                                  return (
+                                    <tr key={`atk-print-${idx}`} className="hover:bg-slate-50/50">
+                                      <td className="px-5 py-2.5 border-r border-slate-200 font-medium">
+                                        <div className="font-semibold text-[11.5px] text-slate-800">{idx + 1}. {item.name}</div>
+                                        <div className="text-[9px] text-slate-500 font-medium italic pl-3 leading-none mt-1">
+                                          Satuan: {item.unit} • Jumlah: {qty} unit • Harga: {formatIDR(item.price)}
+                                        </div>
+                                      </td>
+                                      <td className="px-5 py-2.5 text-right border-r border-slate-200 font-mono text-slate-700 font-bold">
+                                        {formatIDR(item.price * qty)}
+                                      </td>
+                                      <td className="px-5 py-2.5 text-right font-mono text-slate-400">
+                                        -
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                                {printDetailObj.originalDescription && (
+                                  <tr>
+                                    <td colSpan={3} className="px-5 py-4 border-t border-slate-200 text-[10.5px] text-slate-500 italic max-w-lg whitespace-pre-wrap leading-relaxed">
+                                      <b>Catatan Pengadaan ATK:</b> {printDetailObj.originalDescription}
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
+                            );
+                          }
+
                           return (
                             <>
                               <tr>
@@ -1317,7 +1777,19 @@ export default function BillingKSOView({
                           <tr>
                             <td className="px-5 py-8 border-r border-slate-200 space-y-1.5">
                               <p className="font-extrabold text-slate-900">{printBill.type === "KSO" ? "Layanan Penagihan KSO Bulanan" : "Pengadaan Belanja ATK Kantor RS"}</p>
-                              <p className="text-slate-550 italic leading-relaxed whitespace-pre-wrap">{printBill.description || "Uraian klaim tagihan berdasarkan Berita Acara (BA) Pelayanan yang disetujui."}</p>
+                              <p className="text-slate-550 italic leading-relaxed whitespace-pre-wrap">
+                                {(() => {
+                                  if (printBill.description && printBill.description.startsWith("{")) {
+                                    try {
+                                      const parsed = JSON.parse(printBill.description);
+                                      return parsed.originalDescription || "Uraian klaim tagihan logistik ATK.";
+                                    } catch (e) {
+                                      return printBill.description;
+                                    }
+                                  }
+                                  return printBill.description || "Uraian klaim tagihan berdasarkan Berita Acara (BA) Pelayanan yang disetujui.";
+                                })()}
+                              </p>
                             </td>
                             <td className="px-5 py-8 text-right border-r border-slate-200 font-mono font-medium text-slate-700">
                               {formatIDR(printBill.serviceAmount)}
@@ -1459,7 +1931,7 @@ export default function BillingKSOView({
           </span>
         </button>
 
-        {isHQ && (
+        {isHQ && currentUser?.role !== "Manager Keuangan" && (
           <button
             onClick={() => setActiveTab("verification")}
             className={`px-5 py-3.5 text-xs font-extrabold border-b-2 transition-all flex items-center gap-2 cursor-pointer relative ${
@@ -1713,6 +2185,8 @@ export default function BillingKSOView({
                                 const parsed = JSON.parse(bill.description);
                                 if (parsed && parsed.isDetailed) {
                                   displayDesc = parsed.originalDescription || "Rincian Penerimaan KSO";
+                                } else if (parsed && (parsed.isAtkDetailed || parsed.isDetailedAtk)) {
+                                  displayDesc = parsed.originalDescription || "Rincian Penerimaan ATK";
                                 }
                               } catch (e) {
                                 // ignore
@@ -1911,7 +2385,7 @@ export default function BillingKSOView({
                         onClick={() => setType("ATK")}
                         className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                           type === "ATK" 
-                            ? "bg-emerald-650 text-white shadow" 
+                            ? "bg-blue-600 text-white shadow" 
                             : "text-slate-500 hover:text-slate-705 dark:hover:text-slate-300"
                         }`}
                       >
@@ -1944,7 +2418,7 @@ export default function BillingKSOView({
 
                   {/* Period selection */}
                   <div>
-                    <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Bulan Pelayanan</label>
+                    <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Bulan Penerimaan</label>
                     <input
                       type="month"
                       value={periodMonth}
@@ -3090,7 +3564,7 @@ export default function BillingKSOView({
                       <span className="font-extrabold text-slate-805 dark:text-slate-200 mt-1 block">{selectedBill.clientRS}</span>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">🗓️ Bulan Pelayanan</span>
+                      <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">🗓️ Bulan Penerimaan</span>
                       <span className="font-extrabold text-slate-805 dark:text-slate-200 mt-1 block">{formatPeriod(selectedBill.periodMonth)}</span>
                     </div>
                   </div>
@@ -3147,19 +3621,58 @@ export default function BillingKSOView({
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => downloadAttachmentFile(selectedBill.attachmentBeritaAcara!, selectedBill.attachmentBeritaAcaraName || "ba_dokumen.pdf")}
-                            className="p-1.5 bg-white hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 rounded-lg cursor-pointer transition-all shrink-0"
-                            title="Download BA file"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <label
+                              htmlFor="direct-ba-upload"
+                              className="p-1.5 bg-white hover:bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 rounded-lg cursor-pointer transition-all hover:text-indigo-650 block"
+                              title="Unggah / Ganti Berkas"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                            </label>
+                            <input
+                              type="file"
+                              id="direct-ba-upload"
+                              accept="application/pdf,image/*,.docx,.xlsx"
+                              className="hidden"
+                              onChange={(e) => handleUploadDetailFileDirectly(e, "BA")}
+                              disabled={isUploadingDetailFile}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachmentFile(selectedBill.attachmentBeritaAcara!, selectedBill.attachmentBeritaAcaraName || "ba_dokumen.pdf")}
+                              className="p-1.5 bg-white hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 rounded-lg cursor-pointer transition-all shrink-0"
+                              title="Download BA file"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <div className="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 italic">
-                          <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Berita Acara belum dilampirkan.</span>
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-300 dark:border-slate-805 flex flex-col items-center justify-center gap-1.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 italic">
+                            <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Berita Acara belum dilampirkan.</span>
+                          </div>
+                          <label
+                            htmlFor="direct-ba-upload-empty"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 border border-slate-205 dark:border-slate-800 rounded-lg hover:bg-indigo-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1 leading-none shadow-sm"
+                          >
+                            <Upload className="w-3 h-3" />
+                            <span>Unggah BA (Tanda Tangan Basah)</span>
+                          </label>
+                          {(selectedBill.status === "Submitted" || selectedBill.status === "Verified") && (
+                            <p className="text-[9px] text-indigo-600 dark:text-indigo-400 font-medium px-2 max-w-xs mt-1 leading-relaxed">
+                              💡 Silakan unggah cetakan Berita Acara / Invoice yang sudah ditandatangani basah oleh kedua pihak di sini sebagai pelengkap tagihan.
+                            </p>
+                          )}
+                          <input
+                            type="file"
+                            id="direct-ba-upload-empty"
+                            accept="application/pdf,image/*,.docx,.xlsx"
+                            className="hidden"
+                            onChange={(e) => handleUploadDetailFileDirectly(e, "BA")}
+                            disabled={isUploadingDetailFile}
+                          />
                         </div>
                       )}
 
@@ -3175,19 +3688,53 @@ export default function BillingKSOView({
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => downloadAttachmentFile(selectedBill.attachmentRekapTagihan!, selectedBill.attachmentRekapTagihanName || "rekap_tagihan.xlsx")}
-                            className="p-1.5 bg-white hover:bg-emerald-50 hover:text-emerald-600 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 rounded-lg cursor-pointer transition-all shrink-0"
-                            title="Download rekap tagihan"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <label
+                              htmlFor="direct-rekap-upload"
+                              className="p-1.5 bg-white hover:bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 rounded-lg cursor-pointer transition-all hover:text-emerald-600 block"
+                              title="Unggah / Rekam Rekap Tagihan"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                            </label>
+                            <input
+                              type="file"
+                              id="direct-rekap-upload"
+                              accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                              className="hidden"
+                              onChange={(e) => handleUploadDetailFileDirectly(e, "Rekap")}
+                              disabled={isUploadingDetailFile}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachmentFile(selectedBill.attachmentRekapTagihan!, selectedBill.attachmentRekapTagihanName || "rekap_tagihan.xlsx")}
+                              className="p-1.5 bg-white hover:bg-emerald-50 hover:text-emerald-600 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 rounded-lg cursor-pointer transition-all shrink-0"
+                              title="Download rekap tagihan"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <div className="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 italic font-medium">
-                          <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Rekapitulasi tagihan belum dilampirkan.</span>
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-300 dark:border-slate-805 flex flex-col items-center justify-center gap-1.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 italic">
+                            <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Rekapitulasi tagihan belum dilampirkan.</span>
+                          </div>
+                          <label
+                            htmlFor="direct-rekap-upload-empty"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 border border-slate-205 dark:border-slate-800 rounded-lg hover:bg-emerald-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1 leading-none shadow-sm"
+                          >
+                            <Upload className="w-3 h-3" />
+                            <span>Unggah Rekap Tagihan</span>
+                          </label>
+                          <input
+                            type="file"
+                            id="direct-rekap-upload-empty"
+                            accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                            className="hidden"
+                            onChange={(e) => handleUploadDetailFileDirectly(e, "Rekap")}
+                            disabled={isUploadingDetailFile}
+                          />
                         </div>
                       )}
 
@@ -3370,12 +3917,57 @@ export default function BillingKSOView({
                       );
                     }
 
+                    let displayDesc = selectedBill.description || "Tidak ada deskripsi tambahan.";
+                    if (selectedBill.description && selectedBill.description.trim().startsWith("{")) {
+                      try {
+                        const parsed = JSON.parse(selectedBill.description);
+                        if (parsed && (parsed.isDetailed || parsed.isAtkDetailed || parsed.isDetailedAtk)) {
+                          displayDesc = parsed.originalDescription || "Rincian Penerimaan";
+                        }
+                      } catch (e) {
+                        // ignore
+                      }
+                    }
+
                     return (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">📝 Deskripsi / Uraian Rincian</span>
-                        <p className="mt-1.5 p-3 bg-slate-50/65 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 leading-relaxed text-slate-755 dark:text-slate-300 font-sans whitespace-pre-wrap">
-                          {selectedBill.description || "Tidak ada deskripsi tambahan."}
-                        </p>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        <div>
+                          <span className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">
+                            {selectedBill.type === "ATK" ? "📝 Deskripsi Belanja ATK" : "📝 Deskripsi / Uraian Rincian"}
+                          </span>
+                          <p className="mt-1.5 p-3 bg-slate-50/65 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 leading-relaxed text-slate-755 dark:text-slate-300 font-sans whitespace-pre-wrap">
+                            {displayDesc}
+                          </p>
+                        </div>
+
+                        {selectedBill.type === "ATK" && selectedBill.description && selectedBill.description.trim().startsWith("{") && (() => {
+                          try {
+                            const parsed = JSON.parse(selectedBill.description);
+                            if (parsed && parsed.items && parsed.items.length > 0) {
+                              return (
+                                <div className="space-y-1.5 pt-1">
+                                  <span className="block text-[9px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase tracking-wider">📦 Rincian Item Barang Belanja ({parsed.items.length})</span>
+                                  <div className="max-h-48 overflow-y-auto border border-slate-150 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-850 text-[10.5px]">
+                                    {parsed.items.map((it: any, idx: number) => {
+                                      const qty = it.qtyReceived !== undefined && it.qtyReceived > 0 
+                                        ? it.qtyReceived 
+                                        : (it.qtyShipped !== undefined && it.qtyShipped > 0 ? it.qtyShipped : it.qtyOrdered || 0);
+                                      return (
+                                        <div key={idx} className="p-2 flex justify-between gap-2.5 bg-slate-50/20 dark:bg-slate-900/20">
+                                          <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">{it.name}</span>
+                                          <span className="font-bold text-slate-900 dark:text-slate-100 shrink-0 font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">{qty} {it.unit}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            }
+                          } catch (e) {
+                            // ignore
+                          }
+                          return null;
+                        })()}
                       </div>
                     );
                   })()}

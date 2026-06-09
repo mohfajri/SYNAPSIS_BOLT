@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Client, AppModule, User } from "../types";
+import { Client, AppModule, User, DirectorHistory } from "../types";
 import { 
   Building2, 
   Plus, 
@@ -16,7 +16,8 @@ import {
   Layers,
   Code,
   Globe,
-  ExternalLink
+  ExternalLink,
+  Percent
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -62,6 +63,14 @@ export default function ClientsView({
   const [tanggalProject, setTanggalProject] = useState("");
   const [tanggalCutOff, setTanggalCutOff] = useState("");
   const [tipeMedika, setTipeMedika] = useState<string>(tipeMedikaList[0] || "Rumah Sakit");
+  const [persentaseKSO, setPersentaseKSO] = useState<number>(100);
+  const [directors, setDirectors] = useState<DirectorHistory[]>([]);
+  // Individual newly-added director sub-form fields
+  const [newDirName, setNewDirName] = useState("");
+  const [newDirNip, setNewDirNip] = useState("");
+  const [newDirStart, setNewDirStart] = useState("");
+  const [newDirEnd, setNewDirEnd] = useState("");
+  const [newDirActive, setNewDirActive] = useState(true);
 
   // Edit Client State
   const [editClient, setEditClient] = useState<Client | null>(null);
@@ -72,6 +81,14 @@ export default function ClientsView({
   const [editTanggalProject, setEditTanggalProject] = useState("");
   const [editTanggalCutOff, setEditTanggalCutOff] = useState("");
   const [editTipeMedika, setEditTipeMedika] = useState("");
+  const [editPersentaseKSO, setEditPersentaseKSO] = useState<number>(100);
+  const [editDirectors, setEditDirectors] = useState<DirectorHistory[]>([]);
+  // Individual editing director sub-form fields
+  const [subDirName, setSubDirName] = useState("");
+  const [subDirNip, setSubDirNip] = useState("");
+  const [subDirStart, setSubDirStart] = useState("");
+  const [subDirEnd, setSubDirEnd] = useState("");
+  const [subDirActive, setSubDirActive] = useState(true);
 
   // Module Status Management
   const [expandedModuleClientId, setExpandedModuleClientId] = useState<string | null>(null);
@@ -139,6 +156,29 @@ export default function ClientsView({
     }
   }
 
+  // Director List Management helpers
+  const handleSetActiveDirInUnsaved = (id: string) => {
+    setDirectors(prev => prev.map(d => ({
+      ...d,
+      isActive: d.id === id
+    })));
+  };
+
+  const handleDeleteDirInUnsaved = (id: string) => {
+    setDirectors(prev => prev.filter(d => d.id !== id));
+  };
+
+  const handleSetActiveDirInEditing = (id: string) => {
+    setEditDirectors(prev => prev.map(d => ({
+      ...d,
+      isActive: d.id === id
+    })));
+  };
+
+  const handleDeleteDirInEditing = (id: string) => {
+    setEditDirectors(prev => prev.filter(d => d.id !== id));
+  };
+
   async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorText("");
@@ -148,14 +188,20 @@ export default function ClientsView({
       return;
     }
 
+    // Determine current active director text representation (name + NIP if exists)
+    const activeDir = directors.find(d => d.isActive);
+    const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (direkturRS || "-");
+
     await onAddClient({
       namaRS: namaRS.trim(),
       noKSO: noKSO.trim(),
-      direkturRS: direkturRS.trim(),
+      direkturRS: finalDirekturRS,
       modulSIMRS: modulSIMRS.trim(),
       tanggalProject,
       tanggalCutOff,
-      tipeMedika
+      tipeMedika,
+      persentaseKSO: persentaseKSO,
+      directors: directors
     });
 
     // Reset Form
@@ -166,6 +212,13 @@ export default function ClientsView({
     setTanggalProject("");
     setTanggalCutOff("");
     setTipeMedika(tipeMedikaList[0] || "Rumah Sakit");
+    setPersentaseKSO(100);
+    setDirectors([]);
+    setNewDirName("");
+    setNewDirNip("");
+    setNewDirStart("");
+    setNewDirEnd("");
+    setNewDirActive(true);
     setIsFormOpen(false);
   }
 
@@ -178,14 +231,19 @@ export default function ClientsView({
       return;
     }
 
+    const activeDir = editDirectors.find(d => d.isActive);
+    const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (editDirekturRS || "-");
+
     await onUpdateClient(editClient.id, {
       namaRS: editNamaRS.trim(),
       noKSO: editNoKSO.trim(),
-      direkturRS: editDirekturRS.trim(),
+      direkturRS: finalDirekturRS,
       modulSIMRS: editModulSIMRS.trim(),
       tanggalProject: editTanggalProject,
       tanggalCutOff: editTanggalCutOff,
-      tipeMedika: editTipeMedika
+      tipeMedika: editTipeMedika,
+      persentaseKSO: editPersentaseKSO,
+      directors: editDirectors
     });
 
     setEditClient(null);
@@ -200,6 +258,14 @@ export default function ClientsView({
     setEditTanggalProject(cl.tanggalProject || "");
     setEditTanggalCutOff(cl.tanggalCutOff || "");
     setEditTipeMedika(cl.tipeMedika || tipeMedikaList[0] || "Rumah Sakit");
+    setEditPersentaseKSO(cl.persentaseKSO !== undefined ? cl.persentaseKSO : 100);
+    setEditDirectors(cl.directors || []);
+    // Reset individual inputs
+    setSubDirName("");
+    setSubDirNip("");
+    setSubDirStart("");
+    setSubDirEnd("");
+    setSubDirActive(true);
   }
 
   const filteredClients = clients.filter(cl => 
@@ -318,7 +384,7 @@ export default function ClientsView({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nama RS / Client <span className="text-red-500">*</span></label>
                   <input
@@ -354,20 +420,171 @@ export default function ClientsView({
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Direktur RS</label>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Persentase Sharing KSO (%) <span className="text-red-500">*</span></label>
                   <input
-                    type="text"
-                    value={direkturRS}
-                    onChange={(e) => setDirekturRS(e.target.value)}
-                    placeholder="Nama & Gelar Direktur"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    type="number"
+                    step="any"
+                    required
+                    value={persentaseKSO}
+                    onChange={(e) => setPersentaseKSO(parseFloat(e.target.value) || 0)}
+                    placeholder="e.g. 10.5"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
+              </div>
 
+              {/* Riwayat Direktur RS Section */}
+              <div className="bg-slate-50 dark:bg-slate-950/45 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
+                <div className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <UserCheck2 className="w-4 h-4" />
+                  <span>Manajemen Riwayat Direktur Utama & NIP</span>
+                </div>
+
+                {directors.length === 0 ? (
+                  <div className="text-center py-4 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                    <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Silakan tambahkan direktur baru di bawah.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {directors.map((dir) => (
+                      <div key={dir.id} className={`flex flex-col justify-between p-3 rounded-lg border bg-white dark:bg-slate-900 transition-all ${dir.isActive ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-200 dark:border-slate-800"}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                              {dir.name}
+                              {dir.isActive && (
+                                <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-605 dark:text-emerald-400 text-[9px] font-black px-1.5 rounded-sm border border-emerald-250 dark:border-emerald-900/50 uppercase">
+                                  Aktif
+                                </span>
+                              )}
+                            </p>
+                            {dir.nip && (
+                              <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">NIP: {dir.nip}</p>
+                            )}
+                            {(dir.startDate || dir.endDate) && (
+                              <p className="text-[9px] text-slate-550 dark:text-slate-450 mt-1 bg-slate-50 dark:bg-slate-950 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-850">
+                                {dir.startDate || "?"} s.d {dir.endDate || "Sekarang"}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            {!dir.isActive && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetActiveDirInUnsaved(dir.id)}
+                                className="text-[9px] bg-slate-100 hover:bg-emerald-5 border border-slate-200 dark:border-slate-800 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-905 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded cursor-pointer"
+                              >
+                                Set Aktif
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDirInUnsaved(dir.id)}
+                              className="text-red-500 hover:bg-red-50 p-1 rounded hover:text-red-700 dark:hover:bg-red-950/30 shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Inline form to append director to list */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-lg p-3 space-y-3">
+                  <div className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850">
+                    ➕ Formulir Direktur RS Baru
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Nama Direktur</label>
+                      <input
+                        type="text"
+                        value={newDirName}
+                        onChange={(e) => setNewDirName(e.target.value)}
+                        placeholder="e.g. dr. Bambang, Sp.B"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">NIP Direktur</label>
+                      <input
+                        type="text"
+                        value={newDirNip}
+                        onChange={(e) => setNewDirNip(e.target.value)}
+                        placeholder="e.g. 197508..."
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Mulai Jabatan</label>
+                      <input
+                        type="date"
+                        value={newDirStart}
+                        onChange={(e) => setNewDirStart(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Selasai Jabatan</label>
+                      <input
+                        type="date"
+                        value={newDirEnd}
+                        onChange={(e) => setNewDirEnd(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-50 dark:border-slate-850">
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={newDirActive}
+                        onChange={(e) => setNewDirActive(e.target.checked)}
+                        className="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 shrink-0 w-3.5 h-3.5"
+                      />
+                      <span>Set sebagai Direktur Aktif saat ini</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newDirName.trim()) {
+                          alert("Nama Direktur wajib diisi!");
+                          return;
+                        }
+                        const id = "dir-" + Math.random().toString(36).slice(2, 9);
+                        const newDir: DirectorHistory = {
+                          id,
+                          name: newDirName.trim(),
+                          nip: newDirNip.trim(),
+                          startDate: newDirStart,
+                          endDate: newDirEnd,
+                          isActive: newDirActive
+                        };
+                        let list = [...directors];
+                        if (newDirActive) {
+                          list = list.map(d => ({ ...d, isActive: false }));
+                        }
+                        setDirectors([...list, newDir]);
+                        setNewDirName("");
+                        setNewDirNip("");
+                        setNewDirStart("");
+                        setNewDirEnd("");
+                        setNewDirActive(false);
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold px-3 py-1 rounded transition-all cursor-pointer"
+                    >
+                      Tambahkan
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Tanggal Mulai Project</label>
                   <input
@@ -452,7 +669,7 @@ export default function ClientsView({
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nama RS / Client</label>
                           <input
@@ -489,19 +706,170 @@ export default function ClientsView({
                             className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                           />
                         </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Direktur RS</label>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Persentase Sharing KSO (%)</label>
                           <input
-                            type="text"
-                            value={editDirekturRS}
-                            onChange={(e) => setEditDirekturRS(e.target.value)}
+                            type="number"
+                            step="any"
+                            required
+                            value={editPersentaseKSO}
+                            onChange={(e) => setEditPersentaseKSO(parseFloat(e.target.value) || 0)}
                             className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
                           />
                         </div>
+                      </div>
 
+                      {/* Riwayat Direktur RS Section in Edit */}
+                      <div className="bg-slate-50 dark:bg-slate-950/45 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
+                        <div className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1.5">
+                          <UserCheck2 className="w-4 h-4" />
+                          <span>Manajemen Riwayat Direktur Utama & NIP</span>
+                        </div>
+
+                        {editDirectors.length === 0 ? (
+                          <div className="text-center py-4 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                            <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Silakan tambahkan direktur baru di bawah.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {editDirectors.map((dir) => (
+                              <div key={dir.id} className={`flex flex-col justify-between p-3 rounded-lg border bg-white dark:bg-slate-900 transition-all ${dir.isActive ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-200 dark:border-slate-800"}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                      {dir.name}
+                                      {dir.isActive && (
+                                        <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-605 dark:text-emerald-400 text-[9px] font-black px-1.5 rounded-sm border border-emerald-250 dark:border-emerald-900/50 uppercase">
+                                          Aktif
+                                        </span>
+                                      )}
+                                    </p>
+                                    {dir.nip && (
+                                      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">NIP: {dir.nip}</p>
+                                    )}
+                                    {(dir.startDate || dir.endDate) && (
+                                      <p className="text-[9px] text-slate-550 dark:text-slate-450 mt-1 bg-slate-50 dark:bg-slate-950 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-850">
+                                        {dir.startDate || "?"} s.d {dir.endDate || "Sekarang"}
+                                      </p>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-1">
+                                    {!dir.isActive && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetActiveDirInEditing(dir.id)}
+                                        className="text-[9px] bg-slate-100 hover:bg-emerald-5 border border-slate-200 dark:border-slate-800 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-905 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded cursor-pointer"
+                                      >
+                                        Set Aktif
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteDirInEditing(dir.id)}
+                                      className="text-red-500 hover:bg-red-50 p-1 rounded hover:text-red-700 dark:hover:bg-red-950/30 shrink-0"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Inline form to append director to edit list */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-lg p-3 space-y-3">
+                          <div className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850">
+                            ➕ Formulir Direktur RS Baru
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Nama Direktur</label>
+                              <input
+                                type="text"
+                                value={subDirName}
+                                onChange={(e) => setSubDirName(e.target.value)}
+                                placeholder="e.g. dr. Bambang, Sp.B"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">NIP Direktur</label>
+                              <input
+                                type="text"
+                                value={subDirNip}
+                                onChange={(e) => setSubDirNip(e.target.value)}
+                                placeholder="e.g. 197508..."
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Mulai Jabatan</label>
+                              <input
+                                type="date"
+                                value={subDirStart}
+                                onChange={(e) => setSubDirStart(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-550 uppercase mb-0.5">Selasai Jabatan</label>
+                              <input
+                                type="date"
+                                value={subDirEnd}
+                                onChange={(e) => setSubDirEnd(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-50 dark:border-slate-850">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
+                              <input
+                                type="checkbox"
+                                checked={subDirActive}
+                                onChange={(e) => setSubDirActive(e.target.checked)}
+                                className="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 shrink-0 w-3.5 h-3.5"
+                              />
+                              <span>Set sebagai Direktur Aktif saat ini</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!subDirName.trim()) {
+                                  alert("Nama Direktur wajib diisi!");
+                                  return;
+                                }
+                                const id = "dir-" + Math.random().toString(36).slice(2, 9);
+                                const newDir: DirectorHistory = {
+                                  id,
+                                  name: subDirName.trim(),
+                                  nip: subDirNip.trim(),
+                                  startDate: subDirStart,
+                                  endDate: subDirEnd,
+                                  isActive: subDirActive
+                                };
+                                let list = [...editDirectors];
+                                if (subDirActive) {
+                                  list = list.map(d => ({ ...d, isActive: false }));
+                                }
+                                setEditDirectors([...list, newDir]);
+                                setSubDirName("");
+                                setSubDirNip("");
+                                setSubDirStart("");
+                                setSubDirEnd("");
+                                setSubDirActive(false);
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold px-3 py-1 rounded transition-all cursor-pointer"
+                            >
+                              Tambahkan
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tanggal Project</label>
                           <input
@@ -561,9 +929,15 @@ export default function ClientsView({
                             </div>
 
                             <div className="flex items-center gap-1.5">
+                              <Percent className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">Nilai Persentase KSO:</span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{cl.persentaseKSO !== undefined ? `${cl.persentaseKSO}%` : "100%"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
                               <UserCheck2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">Direktur RS:</span>
-                              <span className="text-slate-800 dark:text-slate-200">{cl.direkturRS || "-"}</span>
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">Direktur RS (Terbaru):</span>
+                              <span className="text-slate-800 dark:text-slate-200 font-bold">{cl.direkturRS || "-"}</span>
                             </div>
 
                             <div className="flex items-center gap-1.5">
@@ -574,10 +948,33 @@ export default function ClientsView({
 
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
-                              <span className="font-semibold text-slate-600 dark:text-slate-300">Cut Off:</span>
+                              <span className="font-semibold text-slate-600 dark:text-slate-300">Cut Off Sistem:</span>
                               <span className="text-orange-600 dark:text-orange-400 font-bold">{cl.tanggalCutOff || "-"}</span>
                             </div>
                           </div>
+
+                          {/* Historical Directors Section */}
+                          {cl.directors && cl.directors.length > 0 && (
+                            <div className="mt-3 bg-slate-100/50 dark:bg-slate-950/20 p-2.5 rounded-lg border border-slate-200/50 dark:border-slate-800">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1.5">📚 Daftar Riwayat Direktur Utama ({cl.directors.length})</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {cl.directors.map(dir => (
+                                  <div key={dir.id} className="text-[11px] px-2 py-1 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded flex items-center justify-between">
+                                    <div>
+                                      <span className="font-bold text-slate-700 dark:text-slate-300">{dir.name}</span>
+                                      {dir.nip && <span className="text-slate-400 block text-[9px] font-mono mt-0.5">NIP. {dir.nip}</span>}
+                                      {(dir.startDate || dir.endDate) && (
+                                        <span className="text-slate-450 block text-[9px] font-sans mt-0.5">🗓️ {dir.startDate || "?"} s/d {dir.endDate || "Sekarang"}</span>
+                                      )}
+                                    </div>
+                                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded ${dir.isActive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 uppercase" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
+                                      {dir.isActive ? "Aktif" : "Selesai"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Module Implementation Stats Accumulating from Registrasi Modul SIMRS (registeredModuleNames) */}
                           <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">

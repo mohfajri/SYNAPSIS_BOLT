@@ -19,6 +19,15 @@ export interface ClientModuleStatus {
   tanggalImplementasi?: string; // Tanggal Implementasi RS
 }
 
+export interface DirectorHistory {
+  id: string;
+  name: string;
+  nip: string;
+  startDate: string; // Tanggal Mulai Jabatan
+  endDate: string;   // Tanggal Selesai Jabatan
+  isActive: boolean; // Status Aktif
+}
+
 export interface Client {
   id: string;
   namaRS: string;      // Nama RS
@@ -31,6 +40,8 @@ export interface Client {
   createdAt: string;
   moduleStatuses?: ClientModuleStatus[]; // Added in Phase 5 for dynamic module implementation status
   createdBy?: string;
+  persentaseKSO?: number; // Persentase KSO (e.g. 10.5)
+  directors?: DirectorHistory[]; // List of historical directors
 }
 
 export interface Project {
@@ -333,3 +344,65 @@ export interface BillingKSO {
   createdAt: string;
   createdBy: string;
 }
+
+export interface AtkItem {
+  id: string;
+  name: string;
+  unit: string; // e.g. "Box", "Pcs", "Rim"
+  price: number; 
+  stockQty?: number; // central logistics stock levels
+  priceToday?: number;
+  priceTomorrow?: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface AtkOrderItem {
+  itemId: string;
+  name: string;
+  unit: string;
+  qtyOrdered: number;
+  qtyShipped: number;
+  qtyReceived: number;
+  price: number;
+}
+
+export interface AtkOrder {
+  id: string;
+  noPemesanan: string; // Auto generated e.g. "ORD-ATK-2026-0001"
+  rekapId?: string; // Links multiple orders into a single consolidated procurement rekap batch
+  clientRS: string; // Destination Site RS
+  orderDate: string; // Tanggal Pemesanan
+  status: 'Draft' | 'Diajukan' | 'Dikirim' | 'Diterima' | 'Diserahkan' | 'Billed';
+  items: AtkOrderItem[];
+  
+  // Center dispatch details
+  shippedDate?: string;
+  shippedBy?: string;
+  deliveryNotes?: string;
+  
+  // Site receipt details
+  receivedDate?: string;
+  receivedBy?: string;
+  receiptNotes?: string;
+  
+  // RS delivery details
+  deliveredToRSDate?: string;
+  deliveredToRSBy?: string;
+  fakturSementaraNo?: string; // Tanda Terima / Faktur sementara No
+  
+  // Link to final KSO ATK billing
+  billingKsoId?: string;
+  
+  // Vendor procurement details
+  vendorStatus?: 'Dipesan ke Vendor' | 'Barang Masuk Gudang Pusat' | string;
+  vendorName?: string;
+  vendorOrderNotes?: string;
+  vendorNotes?: string;
+  vendorArrivedDate?: string;
+  vendorProcuredDate?: string;
+  
+  createdAt: string;
+  createdBy: string;
+}
+

@@ -20,7 +20,8 @@ const DEFAULT_SETTINGS = {
     { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt"], active: true },
     { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
     { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true }
+    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+    { roleName: "Logistik Kantor Pusat", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "atk"], active: true }
   ],
   milestoneStatuses: [
     { value: "On Track", active: true },
@@ -515,6 +516,21 @@ async function readDB() {
     db.billing = [];
     modified = true;
   }
+  if (!db.atkItems) {
+    db.atkItems = [
+      { id: "atk-item-1", name: "Kertas HVS A4 80gr", unit: "Rim", price: 55000, createdAt: new Date().toISOString(), createdBy: "system" },
+      { id: "atk-item-2", name: "Pulpen Kantor Standard Pen", unit: "Box", price: 24000, createdAt: new Date().toISOString(), createdBy: "system" },
+      { id: "atk-item-3", name: "Buku Log Penyerahan Dinas", unit: "Pcs", price: 15000, createdAt: new Date().toISOString(), createdBy: "system" },
+      { id: "atk-item-4", name: "Spidol Boardmarker Hitam Snowman", unit: "Pcs", price: 8500, createdAt: new Date().toISOString(), createdBy: "system" },
+      { id: "atk-item-5", name: "Staples No. 10 Max", unit: "Box", price: 12000, createdAt: new Date().toISOString(), createdBy: "system" },
+      { id: "atk-item-6", name: "Klip Kertas Paper Clip Besar No.50", unit: "Box", price: 6000, createdAt: new Date().toISOString(), createdBy: "system" }
+    ];
+    modified = true;
+  }
+  if (!db.atkOrders) {
+    db.atkOrders = [];
+    modified = true;
+  }
   if (db.users) {
     db.users.forEach((u: any) => {
       if (u.statusAktif === undefined) {
@@ -591,6 +607,16 @@ async function readDB() {
         }
       }
     });
+
+    const hasLogisticsHQ = db.settings.roles.some((r: any) => r.roleName === "Logistik Kantor Pusat");
+    if (!hasLogisticsHQ) {
+      db.settings.roles.push({
+        roleName: "Logistik Kantor Pusat",
+        allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "atk"],
+        active: true
+      });
+      modified = true;
+    }
   }
   
   // Backfill noID for existing records if they don't have it
@@ -1236,7 +1262,7 @@ app.get("/api/clients", async (req, res) => {
 
 app.post("/api/clients", async (req, res) => {
   try {
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors } = req.body;
     if (!namaRS) {
       return res.status(400).json({ error: "Nama RS wajib diisi!" });
     }
@@ -1251,7 +1277,9 @@ app.post("/api/clients", async (req, res) => {
       tanggalCutOff: tanggalCutOff || "",
       tipeMedika: tipeMedika || "",
       createdAt: new Date().toISOString(),
-      moduleStatuses: moduleStatuses || []
+      moduleStatuses: moduleStatuses || [],
+      persentaseKSO: persentaseKSO !== undefined ? parseFloat(persentaseKSO) : 100,
+      directors: directors || []
     };
     db.clients.push(newClient);
     await writeDB(db);
@@ -1264,7 +1292,7 @@ app.post("/api/clients", async (req, res) => {
 app.put("/api/clients/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors } = req.body;
     const db = await readDB();
     const idx = db.clients.findIndex((cl: any) => cl.id === id);
     if (idx === -1) {
@@ -1278,6 +1306,8 @@ app.put("/api/clients/:id", async (req, res) => {
     if (tanggalCutOff !== undefined) db.clients[idx].tanggalCutOff = tanggalCutOff;
     if (tipeMedika !== undefined) db.clients[idx].tipeMedika = tipeMedika;
     if (moduleStatuses !== undefined) db.clients[idx].moduleStatuses = moduleStatuses;
+    if (persentaseKSO !== undefined) db.clients[idx].persentaseKSO = persentaseKSO !== null ? parseFloat(persentaseKSO) : undefined;
+    if (directors !== undefined) db.clients[idx].directors = directors;
     
     await writeDB(db);
     return res.json(db.clients[idx]);
@@ -1653,6 +1683,128 @@ app.delete("/api/billing/:id", async (req, res) => {
     const { id } = req.params;
     const db = await readDB();
     db.billing = (db.billing || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── ATK MASTER ITEMS CRUD ───────────────────────────────────────────────
+app.get("/api/atk/items", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.atkItems || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/atk/items", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newItem = {
+      id: "atk-item-" + Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      ...req.body
+    };
+    db.atkItems = db.atkItems || [];
+    db.atkItems.unshift(newItem);
+    await writeDB(db);
+    return res.status(201).json(newItem);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/atk/items/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.atkItems || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Item ATK tidak ditemukan!" });
+    }
+    db.atkItems[idx] = { ...db.atkItems[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.atkItems[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/atk/items/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.atkItems = (db.atkItems || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── ATK ORDERS CRUD ─────────────────────────────────────────────────────
+app.get("/api/atk/orders", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.atkOrders || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/atk/orders", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.atkOrders = db.atkOrders || [];
+    
+    // Auto sequence number for order
+    const now = new Date();
+    const prefix = `ORD-ATK-${now.getFullYear()}`;
+    const yearOrders = db.atkOrders.filter((o: any) => o.noPemesanan && o.noPemesanan.startsWith(prefix));
+    const nextSeq = String(yearOrders.length + 1).padStart(4, "0");
+    const noPemesanan = `${prefix}-${nextSeq}`;
+
+    const newOrder = {
+      id: "atk-ord-" + Math.random().toString(36).slice(2, 9),
+      noPemesanan,
+      createdAt: now.toISOString(),
+      ...req.body
+    };
+    
+    db.atkOrders.unshift(newOrder);
+    await writeDB(db);
+    return res.status(201).json(newOrder);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/atk/orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.atkOrders || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Order ATK tidak ditemukan!" });
+    }
+    db.atkOrders[idx] = { ...db.atkOrders[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.atkOrders[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/atk/orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.atkOrders = (db.atkOrders || []).filter((e: any) => e.id !== id);
     await writeDB(db);
     return res.json({ success: true });
   } catch (err: any) {

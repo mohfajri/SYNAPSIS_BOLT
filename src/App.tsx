@@ -42,6 +42,7 @@ import AssetsView from "./components/AssetsView";
 import SiteModulesView from "./components/SiteModulesView";
 import MonevView from "./components/MonevView";
 import BillingKSOView from "./components/BillingKSOView";
+import AtkOrdersView from "./components/AtkOrdersView";
 
 // Icons
 import { 
@@ -72,7 +73,8 @@ import {
   Laptop,
   ClipboardList,
   Activity,
-  Receipt
+  Receipt,
+  Package
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1316,6 +1318,7 @@ export default function App() {
         { id: "appmodules", label: "Registrasi Modul SIMRS", icon: Cpu },
         { id: "sitemodules", label: "Implementasi Modul per Site", icon: ClipboardList },
         { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop },
+        { id: "atk", label: "Pemesanan ATK (Logistik)", icon: Package },
         { id: "billing", label: "Billing KSO & ATK", icon: Receipt }
       ]
     },
@@ -1341,8 +1344,14 @@ export default function App() {
     allowedViewIds = userRoleConfig.allowedViews;
   }
 
-  if (isUserScoped && !allowedViewIds.includes("clients")) {
+  const isKantorPusat = currentUser?.siteTugas?.toLowerCase().trim() === "kantor pusat";
+  if ((isUserScoped || isKantorPusat) && !allowedViewIds.includes("clients")) {
     allowedViewIds = [...allowedViewIds, "clients"];
+  }
+
+  // Grant 'atk' view automatically for admin, dev, billing, site coordinator, or Logistik Kantor Pusat
+  if ((currentUser?.role === "Administrator" || currentUser?.role === "Developer" || currentUser?.role === "Logistik Kantor Pusat" || allowedViewIds.includes("billing")) && !allowedViewIds.includes("atk")) {
+    allowedViewIds = [...allowedViewIds, "atk"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -1862,6 +1871,18 @@ export default function App() {
             />
           )}
 
+          {currentView === "atk" && (
+            <AtkOrdersView 
+              currentUser={currentUser}
+              clients={scopedClients}
+              onBillingAdded={() => {
+                api.getBillings()
+                  .then(data => setBillings(data))
+                  .catch(err => console.error("Error refreshing billing list:", err));
+              }}
+            />
+          )}
+
           {currentView === "assets" && (
             <AssetsView 
               assets={scopedAssets}
@@ -1873,7 +1894,7 @@ export default function App() {
             />
           )}
 
-          {currentView === "clients" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || isUserScoped) && (
+          {currentView === "clients" && (currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || isUserScoped || isKantorPusat) && (
             <ClientsView 
               clients={scopedClients}
               onAddClient={handleAddClient}
