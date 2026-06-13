@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder, KasSiteTransaction, KasSiteReplenishment, KasLock, KasUnlockRequest } from "../types";
 
 const API_BASE = "/api";
 
@@ -580,6 +580,106 @@ export const api = {
   async deleteAtkOrder(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/atk/orders/${id}`, {
       method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Kas Site CRUD API
+  async getKasSiteTransactions(): Promise<KasSiteTransaction[]> {
+    const res = await fetch(`${API_BASE}/kassite`);
+    return handleResponse(res);
+  },
+
+  async createKasSiteTransaction(data: Partial<KasSiteTransaction>): Promise<KasSiteTransaction> {
+    const res = await fetch(`${API_BASE}/kassite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateKasSiteTransaction(id: string, data: Partial<KasSiteTransaction>): Promise<KasSiteTransaction> {
+    const res = await fetch(`${API_BASE}/kassite/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteKasSiteTransaction(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/kassite/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Kas Site Replenishment CRUD API
+  async getKasSiteReplenishments(): Promise<KasSiteReplenishment[]> {
+    const res = await fetch(`${API_BASE}/kassite/replenish`);
+    return handleResponse(res);
+  },
+
+  async createKasSiteReplenishment(data: Partial<KasSiteReplenishment>): Promise<KasSiteReplenishment> {
+    const res = await fetch(`${API_BASE}/kassite/replenish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateKasSiteReplenishment(id: string, data: Partial<KasSiteReplenishment>): Promise<KasSiteReplenishment> {
+    const res = await fetch(`${API_BASE}/kassite/replenish/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteKasSiteReplenishment(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/kassite/replenish/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Lock and Unlock Requests API
+  async getKasLocks(): Promise<KasLock[]> {
+    const res = await fetch(`${API_BASE}/kassite/locks`);
+    return handleResponse(res);
+  },
+
+  async toggleKasLock(data: Partial<KasLock>): Promise<KasLock> {
+    const res = await fetch(`${API_BASE}/kassite/locks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async getKasUnlockRequests(): Promise<KasUnlockRequest[]> {
+    const res = await fetch(`${API_BASE}/kassite/unlock-requests`);
+    return handleResponse(res);
+  },
+
+  async createKasUnlockRequest(data: Partial<KasUnlockRequest>): Promise<KasUnlockRequest> {
+    const res = await fetch(`${API_BASE}/kassite/unlock-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateKasUnlockRequest(id: string, data: Partial<KasUnlockRequest>): Promise<KasUnlockRequest> {
+    const res = await fetch(`${API_BASE}/kassite/unlock-requests/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
     return handleResponse(res);
   }

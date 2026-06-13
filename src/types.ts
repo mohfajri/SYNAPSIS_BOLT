@@ -406,3 +406,62 @@ export interface AtkOrder {
   createdBy: string;
 }
 
+export interface KasSiteTransaction {
+  id: string;
+  project: string; // Project code or Project id to link it "bisa diakses dari per site tugas"
+  type: "Masuk" | "Keluar"; // "inputan uang kas masuk dari kantor pusat", dll.
+  receiptNo: string; // "ada penomoran kwitansinya per pemasukan dan pengeluaran", "tanggal transaksinya, keterangan uang..."
+  date: string;
+  amount: number;
+  description: string; // "keterangan uang tersebut buat apa"
+  category?: string; // "kategori operasional e.g. Konsumsi, ATK, Transport, dll."
+  receiptUrl?: string; // "ada upload kwitansi per transaksinya"
+  status: "Draft" | "Pending" | "Approved" | "Rejected"; // "rekapan per bulan yang akan di cek dari site coordinator yang akan diajukan berkasnya ke kantor pusat"
+  submittedMonth?: string; // Rekapan per bulan (e.g., "2026-06")
+  replenishmentId?: string; // Link to KasSiteReplenishment
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface KasSiteReplenishment {
+  id: string;
+  project: string; // Site name or code
+  reqNo: string; // REQ-REPL-[DATE]-[RAND]
+  startDate: string;
+  endDate: string;
+  totalExpenses: number;
+  requestedAmount: number;
+  date: string;
+  notes?: string;
+  status: "Pending" | "Approved" | "Rejected";
+  transactionIds: string[]; // List of KasSiteTransaction IDs included in this period
+  createdAt: string;
+  createdBy: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  transferProofUrl?: string; // HQ transfer payment slip
+}
+
+export interface KasLock {
+  id: string;
+  month: string; // e.g. "2026-06"
+  site: string;  // e.g. "Semua" or specific project code
+  isLocked: boolean;
+  lockedAt?: string;
+  lockedBy?: string;
+}
+
+export interface KasUnlockRequest {
+  id: string;
+  month: string;
+  site: string;
+  reason: string;
+  status: "Pending" | "Approved" | "Rejected";
+  createdAt: string;
+  createdBy: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+
+

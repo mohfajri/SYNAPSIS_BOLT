@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Project, Task, LogEntry, User, Client, AppModule, SiteModuleImplementation, CommLog, MeetingLog } from "../types";
+import { Project, Task, LogEntry, User, Client, AppModule, SiteModuleImplementation, CommLog, MeetingLog, Documentation } from "../types";
 import { 
   FolderLock, 
   Search, 
@@ -17,7 +17,12 @@ import {
   ClipboardList,
   Layers,
   MessageSquare,
-  Clock
+  Clock,
+  HeartPulse,
+  Activity,
+  FileText,
+  PlusCircle,
+  Link
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -43,6 +48,9 @@ interface ProjectsViewProps {
   appModules?: AppModule[];
   commLogs?: CommLog[];
   meetingLogs?: MeetingLog[];
+  docs?: Documentation[];
+  onAddDoc?: (data: Partial<Documentation>) => Promise<void>;
+  onDeleteDoc?: (id: string) => Promise<void>;
 }
 
 export default function ProjectsView({
@@ -66,7 +74,10 @@ export default function ProjectsView({
   siteImplementations = [],
   appModules = [],
   commLogs = [],
-  meetingLogs = []
+  meetingLogs = [],
+  docs = [],
+  onAddDoc,
+  onDeleteDoc
 }: ProjectsViewProps) {
   
   const [search, setSearch] = useState("");
@@ -225,6 +236,36 @@ export default function ProjectsView({
   const [activeLogProjId, setActiveLogProjId] = useState<string | null>(null);
   const [logType, setLogType] = useState<'kendala' | 'solusi' | 'fokus'>("kendala");
   const [logText, setLogText] = useState("");
+
+  // Document states (Point 2.C)
+  const [activeDocProjId, setActiveDocProjId] = useState<string | null>(null);
+  const [docCategory, setDocCategory] = useState<'API Specs' | 'User Manual' | 'Desain' | 'Kontrak' | 'Lainnya'>("Lainnya");
+  const [docTitle, setDocTitle] = useState("");
+  const [docUrl, setDocUrl] = useState("");
+  const [docDesc, setDocDesc] = useState("");
+
+  async function handleAddDocLocal(projCode: string) {
+    if (!docTitle.trim() || !docUrl.trim()) {
+      alert("Judul dan URL Berkas harus diisi!");
+      return;
+    }
+    if (onAddDoc) {
+      await onAddDoc({
+        project: projCode,
+        category: docCategory,
+        title: docTitle,
+        url: docUrl,
+        desc: docDesc,
+        date: new Date().toISOString().split('T')[0],
+        createdBy: currentUser?.username || "Sys"
+      });
+      setActiveDocProjId(null);
+      setDocCategory("Lainnya");
+      setDocTitle("");
+      setDocUrl("");
+      setDocDesc("");
+    }
+  }
 
   // States for connecting collaboration logs to project (after creation)
   const [collabModalProjId, setCollabModalProjId] = useState<string | null>(null);
@@ -981,6 +1022,135 @@ export default function ProjectsView({
                     </div>
                   </div>
 
+                  {/* Point 2.A: Visual Health Monitor & Interactive Timeline Indicator */}
+                  {(() => {
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const startD = p.startDate ? new Date(p.startDate) : null;
+                    const endD = p.endDate ? new Date(p.endDate) : null;
+                    const complD = p.completionDate ? new Date(p.completionDate) : null;
+                    
+                    if (startD) startD.setHours(0,0,0,0);
+                    if (endD) endD.setHours(0,0,0,0);
+                    if (complD) complD.setHours(0,0,0,0);
+
+                    let totalDays = 0;
+                    let elapsedDays = 0;
+                    let timelinePercent = 0;
+
+                    if (startD && endD) {
+                      totalDays = Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24));
+                      const endDateOrToday = complD ? complD : (today > endD ? endD : today);
+                      
+                      if (endDateOrToday >= startD) {
+                        elapsedDays = Math.ceil((endDateOrToday.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24));
+                      }
+                      timelinePercent = totalDays > 0 ? Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100))) : 0;
+                    }
+
+                    // Health Status Evaluation:
+                    let healthScoreStr = "On Track";
+                    let healthColor = "bg-emerald-50 text-emerald-705 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40";
+                    let healthLevel = "Normal";
+                    let healthExplanation = "";
+
+                    if (p.status === "Completed" || overallPct === 100) {
+                      healthScoreStr = "Selesai Sempurna";
+                      healthColor = "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/40";
+                      healthLevel = "Excellent";
+                      healthExplanation = "Seluruh tugas tuntas tepat waktu.";
+                    } else if (p.status === "Delayed") {
+                      healthScoreStr = "Delayed";
+                      healthColor = "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-955/20 dark:text-rose-450 dark:border-rose-900/40";
+                      healthLevel = "Terhambat / Delay";
+                      healthExplanation = "Milestone proyek tertunda. Solusi & fokus mendesak diperlukan!";
+                    } else if (p.status === "On Hold") {
+                      healthScoreStr = "On Hold";
+                      healthColor = "bg-amber-50 text-amber-705 border-amber-200 dark:bg-amber-955/20 dark:text-amber-450 dark:border-amber-900/40";
+                      healthLevel = "On Hold";
+                      healthExplanation = "Aktivitas proyek dijeda sementara.";
+                    } else {
+                      if (timelinePercent > overallPct + 15) {
+                        healthScoreStr = "Potensi Terlambat";
+                        healthColor = "bg-rose-55 text-rose-705 border-rose-200 dark:bg-rose-955/20 dark:text-rose-450 dark:border-rose-900/40";
+                        healthLevel = "Risiko Tinggi";
+                        healthExplanation = `Batas waktu berjalan (${timelinePercent}%) mendahului kemajuan tugas (${overallPct}%) secara signifikan!`;
+                      } else if (timelinePercent > overallPct) {
+                        healthScoreStr = "Butuh Perhatian";
+                        healthColor = "bg-amber-50 text-amber-750 border-amber-205 dark:bg-amber-955/20 dark:text-amber-450 dark:border-amber-900/40";
+                        healthLevel = "Risiko Sedang";
+                        healthExplanation = `Laju waktu berjalan (${timelinePercent}%) mendahului penyelesaian tugas (${overallPct}%).`;
+                      } else {
+                        healthScoreStr = "Sangat Baik (On Track)";
+                        healthColor = "bg-emerald-50 text-emerald-705 border-emerald-205 dark:bg-emerald-955/20 dark:text-emerald-450 dark:border-emerald-900/40";
+                        healthLevel = "Sangat Baik";
+                        healthExplanation = "Penyelesaian tugas berjalan optimal sesuai dengan tenggat waktu.";
+                      }
+                    }
+
+                    return (
+                      <div className="bg-slate-50/45 dark:bg-slate-950/20 border border-slate-200/60 dark:border-slate-800/80 p-4 rounded-xl space-y-3.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 select-none">
+                            <HeartPulse className="w-4.5 h-4.5 text-rose-500 animate-pulse" /> Monitor Kesehatan Proyek
+                          </span>
+                          <div className={`text-[10.5px] px-2.5 py-1 rounded-md border font-extrabold flex items-center gap-1.5 ${healthColor}`}>
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-current" />
+                            <span>{healthScoreStr} ({healthLevel})</span>
+                          </div>
+                        </div>
+
+                        {/* Explanation text */}
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-normal font-sans italic">
+                          💡 <strong className="not-italic text-slate-700 dark:text-slate-205 font-bold">Rekomendasi:</strong> {healthExplanation}
+                          {kendala.length > 0 && ` Terdapat ${kendala.length} kendala aktif yang masih belum memiliki solusi.`}
+                        </p>
+
+                        {/* Interactive Timeline Track */}
+                        {startD && endD && (
+                          <div className="space-y-2 pt-1 font-sans">
+                            <div className="flex justify-between text-[9.5px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-widest font-mono select-none">
+                              <span>Mulai: {startD.toLocaleDateString("id-ID")}</span>
+                              <span>Sisa: {Math.max(0, totalDays - elapsedDays)} Hari ({totalDays} hari total)</span>
+                              <span>Target: {endD.toLocaleDateString("id-ID")}</span>
+                            </div>
+
+                            {/* Linear visualization */}
+                            <div className="relative h-6 bg-slate-200/70 dark:bg-slate-850 rounded-lg overflow-hidden flex items-center select-none shadow-xs border border-slate-300/20">
+                              {/* Left shaded part based on actual task progress */}
+                              <div 
+                                className="absolute left-0 top-0 bottom-0 bg-blue-600/15 dark:bg-blue-500/20 border-r border-blue-500/20"
+                                style={{ width: `${overallPct}%` }}
+                              />
+                              
+                              {/* Horizontal middle ruler line */}
+                              <div className="absolute left-0 right-0 h-[1.5px] bg-slate-300 dark:bg-slate-700 top-1/2 -translate-y-1/2" />
+
+                              {/* Elapsed timeline progress bar */}
+                              <div 
+                                className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-indigo-500 rounded-full transition-all"
+                                style={{ width: `${timelinePercent}%` }}
+                              />
+
+                              {/* Marker pin details */}
+                              <div className="absolute inset-0 flex items-center justify-between px-3 text-[10px] font-bold z-10 select-none">
+                                <span className="text-blue-700 dark:text-blue-300 bg-white/80 dark:bg-slate-900/80 px-1.5 py-0.2 rounded border border-blue-500/10">Tugas: {overallPct}%</span>
+                                <span className="text-indigo-700 dark:text-indigo-300 bg-white/80 dark:bg-slate-900/80 px-1.5 py-0.2 rounded border border-indigo-500/10">Waktu: {timelinePercent}%</span>
+                              </div>
+                            </div>
+                            
+                            {/* Visual Ruler Dots for status events */}
+                            <div className="flex justify-between items-center text-[9px] text-slate-400 dark:text-slate-500 font-mono font-medium select-none">
+                              <span className="flex items-center gap-0.5">• Kick Off</span>
+                              <span className="flex items-center gap-0.5">• Saat Ini ({elapsedDays} hari berjalan)</span>
+                              <span className="flex items-center gap-0.5">• Serah Terima / BAST</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Prasyarat Banner */}
                   {p.prasyarat && (
                     <div className="bg-amber-50/60 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 p-3.5 rounded-xl text-xs space-y-1">
@@ -1343,6 +1513,92 @@ export default function ProjectsView({
                     );
                   })()}
 
+                  {/* DIRECT PROJECT DOCUMENTS / TARGET UAT ATTACHMENTS REPOSITORY (POINT 2.C) */}
+                  <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3 font-sans">
+                    <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/40 p-2.5 rounded-lg border border-slate-150/10 dark:border-slate-800/40">
+                      <span className="text-xs font-black text-indigo-650 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 select-none font-sans">
+                        <FileText className="w-4 h-4 text-indigo-500" /> Berkas Proyek & Target UAT / Dokumen Terkait ({docs.filter(d => d.project === p.kode).length})
+                      </span>
+                      {currentUser?.role !== "Client" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveDocProjId(p.id);
+                            setDocCategory("Lainnya");
+                            setDocTitle("");
+                            setDocUrl("");
+                            setDocDesc("");
+                          }}
+                          className="text-[10.5px] bg-indigo-55/10 hover:bg-indigo-55/20 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-md border border-indigo-200/30 font-bold flex items-center gap-1 transition-all cursor-pointer font-sans"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" /> + Berkas Baru
+                        </button>
+                      )}
+                    </div>
+
+                    {docs.filter(d => d.project === p.kode).length === 0 ? (
+                      <p className="text-[10.5px] text-slate-400 dark:text-slate-550 italic p-4 text-center bg-slate-50/50 dark:bg-slate-950/5 rounded-xl border border-dashed border-slate-150 dark:border-slate-800/60 font-sans">
+                        Belum ada berkas spesifikasi, regulasi, desain figma, atau checklist UAT tertaut pada proyek ini. Silakan klik "+ Berkas Baru" untuk menghubungkan.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {docs.filter(d => d.project === p.kode).map((doc) => {
+                          const canDeleteDoc = currentUser?.role === "Administrator" || doc.createdBy === currentUser?.username;
+                          return (
+                            <div 
+                              key={doc.id} 
+                              className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800/75 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl p-3 shadow-xs space-y-2 flex flex-col justify-between"
+                            >
+                              <div className="space-y-1.5 text-left font-sans">
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-full border ${
+                                    doc.category === 'API Specs' ? 'bg-orange-50 text-orange-700 border-orange-200/50 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30' :
+                                    doc.category === 'User Manual' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' :
+                                    doc.category === 'Desain' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200/50 dark:bg-fuchsia-950/20 dark:text-fuchsia-400 dark:border-fuchsia-900/30' :
+                                    doc.category === 'Kontrak' ? 'bg-indigo-50 text-indigo-700 border-indigo-200/50 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30' :
+                                    'bg-slate-100 text-slate-700 border-slate-205 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                                  }`}>
+                                    {doc.category}
+                                  </span>
+                                  
+                                  {canDeleteDoc && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirm(`Hapus dokumen "${doc.title}" dari proyek ini?`)) {
+                                          if (onDeleteDoc) onDeleteDoc(doc.id);
+                                        }
+                                      }}
+                                      className="text-slate-400 hover:text-red-500 p-0.5 rounded transition-colors cursor-pointer"
+                                      title="Hapus berkas"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1 leading-normal">{doc.title}</h6>
+                                {doc.desc && <p className="text-[10.5px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{doc.desc}</p>}
+                              </div>
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/60 mt-1 font-sans">
+                                <span className="text-[9.5px] text-slate-400 font-medium">
+                                  {doc.createdBy || "Sys"} &bull; {doc.date ? new Date(doc.date).toLocaleDateString("id-ID") : "—"}
+                                </span>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10.5px] text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                                >
+                                  <Link className="w-3 h-3" /> Buka ↗
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
             );
@@ -1407,6 +1663,103 @@ export default function ProjectsView({
                   className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg hover:shadow-lg transition-all font-sans"
                 >
                   Simpan Catatan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: ADD DIRECT DOC LINK (POINT 2.C) */}
+      <AnimatePresence>
+        {activeDocProjId && (
+          <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 font-sans text-left"
+            >
+              <div>
+                <h3 className="font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-550" /> Unggah Berkas & Dokumen Baru
+                </h3>
+                <p className="text-xs text-slate-400 font-medium font-sans">
+                  Sematkan spesifikasi, panduan kertas kerja, cetak mockup figma, atau lembar checklist UAT untuk proyek {projects.find(x => x.id === activeDocProjId)?.kode}.
+                </p>
+              </div>
+
+              <div className="space-y-3.5 text-xs text-left">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest font-sans">Kategori Berkas</label>
+                  <select
+                    value={docCategory}
+                    onChange={(e) => setDocCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-205 dark:border-slate-800 rounded-lg p-2.5 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    <option value="API Specs">🔌 API Specs (Spesifikasi API)</option>
+                    <option value="User Manual">📘 User Manual / Kertas Kerja</option>
+                    <option value="Desain">🎨 Desain Layout & Figma Mockup</option>
+                    <option value="Kontrak">📂 Dokumen Kontrak & BAST</option>
+                    <option value="Lainnya">📎 Lainnya / Lampiran Umum</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest font-sans">Nama / Judul Berkas *</label>
+                  <input
+                    type="text"
+                    value={docTitle}
+                    onChange={(e) => setDocTitle(e.target.value)}
+                    placeholder="Contoh: Dokumen Hasil UAT Modul Registrasi"
+                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-205 dark:border-slate-800 rounded-lg p-2.5 text-slate-800 dark:text-slate-200 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest font-sans font-mono">Drive URL / Tautan Resource *</label>
+                  <input
+                    type="url"
+                    value={docUrl}
+                    onChange={(e) => setDocUrl(e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-205 dark:border-slate-800 rounded-lg p-2.5 text-slate-800 dark:text-slate-200 font-mono text-xs focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest font-sans">Keterangan / Deskripsi Ringkas</label>
+                  <textarea
+                    rows={3}
+                    value={docDesc}
+                    onChange={(e) => setDocDesc(e.target.value)}
+                    placeholder="Sebutkan hal penting berkas atau lampiran pelengkap..."
+                    className="w-full bg-slate-50 dark:bg-slate-955 border border-slate-205 dark:border-slate-800 rounded-lg p-2.5 text-slate-800 dark:text-slate-200 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                <button
+                  type="button"
+                  onClick={() => setActiveDocProjId(null)}
+                  className="px-4 py-2 border border-slate-250 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-sans cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activeP = projects.find(x => x.id === activeDocProjId);
+                    if (activeP) {
+                      handleAddDocLocal(activeP.kode);
+                    }
+                  }}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg hover:shadow-md transition-all font-sans cursor-pointer"
+                >
+                  Simpan Berkas
                 </button>
               </div>
             </motion.div>

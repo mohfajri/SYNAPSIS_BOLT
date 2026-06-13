@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO } from "./src/types.js";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
 const app = express();
 const PORT = 3000;
@@ -531,6 +531,18 @@ async function readDB() {
     db.atkOrders = [];
     modified = true;
   }
+  if (!db.kasSiteTransactions) {
+    db.kasSiteTransactions = [];
+    modified = true;
+  }
+  if (!db.kasLocks) {
+    db.kasLocks = [];
+    modified = true;
+  }
+  if (!db.kasUnlockRequests) {
+    db.kasUnlockRequests = [];
+    modified = true;
+  }
   if (db.users) {
     db.users.forEach((u: any) => {
       if (u.statusAktif === undefined) {
@@ -570,6 +582,10 @@ async function readDB() {
         adminRole.allowedViews.push("billing");
         modified = true;
       }
+      if (!adminRole.allowedViews.includes("kassite")) {
+        adminRole.allowedViews.push("kassite");
+        modified = true;
+      }
     }
     
     // Also enable for other roles by default so they are easy to access
@@ -593,6 +609,10 @@ async function readDB() {
         }
         if (!r.allowedViews.includes("billing")) {
           r.allowedViews.push("billing");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("kassite")) {
+          r.allowedViews.push("kassite");
           modified = true;
         }
       } else if (r.roleName === "Client") {
@@ -1811,6 +1831,314 @@ app.delete("/api/atk/orders/:id", async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+
+
+// ── KAS SITE MOVEMENT CRUD ──────────────────────────────────────────────
+app.get("/api/kassite", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.kasSiteTransactions || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/kassite", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.kasSiteTransactions = db.kasSiteTransactions || [];
+
+    // Auto generated sequence for receipts
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const typeStr = req.body.type === "Masuk" ? "IN" : "OUT";
+    const prefix = `KAS-${typeStr}-${yearMonth}`;
+    
+    const matchingTrans = db.kasSiteTransactions.filter((t: any) => t.receiptNo && t.receiptNo.startsWith(prefix));
+    const nextSeq = String(matchingTrans.length + 1).padStart(4, "0");
+    const generatedReceiptNo = `${prefix}-${nextSeq}`;
+
+    const newTrans = {
+      id: "kas-" + Math.random().toString(36).slice(2, 9),
+      receiptNo: req.body.receiptNo || generatedReceiptNo,
+      createdAt: now.toISOString(),
+      status: req.body.status || "Draft",
+      ...req.body
+    };
+
+    db.kasSiteTransactions.unshift(newTrans);
+    await writeDB(db);
+    return res.status(201).json(newTrans);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/kassite/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.kasSiteTransactions || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Transaksi Kas Site tidak ditemukan!" });
+    }
+    db.kasSiteTransactions[idx] = { ...db.kasSiteTransactions[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.kasSiteTransactions[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/kassite/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.kasSiteTransactions = (db.kasSiteTransactions || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── KAS SITE REPLENISHMENTS ──────────────────────────────────────────────
+app.get("/api/kassite/replenish", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.kasSiteReplenishments || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/kassite/replenish", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.kasSiteReplenishments = db.kasSiteReplenishments || [];
+
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+    const rnd = Math.floor(1000 + Math.random() * 9000);
+    const generatedReqNo = `REQ-REPL-${dateStr}-${rnd}`;
+
+    const newReplen = {
+      id: "repl-" + Math.random().toString(36).slice(2, 9),
+      createdAt: now.toISOString(),
+      reqNo: req.body.reqNo || generatedReqNo,
+      status: req.body.status || "Pending",
+      ...req.body
+    };
+
+    // Update status of associated transactions, binding them to replenishmentId
+    if (newReplen.transactionIds && Array.isArray(newReplen.transactionIds)) {
+      db.kasSiteTransactions = (db.kasSiteTransactions || []).map((t: any) => {
+        if (newReplen.transactionIds.includes(t.id)) {
+          return {
+            ...t,
+            status: "Pending",
+            replenishmentId: newReplen.id
+          };
+        }
+        return t;
+      });
+    }
+
+    db.kasSiteReplenishments.unshift(newReplen);
+    await writeDB(db);
+    return res.status(201).json(newReplen);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/kassite/replenish/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.kasSiteReplenishments || []).findIndex((e: any) => e.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Pengajuan dana tidak ditemukan!" });
+    }
+
+    const oldStatus = db.kasSiteReplenishments[idx].status;
+    db.kasSiteReplenishments[idx] = { ...db.kasSiteReplenishments[idx], ...req.body };
+    const newStatus = db.kasSiteReplenishments[idx].status;
+
+    // If status has been updated (e.g. from Pending -> Approved/Rejected)
+    if (newStatus && newStatus !== oldStatus) {
+      const tIds = db.kasSiteReplenishments[idx].transactionIds || [];
+      if (tIds.length > 0) {
+        db.kasSiteTransactions = (db.kasSiteTransactions || []).map((t: any) => {
+          if (tIds.includes(t.id)) {
+            return {
+              ...t,
+              status: newStatus === "Approved" ? "Approved" : "Rejected"
+            };
+          }
+          return t;
+        });
+      }
+
+      // If Approved, automatically inject the "KAS MASUK" inflow dropping transaction
+      if (newStatus === "Approved" && oldStatus !== "Approved") {
+        const repl = db.kasSiteReplenishments[idx];
+        const dateStr = new Date().toISOString().split("T")[0];
+        const fileDate = dateStr.replace(/-/g, "");
+        const genInflowId = "kas-" + Math.random().toString(36).slice(2, 9);
+        const autoInflow = {
+          id: genInflowId,
+          project: repl.project,
+          type: "Masuk",
+          date: dateStr,
+          amount: Number(repl.requestedAmount || 0),
+          description: `[AUTO-REPL] Penerimaan Dropping Dana HQ via pengajuan Rekap ${repl.reqNo}`,
+          receiptNo: `KAS-IN-${fileDate.substring(0, 6)}-REPL`,
+          status: "Approved",
+          receiptUrl: repl.transferProofUrl || "",
+          createdAt: new Date().toISOString(),
+          createdBy: "Kantor Pusat (System)"
+        };
+        db.kasSiteTransactions = db.kasSiteTransactions || [];
+        db.kasSiteTransactions.unshift(autoInflow);
+      }
+    }
+
+    await writeDB(db);
+    return res.json(db.kasSiteReplenishments[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/kassite/replenish/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+
+    // Release/unlock associated transactions back to Draft status and clear replenishmentId
+    db.kasSiteTransactions = (db.kasSiteTransactions || []).map((t: any) => {
+      if (t.replenishmentId === id) {
+        return {
+          ...t,
+          status: "Draft",
+          replenishmentId: ""
+        };
+      }
+      return t;
+    });
+
+    db.kasSiteReplenishments = (db.kasSiteReplenishments || []).filter((e: any) => e.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── KAS SITE LOCKS & UNLOCK REQUESTS ────────────────────────────────────
+app.get("/api/kassite/locks", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.kasLocks || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/kassite/locks", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.kasLocks = db.kasLocks || [];
+    const { month, site, isLocked, lockedBy } = req.body;
+    
+    const idx = db.kasLocks.findIndex((l: any) => l.month === month && l.site === site);
+    if (idx !== -1) {
+      db.kasLocks[idx] = {
+        ...db.kasLocks[idx],
+        isLocked,
+        lockedAt: new Date().toISOString(),
+        lockedBy: lockedBy || "HQ Finance"
+      };
+    } else {
+      db.kasLocks.push({
+        id: "lock-" + Math.random().toString(36).slice(2, 9),
+        month,
+        site,
+        isLocked,
+        lockedAt: new Date().toISOString(),
+        lockedBy: lockedBy || "HQ Finance"
+      });
+    }
+    
+    await writeDB(db);
+    return res.json(db.kasLocks);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/kassite/unlock-requests", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.kasUnlockRequests || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/kassite/unlock-requests", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.kasUnlockRequests = db.kasUnlockRequests || [];
+    
+    const newReq = {
+      id: "req-unl-" + Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      status: "Pending",
+      ...req.body
+    };
+    
+    db.kasUnlockRequests.unshift(newReq);
+    await writeDB(db);
+    return res.status(201).json(newReq);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/kassite/unlock-requests/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.kasUnlockRequests = db.kasUnlockRequests || [];
+    
+    const idx = db.kasUnlockRequests.findIndex((r: any) => r.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Pengajuan unlock tidak ditemukan!" });
+    }
+    
+    db.kasUnlockRequests[idx] = { ...db.kasUnlockRequests[idx], ...req.body };
+    const requestItem = db.kasUnlockRequests[idx];
+    
+    // If approved, dynamically temporarily unlock that month/site
+    if (requestItem.status === "Approved") {
+      db.kasLocks = db.kasLocks || [];
+      const lockIdx = db.kasLocks.findIndex((l: any) => l.month === requestItem.month && l.site === requestItem.site);
+      if (lockIdx !== -1) {
+        db.kasLocks[lockIdx].isLocked = false;
+      }
+    }
+    
+    await writeDB(db);
+    return res.json(db.kasUnlockRequests[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────

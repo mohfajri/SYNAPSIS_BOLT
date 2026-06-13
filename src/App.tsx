@@ -14,7 +14,9 @@ import {
   Asset,
   SiteModuleImplementation,
   MonevLog,
-  BillingKSO
+  BillingKSO,
+  KasSiteTransaction,
+  KasSiteReplenishment
 } from "./types";
 import { 
   api, 
@@ -43,6 +45,7 @@ import SiteModulesView from "./components/SiteModulesView";
 import MonevView from "./components/MonevView";
 import BillingKSOView from "./components/BillingKSOView";
 import AtkOrdersView from "./components/AtkOrdersView";
+import KasSiteView from "./components/KasSiteView";
 
 // Icons
 import { 
@@ -74,7 +77,8 @@ import {
   ClipboardList,
   Activity,
   Receipt,
-  Package
+  Package,
+  Wallet
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -165,21 +169,23 @@ export default function App() {
   const [siteImplementations, setSiteImplementations] = useState<SiteModuleImplementation[]>([]);
   const [monevLogs, setMonevLogs] = useState<MonevLog[]>([]);
   const [billings, setBillings] = useState<BillingKSO[]>([]);
+  const [kasTransactions, setKasTransactions] = useState<KasSiteTransaction[]>([]);
+  const [kasReplenishments, setKasReplenishments] = useState<KasSiteReplenishment[]>([]);
   const [settings, setSettings] = useState<any>({
     roles: [
-      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-      { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-      { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-      { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "Staff", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "monev", "billing"], active: true },
-      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
+      { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
+      { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
+      { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
+      { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Staff", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
       { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "tickets", "monev", "billing"], active: true },
-      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true }
+      { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true }
     ],
     milestoneStatuses: [
       { value: "On Track", active: true },
@@ -560,7 +566,7 @@ export default function App() {
 
   async function syncDatabase() {
     try {
-      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD, siteImplD, monevD, billingD] = await Promise.all([
+      const [projD, taskD, logD, commD, meetD, docD, userD, settingsD, clientD, baD, ticketsD, appModulesD, assetsD, siteImplD, monevD, billingD, kasD, kasReplD] = await Promise.all([
         api.getProjects(),
         api.getTasks(),
         api.getLogs(),
@@ -576,7 +582,9 @@ export default function App() {
         api.getAssets().catch(() => []),
         api.getSiteImplementations().catch(() => []),
         api.getMonevLogs().catch(() => []),
-        api.getBillings().catch(() => [])
+        api.getBillings().catch(() => []),
+        api.getKasSiteTransactions().catch(() => []),
+        api.getKasSiteReplenishments().catch(() => [])
       ]);
       setProjects(projD);
       setTasks(taskD);
@@ -593,6 +601,8 @@ export default function App() {
       setSiteImplementations(siteImplD || []);
       setMonevLogs(monevD || []);
       setBillings(billingD || []);
+      setKasTransactions(kasD || []);
+      setKasReplenishments(kasReplD || []);
       if (settingsD) {
         setSettings((prev: any) => ({
           ...prev,
@@ -1265,6 +1275,84 @@ export default function App() {
     }
   }
 
+  // Kas Site CRUD Operations
+  async function handleAddKasTransaction(data: Partial<KasSiteTransaction>) {
+    try {
+      const res = await api.createKasSiteTransaction(data);
+      setKasTransactions(prev => [res, ...prev]);
+      return res;
+    } catch (err) {
+      alert("Gagal menambahkan mutasi kas baru: " + err);
+      throw err;
+    }
+  }
+
+  async function handleUpdateKasTransaction(id: string, data: Partial<KasSiteTransaction>) {
+    try {
+      const res = await api.updateKasSiteTransaction(id, data);
+      setKasTransactions(prev => prev.map(k => k.id === id ? res : k));
+      return res;
+    } catch (err) {
+      alert("Gagal memperbarui mutasi kas: " + err);
+      throw err;
+    }
+  }
+
+  async function refreshKasData() {
+    try {
+      const [kasD, kasReplD] = await Promise.all([
+        api.getKasSiteTransactions().catch(() => []),
+        api.getKasSiteReplenishments().catch(() => [])
+      ]);
+      setKasTransactions(kasD);
+      setKasReplenishments(kasReplD);
+    } catch (err) {
+      console.error("Gagal refresh data kas:", err);
+    }
+  }
+
+  async function handleDeleteKasTransaction(id: string) {
+    try {
+      await api.deleteKasSiteTransaction(id);
+      setKasTransactions(prev => prev.filter(k => k.id !== id));
+    } catch (err) {
+      alert("Gagal menghapus mutasi kas: " + err);
+      throw err;
+    }
+  }
+
+  async function handleAddReplenishment(data: Partial<KasSiteReplenishment>) {
+    try {
+      const res = await api.createKasSiteReplenishment(data);
+      await refreshKasData();
+      return res;
+    } catch (err) {
+      alert("Gagal mengajukan pengembalian dana: " + err);
+      throw err;
+    }
+  }
+
+  async function handleUpdateReplenishment(id: string, data: Partial<KasSiteReplenishment>) {
+    try {
+      const res = await api.updateKasSiteReplenishment(id, data);
+      await refreshKasData();
+      return res;
+    } catch (err) {
+      alert("Gagal memperbarui status pengajuan: " + err);
+      throw err;
+    }
+  }
+
+  async function handleDeleteReplenishment(id: string) {
+    try {
+      await api.deleteKasSiteReplenishment(id);
+      await refreshKasData();
+    } catch (err) {
+      alert("Gagal menghapus pengajuan dana: " + err);
+      throw err;
+    }
+  }
+
   // Pre-authenticator render check
   if (isSessionLoading) {
     return (
@@ -1319,7 +1407,8 @@ export default function App() {
         { id: "sitemodules", label: "Implementasi Modul per Site", icon: ClipboardList },
         { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop },
         { id: "atk", label: "Pemesanan ATK (Logistik)", icon: Package },
-        { id: "billing", label: "Billing KSO & ATK", icon: Receipt }
+        { id: "billing", label: "Billing KSO & ATK", icon: Receipt },
+        { id: "kassite", label: "Kas Site (Petty Cash)", icon: Wallet }
       ]
     },
     {
@@ -1352,6 +1441,11 @@ export default function App() {
   // Grant 'atk' view automatically for admin, dev, billing, site coordinator, or Logistik Kantor Pusat
   if ((currentUser?.role === "Administrator" || currentUser?.role === "Developer" || currentUser?.role === "Logistik Kantor Pusat" || allowedViewIds.includes("billing")) && !allowedViewIds.includes("atk")) {
     allowedViewIds = [...allowedViewIds, "atk"];
+  }
+
+  // Grant 'kassite' view automatically for admin, direktur, manager keuangan, staff, or site coordinator
+  if ((currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager Keuangan" || currentUser?.role === "Site Coordinator" || currentUser?.role === "Staff") && !allowedViewIds.includes("kassite")) {
+    allowedViewIds = [...allowedViewIds, "kassite"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -1720,6 +1814,9 @@ export default function App() {
               siteImplementations={siteImplementations}
               commLogs={scopedCommLogs}
               meetingLogs={scopedMeetingLogs}
+              docs={scopedDocs}
+              onAddDoc={handleAddDoc}
+              onDeleteDoc={handleDeleteDoc}
             />
           )}
 
@@ -1868,6 +1965,23 @@ export default function App() {
               onAddBilling={handleAddBilling}
               onUpdateBilling={handleUpdateBilling}
               onDeleteBilling={handleDeleteBilling}
+            />
+          )}
+
+          {currentView === "kassite" && (
+            <KasSiteView
+              kasTransactions={kasTransactions}
+              kasReplenishments={kasReplenishments}
+              projects={scopedProjects}
+              clients={scopedClients}
+              currentUser={currentUser}
+              users={users}
+              onAddTransaction={handleAddKasTransaction}
+              onUpdateTransaction={handleUpdateKasTransaction}
+              onDeleteTransaction={handleDeleteKasTransaction}
+              onAddReplenishment={handleAddReplenishment}
+              onUpdateReplenishment={handleUpdateReplenishment}
+              onDeleteReplenishment={handleDeleteReplenishment}
             />
           )}
 
