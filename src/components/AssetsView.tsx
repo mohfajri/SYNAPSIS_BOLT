@@ -52,6 +52,7 @@ export default function AssetsView({
   const [serialNumber, setSerialNumber] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [clientRS, setClientRS] = useState("");
+  const [roomId, setRoomId] = useState("");
   const [pic, setPic] = useState("");
   const [status, setStatus] = useState<"Aktif" | "Rusak" | "Maintenance">("Aktif");
   const [notes, setNotes] = useState("");
@@ -77,11 +78,16 @@ export default function AssetsView({
   // Hospital List Reference
   const rsNames = clients.map(c => c.namaRS);
 
+  // Active client's rooms
+  const selectedClient = clients.find(c => c.namaRS.toLowerCase().trim() === clientRS.toLowerCase().trim());
+  const clientRooms = selectedClient?.rooms || [];
+
   const handleOpenNew = () => {
     setCategory(activeCategory);
     setSerialNumber("");
     setDeviceName("");
     setClientRS(rsNames[0] || "Kantor Pusat / Umum");
+    setRoomId("");
     setPic(currentUser?.name || "");
     setStatus("Aktif");
     setNotes("");
@@ -101,6 +107,7 @@ export default function AssetsView({
     setSerialNumber(as.serialNumber || "");
     setDeviceName(as.deviceName || "");
     setClientRS(as.clientRS || rsNames[0] || "Kantor Pusat / Umum");
+    setRoomId(as.roomId || "");
     setPic(as.pic || "");
     setStatus(as.status as any);
     setNotes(as.notes || "");
@@ -152,11 +159,15 @@ export default function AssetsView({
       bandwidth: band
     };
 
+    const selectedRoom = clientRooms.find(r => r.id === roomId);
+
     const payload: Partial<Asset> = {
       category,
       serialNumber,
       deviceName,
       clientRS,
+      roomId,
+      roomName: selectedRoom ? selectedRoom.name : "",
       pic,
       status,
       notes,
@@ -388,6 +399,11 @@ export default function AssetsView({
                           <Activity className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                           {as.clientRS}
                         </span>
+                        {as.roomName && (
+                          <div className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded w-fit mt-1.5 flex items-center gap-1 border border-slate-200 dark:border-slate-700">
+                            🏢 Ruangan: {as.roomName}
+                          </div>
+                        )}
                         {as.notes && <p className="text-[10.5px] italic font-normal text-slate-450 mt-1 line-clamp-1">{as.notes}</p>}
                       </td>
 
@@ -566,13 +582,39 @@ export default function AssetsView({
                     <label className="text-[10px] text-slate-500 uppercase tracking-widest">Lokasi RS Penerima</label>
                     <select
                       value={clientRS}
-                      onChange={(e) => setClientRS(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      onChange={(e) => {
+                        setClientRS(e.target.value);
+                        setRoomId("");
+                      }}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-bold"
                     >
                       {rsNames.map(name => <option key={name} value={name}>{name}</option>)}
                       <option value="Kantor Pusat / Umum">Kantor Pusat / Umum</option>
                     </select>
                   </div>
+
+                  {clientRS !== "Kantor Pusat / Umum" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest">Ruangan / Penempatan</label>
+                      <select
+                        value={roomId}
+                        onChange={(e) => setRoomId(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="">-- Pilih Ruangan / Belum Ditentukan --</option>
+                        {clientRooms.map(r => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} {r.floor ? `(${r.floor})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {clientRooms.length === 0 && (
+                        <p className="text-[9px] text-slate-400 italic mt-0.5">
+                          * RS ini belum mendaftarkan ruangan di Profile RS. Anda bisa mendaftarkannya terlebih dahulu di menu Profile RS agar aset dapat dipetakan secara detail.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-slate-500 uppercase tracking-widest">PIC Penanggung Jawab / Staff</label>

@@ -1,4 +1,7 @@
 import React, { useState, useRef } from "react";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Ticket, Client, Project, User } from "../types";
 import { 
   LifeBuoy, 
@@ -32,7 +35,8 @@ import {
   UploadCloud,
   ChevronDown,
   ChevronUp,
-  CheckSquare
+  CheckSquare,
+  FileSpreadsheet
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -42,6 +46,7 @@ interface TicketsViewProps {
   projects: Project[];
   currentUser: User | null;
   settings?: any;
+  users?: User[];
   onAddTicket: (ticket: Partial<Ticket>) => Promise<void>;
   onUpdateTicket: (id: string, ticket: Partial<Ticket>) => Promise<void>;
   onDeleteTicket: (id: string) => Promise<void>;
@@ -53,10 +58,69 @@ export default function TicketsView({
   projects,
   currentUser,
   settings,
+  users = [],
   onAddTicket,
   onUpdateTicket,
   onDeleteTicket
 }: TicketsViewProps) {
+  const ticketCategories = settings?.kategoriLaporan
+    ? settings.kategoriLaporan.filter((x: any) => x.active).map((x: any) => x.value)
+    : [
+         "Software/SIMRS",
+         "Hardware/PC",
+         "Network/Internet",
+         "Peripheral/Printer",
+         "Access/Account"
+      ];
+
+  const ticketSubCategories = settings?.subKategori
+    ? settings.subKategori.filter((x: any) => x.active).map((x: any) => x.value)
+    : [
+        "Software/SIMRS: EMR",
+        "Software/SIMRS: Pendaftaran",
+        "Software/SIMRS: Poli",
+        "Software/SIMRS: Apotek",
+        "Software/SIMRS: Laboratorium",
+        "Software/SIMRS: Kasir",
+        "Hardware/PC: PC Desktop",
+        "Hardware/PC: Laptop",
+        "Hardware/PC: Monitor",
+        "Hardware/PC: RAM/Harddisk",
+        "Network/Internet: Koneksi Wifi",
+        "Network/Internet: LAN Cable",
+        "Network/Internet: Switch/Hub",
+        "Network/Internet: Mikrotik Router",
+        "Peripheral/Printer: Printer Thermal",
+        "Peripheral/Printer: Printer Inkjet",
+        "Peripheral/Printer: Barcode Scanner",
+        "Access/Account: Akun SIMRS",
+        "Access/Account: Email RS",
+        "Access/Account: Hak Akses Menu"
+      ];
+
+  const ticketProblemTypes = settings?.jenisMasalah
+    ? settings.jenisMasalah.filter((x: any) => x.active).map((x: any) => x.value)
+    : [
+        "EMR: Buka Berkas Pasien",
+        "EMR: Input Diagnosa Gagal",
+        "EMR: Cari Berkas Pasien",
+        "EMR: Resep EMR tidak tampil",
+        "Pendaftaran: Gagal Cetak Tracer",
+        "Pendaftaran: No RM Ganda",
+        "Pendaftaran: Pasien BPJS tidak valid",
+        "Apotek: Stok Obat Minus",
+        "Apotek: Resep Elektronik pending",
+        "Printer Thermal: Kertas printer macet",
+        "Printer Thermal: Cetak struk pudar / tidak jelas"
+      ];
+
+  const reportTypes = settings?.jenisLaporan
+    ? settings.jenisLaporan.filter((x: any) => x.active).map((x: any) => x.value)
+    : [
+        "Incident",
+        "Request"
+      ];
+
   const isUserScoped = !!(currentUser && 
     currentUser.siteTugas && 
     currentUser.siteTugas.toLowerCase().trim() !== "kantor pusat" &&
@@ -69,6 +133,14 @@ export default function TicketsView({
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterPicTugas, setFilterPicTugas] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset page to 1 whenever filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterProject, filterType, filterStatus, filterCategory, filterPicTugas]);
 
   // Table row expand-collapse state manager
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
@@ -86,18 +158,27 @@ export default function TicketsView({
   const [projectName, setProjectName] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [unit, setUnit] = useState("");
+  const [customUnit, setCustomUnit] = useState("");
   const [reportType, setReportType] = useState<string>("");
   const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
+  const [customSubCategory, setCustomSubCategory] = useState("");
+  const [problemType, setProblemType] = useState("");
+  const [customProblemType, setCustomProblemType] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
+  const [picPelapor, setPicPelapor] = useState("");
+  const [picTugas, setPicTugas] = useState("");
 
   // Follow-up & Penyelesaian States
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [followUpTicket, setFollowUpTicket] = useState<Ticket | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<string>("In Progress");
   const [followUpNotes, setFollowUpNotes] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpTime, setFollowUpTime] = useState("");
 
   // New customization fields:
   const [ticketNumber, setTicketNumber] = useState("");
@@ -105,6 +186,393 @@ export default function TicketsView({
   const [fileUrl, setFileUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState<"write" | "preview">("write");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportRangeType, setExportRangeType] = useState<"today" | "week" | "month" | "range" | "all" | "filtered">("today");
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const today = new Date();
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => {
+    const today = new Date();
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  });
+  const [exportMonth, setExportMonth] = useState(() => {
+    const today = new Date();
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
+  });
+
+  const handleExportExcel = () => {
+    try {
+      let ticketsToExport = [...tickets];
+      const now = new Date();
+      
+      const getStartOfDay = (d: Date) => {
+        const nd = new Date(d);
+        nd.setHours(0, 0, 0, 0);
+        return nd;
+      };
+
+      const getEndOfDay = (d: Date) => {
+        const nd = new Date(d);
+        nd.setHours(23, 59, 59, 999);
+        return nd;
+      };
+
+      if (exportRangeType === "today") {
+        const todayStart = getStartOfDay(now);
+        const todayEnd = getEndOfDay(now);
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= todayStart && tDate <= todayEnd;
+        });
+      } else if (exportRangeType === "week") {
+        const currentDay = now.getDay();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - currentDay);
+        const weekStart = getStartOfDay(startOfWeek);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        const weekEnd = getEndOfDay(endOfWeek);
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= weekStart && tDate <= weekEnd;
+        });
+      } else if (exportRangeType === "month") {
+        if (!exportMonth) {
+          alert("Silakan pilih bulan ekspor terlebih dahulu!");
+          return;
+        }
+        const [yearStr, monthStr] = exportMonth.split("-");
+        const year = parseInt(yearStr, 10);
+        const monthIndex = parseInt(monthStr, 10) - 1;
+
+        const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+        const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= monthStart && tDate <= monthEnd;
+        });
+      } else if (exportRangeType === "range") {
+        if (!exportStartDate || !exportEndDate) {
+          alert("Silakan tentukan Rentang Tanggal Mulai dan Selesai!");
+          return;
+        }
+        const customStart = getStartOfDay(new Date(exportStartDate));
+        const customEnd = getEndOfDay(new Date(exportEndDate));
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= customStart && tDate <= customEnd;
+        });
+      } else if (exportRangeType === "filtered") {
+        ticketsToExport = [...filteredTickets];
+      }
+
+      if (ticketsToExport.length === 0) {
+        alert("Tidak ada data tiket yang ditemukan pada rentang waktu tersebut untuk diekspor.");
+        return;
+      }
+
+      const data = ticketsToExport.map((t, idx) => {
+        let formattedDate = "";
+        try {
+          const dt = new Date(t.createdAt);
+          formattedDate = `${dt.getDate().toString().padStart(2, "0")}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getFullYear()} ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+        } catch (_) {
+          formattedDate = t.createdAt;
+        }
+
+        return {
+          "No.": idx + 1,
+          "No. Tiket": t.ticketNumber || "-",
+          "Tanggal": formattedDate,
+          "Lokasi/Site": t.projectName,
+          "Ruangan/Unit": t.unit,
+          "Pelapor (User)": t.reporterName,
+          "PIC Pelapor": t.picPelapor || "-",
+          "PIC Tugas": t.picTugas || "Belum Ditugaskan",
+          "Jenis Laporan": t.reportType,
+          "Kategori": t.category || "-",
+          "Sub Kategori": t.subCategory || "-",
+          "Jenis Masalah": t.problemType || "-",
+          "Prioritas": t.priority,
+          "Judul Kasus": t.title,
+          "Detail Deskripsi": t.description || "-",
+          "Status": t.status
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      
+      const maxLens = Object.keys(data[0] || {}).map(key => {
+        let maxLen = key.length;
+        data.forEach(row => {
+          const val = (row as any)[key];
+          const len = val ? String(val).length : 0;
+          if (len > maxLen) maxLen = len;
+        });
+        return { wch: Math.min(Math.max(maxLen + 3, 10), 50) };
+      });
+      worksheet["!cols"] = maxLens;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Helpdesk_Tickets");
+
+      let rangeLabel = "Semua";
+      if (exportRangeType === "today") rangeLabel = "Hari_Ini";
+      else if (exportRangeType === "week") rangeLabel = "Minggu_Ini";
+      else if (exportRangeType === "month") rangeLabel = `Bulan_${exportMonth}`;
+      else if (exportRangeType === "range") rangeLabel = `${exportStartDate}_sd_${exportEndDate}`;
+      else if (exportRangeType === "filtered") rangeLabel = "Filtered_View";
+
+      const filename = `Data_Tiket_Helpdesk_${rangeLabel}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+
+      setIsExportModalOpen(false);
+    } catch (err: any) {
+      console.error("Export failed", err);
+      alert("Gagal melakukan ekspor data ke Excel: " + err.message);
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      let ticketsToExport = [...tickets];
+      const now = new Date();
+      
+      const getStartOfDay = (d: Date) => {
+        const nd = new Date(d);
+        nd.setHours(0, 0, 0, 0);
+        return nd;
+      };
+
+      const getEndOfDay = (d: Date) => {
+        const nd = new Date(d);
+        nd.setHours(23, 59, 59, 999);
+        return nd;
+      };
+
+      if (exportRangeType === "today") {
+        const todayStart = getStartOfDay(now);
+        const todayEnd = getEndOfDay(now);
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= todayStart && tDate <= todayEnd;
+        });
+      } else if (exportRangeType === "week") {
+        const currentDay = now.getDay();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - currentDay);
+        const weekStart = getStartOfDay(startOfWeek);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        const weekEnd = getEndOfDay(endOfWeek);
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= weekStart && tDate <= weekEnd;
+        });
+      } else if (exportRangeType === "month") {
+        if (!exportMonth) {
+          alert("Silakan pilih bulan ekspor terlebih dahulu!");
+          return;
+        }
+        const [yearStr, monthStr] = exportMonth.split("-");
+        const year = parseInt(yearStr, 10);
+        const monthIndex = parseInt(monthStr, 10) - 1;
+
+        const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+        const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= monthStart && tDate <= monthEnd;
+        });
+      } else if (exportRangeType === "range") {
+        if (!exportStartDate || !exportEndDate) {
+          alert("Silakan tentukan Rentang Tanggal Mulai dan Selesai!");
+          return;
+        }
+        const customStart = getStartOfDay(new Date(exportStartDate));
+        const customEnd = getEndOfDay(new Date(exportEndDate));
+
+        ticketsToExport = tickets.filter(t => {
+          const tDate = new Date(t.createdAt);
+          return tDate >= customStart && tDate <= customEnd;
+        });
+      } else if (exportRangeType === "filtered") {
+        ticketsToExport = [...filteredTickets];
+      }
+
+      if (ticketsToExport.length === 0) {
+        alert("Tidak ada data tiket yang ditemukan pada rentang waktu tersebut untuk diekspor ke PDF.");
+        return;
+      }
+
+      // Initialize jsPDF (Landscape, mm, A4)
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
+
+      // Styling details for professional document header
+      doc.setFillColor(30, 41, 59); // dark slate Slate-800
+      doc.rect(0, 0, 297, 30, "F");
+
+      // Draw horizontal light silver separator
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.5);
+
+      // Title & Header Text
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("LAPORAN WORK TICKETS & HELPDESK", 14, 13);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(203, 213, 225); // slate-300
+      const formattedNow = now.toLocaleDateString("id-ID", {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      doc.text(`Dicetak Pada: ${formattedNow}  |  Oleh: ${currentUser?.name || currentUser?.username || "Sistem"}`, 14, 19);
+
+      // Filter Information Highlight
+      let rangeText = "Semua Tiket";
+      if (exportRangeType === "today") rangeText = "Hari Ini (Today)";
+      else if (exportRangeType === "week") rangeText = "Minggu Ini (This Week)";
+      else if (exportRangeType === "month") {
+        const [yearStr, monthStr] = exportMonth.split("-");
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        rangeText = `Bulan ${months[parseInt(monthStr, 10) - 1]} ${yearStr}`;
+      } else if (exportRangeType === "range") {
+        const fm = (ds: string) => {
+          try {
+            const parts = ds.split("-");
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } catch (_) { return ds; }
+        };
+        rangeText = `Rentang ${fm(exportStartDate)} s/d ${fm(exportEndDate)}`;
+      } else if (exportRangeType === "filtered") {
+        rangeText = "Filtered View (Sesuai Filter di Tabel halaman utama)";
+      }
+
+      // Add Range text badge next to the header on the right or below
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(56, 189, 248); // light blue sky-400
+      doc.text(`KRITERIA EKSPOR: ${rangeText.toUpperCase()}`, 14, 25);
+
+      // Prepare table columns and rows
+      const tableHeaders = [
+        ["No.", "No. Tiket", "Tanggal", "Lokasi/Site", "Ruangan/Unit", "Pelapor", "P.I.C.", "Kategori", "Isu / Judul Kasus", "Status"]
+      ];
+
+      const tableRows = ticketsToExport.map((t, idx) => {
+        let formattedDate = "";
+        try {
+          const dt = new Date(t.createdAt);
+          const dStr = dt.getDate().toString().padStart(2, "0");
+          const mStr = (dt.getMonth() + 1).toString().padStart(2, "0");
+          const hr = dt.getHours().toString().padStart(2, "0");
+          const mn = dt.getMinutes().toString().padStart(2, "0");
+          formattedDate = `${dStr}-${mStr}-${dt.getFullYear()} ${hr}:${mn}`;
+        } catch (_) {
+          formattedDate = t.createdAt;
+        }
+
+        return [
+          idx + 1,
+          t.ticketNumber || "-",
+          formattedDate,
+          t.projectName || "-",
+          t.unit || "-",
+          t.reporterName || "-",
+          t.picTugas || "Belum Ditugaskan",
+          t.category || "-",
+          t.title || "-",
+          t.status
+        ];
+      });
+
+      // Draw autoTable start at y = 35
+      autoTable(doc, {
+        head: tableHeaders,
+        body: tableRows,
+        startY: 35,
+        theme: "striped",
+        headStyles: {
+          fillColor: [79, 70, 229], // Indigo 600
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 8,
+          halign: "left"
+        },
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 2,
+          font: "helvetica",
+          overflow: "linebreak"
+        },
+        columnStyles: {
+          0: { cellWidth: 10 }, // No.
+          1: { cellWidth: 26 }, // No. Tiket
+          2: { cellWidth: 28 }, // Tanggal
+          3: { cellWidth: 32 }, // Lokasi
+          4: { cellWidth: 30 }, // Ruangan
+          5: { cellWidth: 25 }, // Pelapor
+          6: { cellWidth: 25 }, // PIC
+          7: { cellWidth: 24 }, // Kategori
+          8: { cellWidth: 72 }, // Judul
+          9: { cellWidth: 21 }, // Status
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252] // light slate bg
+        },
+        didDrawPage: (data) => {
+          // Footer
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.text(
+            `Halaman ${data.pageNumber}`,
+            297 - 14 - 15,
+            202
+          );
+          doc.text(
+            "Sistem Informasi Manajemen Pelayanan RS - Helpdesk & Troubleshoot Module",
+            14,
+            202
+          );
+        },
+        margin: { top: 35, bottom: 15, left: 14, right: 14 }
+      });
+
+      let rangeLabel = "Semua";
+      if (exportRangeType === "today") rangeLabel = "Hari_Ini";
+      else if (exportRangeType === "week") rangeLabel = "Minggu_Ini";
+      else if (exportRangeType === "month") rangeLabel = `Bulan_${exportMonth}`;
+      else if (exportRangeType === "range") rangeLabel = `${exportStartDate}_sd_${exportEndDate}`;
+      else if (exportRangeType === "filtered") rangeLabel = "Filtered_View";
+
+      const filename = `Data_Tiket_Helpdesk_${rangeLabel}_${new Date().toISOString().split("T")[0]}.pdf`;
+      doc.save(filename);
+
+      setIsExportModalOpen(false);
+    } catch (err: any) {
+      console.error("Export PDF failed", err);
+      alert("Gagal melakukan ekspor data ke PDF: " + err.message);
+    }
+  };
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -153,8 +621,13 @@ export default function TicketsView({
     setProjectName(isUserScoped ? (currentUser?.siteTugas || "") : "");
     setReporterName("");
     setUnit("");
+    setCustomUnit("");
     setReportType("");
     setCategory("");
+    setSubCategory("");
+    setCustomSubCategory("");
+    setProblemType("");
+    setCustomProblemType("");
     setTitle("");
     setDescription("");
     setStatus("Open");
@@ -166,6 +639,8 @@ export default function TicketsView({
     setFileUrl("");
     setFileName("");
     setActiveEditorTab("write");
+    setPicPelapor(currentUser?.name || currentUser?.username || "");
+    setPicTugas("");
     setIsEditing(false);
     setIsFormOpen(true);
   };
@@ -176,13 +651,88 @@ export default function TicketsView({
 
     setProjectName(tk.projectName || "");
     setReporterName(tk.reporterName || "");
-    setUnit(tk.unit || "");
     setReportType(tk.reportType || "");
-    setCategory(tk.category || "");
+    
+    const tCategory = tk.category || "";
+    setCategory(tCategory);
+
+    // Dynamic resolution of subCategory and problemType
+    const isStdSub = ticketSubCategories
+      .filter((val: string) => {
+        const parts = val.split(":");
+        return parts[0].trim() === tCategory.trim();
+      })
+      .map((val: string) => {
+        const parts = val.split(":");
+        return parts.slice(1).join(":").trim();
+      })
+      .includes(tk.subCategory || "");
+
+    if (tk.subCategory) {
+      if (isStdSub) {
+        setSubCategory(tk.subCategory);
+        setCustomSubCategory("");
+      } else {
+        setSubCategory("Lainnya");
+        setCustomSubCategory(tk.subCategory);
+      }
+    } else {
+      setSubCategory("");
+      setCustomSubCategory("");
+    }
+
+    const tSub = tk.subCategory || "";
+    const isActiveSub = isStdSub ? tSub : "Lainnya";
+    const isStdProb = ticketProblemTypes
+      .filter((val: string) => {
+        const parts = val.split(":");
+        return parts[0].trim() === isActiveSub.trim();
+      })
+      .map((val: string) => {
+        const parts = val.split(":");
+        return parts.slice(1).join(":").trim();
+      })
+      .includes(tk.problemType || "");
+
+    if (tk.problemType) {
+      if (isStdProb) {
+        setProblemType(tk.problemType);
+        setCustomProblemType("");
+      } else {
+        setProblemType("Lainnya");
+        setCustomProblemType(tk.problemType);
+      }
+    } else {
+      setProblemType("");
+      setCustomProblemType("");
+    }
+
+    // Handing unit / ruangan
+    const selectedClientObj = clients.find(cl => cl.namaRS === tk.projectName);
+    const clientRooms = selectedClientObj?.rooms || [];
+    const isStdUnit = clientRooms.some(rm => rm.name === tk.unit);
+    if (tk.unit) {
+      if (clientRooms.length > 0 && isStdUnit) {
+        setUnit(tk.unit);
+        setCustomUnit("");
+      } else if (clientRooms.length > 0) {
+        setUnit("Lainnya");
+        setCustomUnit(tk.unit);
+      } else {
+        setUnit(tk.unit);
+        setCustomUnit("");
+      }
+    } else {
+      setUnit("");
+      setCustomUnit("");
+    }
+
     setTitle(tk.title || "");
     setDescription(tk.description || "");
     setStatus(tk.status || "");
     setPriority(tk.priority || "");
+    setPicPelapor(tk.picPelapor || "");
+    setPicTugas(tk.picTugas || "");
     setEditId(tk.id);
 
     // Form assignments
@@ -217,10 +767,13 @@ export default function TicketsView({
       alert("Nama Pelapor RS / User wajib diisi!");
       return;
     }
-    if (!unit.trim()) {
-      alert("Unit / Bagian Pelapor wajib diisi!");
+
+    const finalUnit = unit === "Lainnya" ? customUnit.trim() : unit.trim();
+    if (!finalUnit) {
+      alert("Unit / Ruangan pelapor wajib diisi!");
       return;
     }
+
     if (!status) {
       alert("Silakan pilih Status terlebih dahulu!");
       return;
@@ -234,14 +787,19 @@ export default function TicketsView({
       return;
     }
 
+    const finalSubCategory = subCategory === "Lainnya" ? customSubCategory.trim() : subCategory.trim();
+    const finalProblemType = problemType === "Lainnya" ? customProblemType.trim() : problemType.trim();
+
     const finalCreatedAt = customCreatedAt ? new Date(customCreatedAt).toISOString() : new Date().toISOString();
 
     const payload: Partial<Ticket> = {
       projectName,
       reporterName,
-      unit,
+      unit: finalUnit,
       reportType: reportType as any,
       category,
+      subCategory: finalSubCategory || undefined,
+      problemType: finalProblemType || undefined,
       title,
       description,
       status,
@@ -249,7 +807,9 @@ export default function TicketsView({
       ticketNumber,
       createdAt: finalCreatedAt,
       fileUrl,
-      fileName
+      fileName,
+      picPelapor: picPelapor || (currentUser?.name || currentUser?.username || ""),
+      picTugas: picTugas || undefined
     };
 
     if (isEditing) {
@@ -262,6 +822,10 @@ export default function TicketsView({
 
   // Follow up/Penyelesaian Button actions
   const handleOpenFollowUp = (tk: Ticket) => {
+    if (tk.status === "Solved" || tk.status === "Resolved" || tk.status === "Closed") {
+      alert("Tiket sudah diselesaikan (Solved) dan tidak dapat ditindaklanjuti lagi.");
+      return;
+    }
     setFollowUpTicket(tk);
     if (tk.status === "Open" || !tk.status) {
       setFollowUpStatus("In Progress");
@@ -269,6 +833,15 @@ export default function TicketsView({
       setFollowUpStatus("Solved");
     }
     setFollowUpNotes("");
+
+    // Initialize date and time to current localized time
+    const now = new Date();
+    const pad = (num: number) => String(num).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    setFollowUpDate(dateStr);
+    setFollowUpTime(timeStr);
+
     setIsFollowUpOpen(true);
   };
 
@@ -284,8 +857,19 @@ export default function TicketsView({
       return;
     }
 
-    const now = new Date();
-    const timestampStr = formatTicketDate(now.toISOString());
+    let timestampStr = "";
+    try {
+      // Use custom user-selected date & time for the action timestamp if valid
+      const customDateTime = new Date(`${followUpDate}T${followUpTime}`);
+      if (!isNaN(customDateTime.getTime())) {
+        timestampStr = formatTicketDate(customDateTime.toISOString());
+      } else {
+        timestampStr = formatTicketDate(new Date().toISOString());
+      }
+    } catch (err) {
+      timestampStr = formatTicketDate(new Date().toISOString());
+    }
+
     const operatorName = currentUser?.name || currentUser?.username || "Petugas";
 
     const statusLabel = followUpStatus === "Solved" ? "Solved (Selesai)" : followUpStatus === "Closed" ? "Closed (Terkunci Selesai)" : "In Progress (Dalam Penindakan)";
@@ -511,23 +1095,6 @@ export default function TicketsView({
     return html.replace(/\n/g, "<br />");
   };
 
-  const ticketCategories = settings?.kategoriLaporan
-    ? settings.kategoriLaporan.filter((x: any) => x.active).map((x: any) => x.value)
-    : [
-        "Software/SIMRS",
-        "Hardware/PC",
-        "Network/Internet",
-        "Peripheral/Printer",
-        "Access/Account"
-      ];
-
-  const reportTypes = settings?.jenisLaporan
-    ? settings.jenisLaporan.filter((x: any) => x.active).map((x: any) => x.value)
-    : [
-        "Incident",
-        "Request"
-      ];
-
   // Metric Calculation helper
   const total = tickets.length;
   const openCount = tickets.filter(t => t.status === "Open").length;
@@ -538,6 +1105,13 @@ export default function TicketsView({
 
   const siteList = clients.map(c => c.namaRS);
   const allRefs = Array.from(new Set([...siteList, "Global / Umum"]));
+
+  const uniquePicTugasList = Array.from(
+    new Set([
+      ...users.filter(u => u.statusAktif !== false).map(u => u.name),
+      ...tickets.map(t => t.picTugas).filter((pic): pic is string => !!pic)
+    ])
+  ).filter(Boolean).sort();
 
   // Global search filters
   const filteredTickets = tickets.filter(t => {
@@ -556,9 +1130,17 @@ export default function TicketsView({
       (filterStatus === "Solved" && t.status === "Resolved") ||
       (filterStatus === "Resolved" && t.status === "Solved");
     const matchesCategory = !filterCategory || t.category === filterCategory;
+    const matchesPicTugas = !filterPicTugas || (t.picTugas && t.picTugas.toLowerCase().trim() === filterPicTugas.toLowerCase().trim());
 
-    return matchesSearch && matchesProject && matchesType && matchesStatus && matchesCategory;
+    return matchesSearch && matchesProject && matchesType && matchesStatus && matchesCategory && matchesPicTugas;
   });
+
+  const totalItems = filteredTickets.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+  const startIndex = (activePage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-10" id="tickets-view-container">
@@ -576,14 +1158,23 @@ export default function TicketsView({
               <p className="text-xs text-slate-500 mt-1">Pencatatan masalah harian, insiden, atau permintaan operasional langsung dari representatif RS & client.</p>
             </div>
 
-            {currentUser?.role !== "Client" && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={handleOpenNew}
-                className="px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                onClick={() => setIsExportModalOpen(true)}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-750 text-white text-xs font-extrabold rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Buka Tiket Troubleshoot
+                <FileSpreadsheet className="w-4 h-4" /> Ekspor ke Excel
               </button>
-            )}
+
+              {currentUser?.role !== "Client" && (
+                <button
+                  onClick={handleOpenNew}
+                  className="px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl flex items-center gap-1.5 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Buka Tiket Troubleshoot
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Metrics Panel */}
@@ -694,12 +1285,26 @@ export default function TicketsView({
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold"
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer"
               >
                 <option value="">Semua Status</option>
                 <option value="Open">Open</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Solved">Solved</option>
+                <option value="Closed">Closed</option>
+              </select>
+
+              <select
+                value={filterPicTugas}
+                onChange={(e) => setFilterPicTugas(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer"
+              >
+                <option value="">Semua PIC Tugas</option>
+                {uniquePicTugasList.map((pic) => (
+                  <option key={pic} value={pic}>
+                    {pic}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -728,7 +1333,7 @@ export default function TicketsView({
                       </td>
                     </tr>
                   ) : (
-              filteredTickets.map(tk => {
+              paginatedTickets.map(tk => {
                 const isExpanded = expandedTicketId === tk.id;
                 const isClosed = tk.status === "Closed";
                 const isSolved = tk.status === "Solved" || tk.status === "Resolved";
@@ -781,11 +1386,23 @@ export default function TicketsView({
                             <UserIcon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                             <span>{tk.reporterName}</span>
                           </span>
-                          {tk.category && (
-                            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded border border-indigo-150/40 dark:border-indigo-900/30 text-[9px] w-fit font-bold">
-                              {tk.category}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap gap-1">
+                            {tk.category && (
+                              <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded border border-indigo-150/40 dark:border-indigo-900/30 text-[9px] font-bold">
+                                {tk.category}
+                              </span>
+                            )}
+                            {tk.subCategory && (
+                              <span className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded border border-blue-150/40 dark:border-blue-900/30 text-[9px] font-bold" title="Sub Kategori">
+                                {tk.subCategory}
+                              </span>
+                            )}
+                            {tk.problemType && (
+                              <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-150/40 dark:border-amber-900/30 text-[9px] font-bold" title="Jenis Masalah">
+                                {tk.problemType}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -809,7 +1426,7 @@ export default function TicketsView({
                       <td className="px-5 py-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1.5">
                           <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border text-center w-fit ${
-                            tk.status === "Resolved" || tk.status === "Solved" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
+                            tk.status === "Resolved" || tk.status === "Solved" || tk.status === "Closed" ? "bg-emerald-550/10 text-emerald-600 dark:text-emerald-400 border-emerald-505/20" :
                             tk.status === "In Progress" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" :
                             "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
                           }`}>
@@ -844,13 +1461,13 @@ export default function TicketsView({
                             <>
                               <button
                                 onClick={() => handleOpenFollowUp(tk)}
-                                disabled={isClosed}
+                                disabled={isClosed || isSolved}
                                 className={`p-2 rounded-xl border border-slate-100 dark:border-slate-800 transition-colors ${
-                                  isClosed
+                                  isClosed || isSolved
                                     ? "text-slate-200 dark:text-slate-800 cursor-not-allowed opacity-35"
                                     : "text-slate-400 hover:text-emerald-500 hover:bg-slate-150 dark:hover:bg-slate-800 cursor-pointer"
                                 }`}
-                                title={isClosed ? "Tiket sudah Closed (Selesai) dan terkunci" : "Tambahkan Follow up / Solusi Penyelesaian (Open -> In Progress / Solved)"}
+                                title={isClosed ? "Tiket sudah Closed (Selesai) dan terkunci" : isSolved ? "Tiket sudah Solved (Selesai), tidak perlu follow up" : "Tambahkan Follow up / Solusi Penyelesaian (Open -> In Progress / Solved)"}
                               >
                                 <CheckSquare className="w-3.5 h-3.5" />
                               </button>
@@ -983,8 +1600,7 @@ export default function TicketsView({
                                   <div className="flex items-center justify-between">
                                     <span>Status Pengerjaan:</span>
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                                      tk.status === "Closed" ? "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400" :
-                                      tk.status === "Resolved" || tk.status === "Solved" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
+                                      tk.status === "Closed" || tk.status === "Resolved" || tk.status === "Solved" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
                                       tk.status === "In Progress" ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" :
                                       "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
                                     }`}>{tk.status}</span>
@@ -994,12 +1610,20 @@ export default function TicketsView({
                                     <span className="text-slate-800 dark:text-slate-200 font-bold">{tk.priority}</span>
                                   </div>
                                   <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-2 pb-1">
+                                    <span>PIC Pelapor (User):</span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-bold">{tk.picPelapor || tk.createdBy || "System/Anonim"}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between font-bold">
+                                    <span>PIC Tugas:</span>
+                                    <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{tk.picTugas || "Belum Ditugaskan"}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-2 pb-1 text-[10px]">
                                     <span>Disubmit Oleh:</span>
-                                    <span className="text-indigo-600 dark:text-indigo-400 font-black">{tk.createdBy || "System/Anonim"}</span>
+                                    <span className="text-slate-500 dark:text-slate-400 font-bold">{tk.createdBy || "System/Anonim"}</span>
                                   </div>
                                   {currentUser?.role !== "Client" && (
                                     <div className="space-y-2 mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">
-                                      {!isClosed && (
+                                      {!isClosed && !isSolved && (
                                         <button
                                           type="button"
                                           onClick={() => handleOpenFollowUp(tk)}
@@ -1062,6 +1686,84 @@ export default function TicketsView({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination controls (Requirement 5) */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-950/10 rounded-b-2xl select-none">
+          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            Menampilkan <span className="font-extrabold text-slate-800 dark:text-slate-200">{startIndex + 1}</span> - <span className="font-extrabold text-slate-800 dark:text-slate-200">{Math.min(endIndex, totalItems)}</span> dari <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{totalItems}</span> tiket
+          </span>
+          
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              disabled={activePage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold tracking-tight bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="Halaman Pertama"
+            >
+              First
+            </button>
+
+            <button
+              disabled={activePage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold tracking-tight bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="Sebelumnya"
+            >
+              Prev
+            </button>
+
+            {/* Pages indicator list */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                // Only show up to 5 page indicators centered around the active page, or all if totalPages <= 5
+                const shouldShow = totalPages <= 5 || Math.abs(pageNum - activePage) <= 2 || pageNum === 1 || pageNum === totalPages;
+                
+                if (!shouldShow) {
+                  // Ellipsis check
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return <span key={pageNum} className="text-slate-400 px-1 text-[11px]">...</span>;
+                  }
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10.5px] font-black transition-all cursor-pointer ${
+                      activePage === pageNum
+                        ? "bg-indigo-600 text-white shadow-xs"
+                        : "border border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              disabled={activePage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold tracking-tight bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="Selanjutnya"
+            >
+              Next
+            </button>
+
+            <button
+              disabled={activePage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold tracking-tight bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="Halaman Terakhir"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   </>
       ) : (
@@ -1172,7 +1874,13 @@ export default function TicketsView({
                   <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest">Kategori Laporan *</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                    onChange={(e) => {
+                      setCategory(e.target.value);
+                      setSubCategory("");
+                      setCustomSubCategory("");
+                      setProblemType("");
+                      setCustomProblemType("");
+                    }}
                     className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-200 focus:border-indigo-500 transition-all font-bold"
                   >
                     <option value="">-- Pilih Kategori Laporan --</option>
@@ -1181,6 +1889,94 @@ export default function TicketsView({
                     ))}
                   </select>
                 </div>
+
+                {/* Dynamic Sub Kategori Selector */}
+                {category && (
+                  <div className="flex flex-col gap-1.5 antialiased animate-fadeIn">
+                    <label className="text-[10px] font-bold text-slate-555 uppercase tracking-widest">Sub Kategori Laporan *</label>
+                    <select
+                      value={subCategory}
+                      onChange={(e) => {
+                        setSubCategory(e.target.value);
+                        setCustomSubCategory("");
+                        setProblemType("");
+                        setCustomProblemType("");
+                      }}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-205 focus:border-indigo-500 transition-all font-bold"
+                    >
+                      <option value="">-- Pilih Sub Kategori --</option>
+                      {ticketSubCategories
+                        .filter((val: string) => {
+                          const parts = val.split(":");
+                          return parts[0].trim() === category.trim();
+                        })
+                        .map((val: string) => {
+                          const parts = val.split(":");
+                          const cleanVal = parts.slice(1).join(":").trim();
+                          return (
+                            <option key={val} value={cleanVal}>{cleanVal}</option>
+                          );
+                        })
+                      }
+                      <option value="Lainnya">Lainnya (Tulis Manual)</option>
+                    </select>
+
+                    {subCategory === "Lainnya" && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ketik Sub Kategori Lainnya..."
+                        value={customSubCategory}
+                        onChange={(e) => setCustomSubCategory(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 mt-1 py-2 px-3 rounded-xl text-slate-855 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500"
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Dynamic Jenis Masalah Selector */}
+                {category && (subCategory || customSubCategory) && (
+                  <div className="flex flex-col gap-1.5 antialiased animate-fadeIn">
+                    <label className="text-[10px] font-bold text-slate-555 uppercase tracking-widest">Jenis Masalah *</label>
+                    <select
+                      value={problemType}
+                      onChange={(e) => {
+                        setProblemType(e.target.value);
+                        setCustomProblemType("");
+                      }}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-205 focus:border-indigo-500 transition-all font-bold"
+                    >
+                      <option value="">-- Pilih Jenis Masalah --</option>
+                      {ticketProblemTypes
+                        .filter((val: string) => {
+                          const parts = val.split(":");
+                          const subPart = parts[0].trim();
+                          const activeSubVal = subCategory === "Lainnya" ? customSubCategory.trim() : subCategory.trim();
+                          return subPart.toLowerCase() === activeSubVal.toLowerCase();
+                        })
+                        .map((val: string) => {
+                          const parts = val.split(":");
+                          const cleanVal = parts.slice(1).join(":").trim();
+                          return (
+                            <option key={val} value={cleanVal}>{cleanVal}</option>
+                          );
+                        })
+                      }
+                      <option value="Lainnya">Lainnya (Tulis Manual)</option>
+                    </select>
+
+                    {problemType === "Lainnya" && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ketik Jenis Masalah Lainnya..."
+                        value={customProblemType}
+                        onChange={(e) => setCustomProblemType(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 mt-1 py-2 px-3 rounded-xl text-slate-850 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500"
+                      />
+                    )}
+                  </div>
+                )}
 
                 {/* Reporter Name (Indonesian prompt) */}
                 <div className="flex flex-col gap-1.5">
@@ -1191,21 +1987,68 @@ export default function TicketsView({
                     value={reporterName}
                     onChange={(e) => setReporterName(e.target.value)}
                     placeholder="Contoh: dr. Setiawan / Pak Budi PIC RS"
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500"
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500"
                   />
                 </div>
 
-                {/* Reporter Unit */}
+                {/* Reporter Unit Selector (Sourced from Hospital Profile Rooms) */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest">Unit / Bagian Pelapor *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Rekam Medis / Poli Anak / UGD"
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500"
-                  />
+                  <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest font-sans">Ruangan / Unit Pelapor *</label>
+                  {(() => {
+                    const currentSiteName = projectName || userSite || "";
+                    const selectedClientObj = clients.find(cl => 
+                      cl.namaRS && currentSiteName && cl.namaRS.toLowerCase().trim() === currentSiteName.toLowerCase().trim()
+                    );
+                    const clientRooms = selectedClientObj?.rooms || [];
+                    if (clientRooms.length > 0) {
+                      return (
+                        <>
+                          <select
+                            value={unit}
+                            onChange={(e) => {
+                              setUnit(e.target.value);
+                              setCustomUnit("");
+                            }}
+                            className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-200 focus:border-indigo-500 transition-all font-bold text-xs cursor-pointer"
+                          >
+                            <option value="">-- Pilih Ruangan / Unit --</option>
+                            {clientRooms.map((rm) => (
+                              <option key={rm.id || rm.name} value={rm.name}>{rm.name}</option>
+                            ))}
+                            <option value="Lainnya">Lainnya (Ketik Manual)</option>
+                          </select>
+                          {unit === "Lainnya" && (
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ketik Ruangan / Unit Baru..."
+                              value={customUnit}
+                              onChange={(e) => setCustomUnit(e.target.value)}
+                              className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 mt-1.5 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500 text-xs"
+                            />
+                          )}
+                        </>
+                      );
+                    } else {
+                      return (
+                        <div className="space-y-1.5">
+                          {!currentSiteName && (
+                            <div className="text-[10px] font-bold text-amber-500 dark:text-amber-400">
+                              ⚠️ Pilih Lokasi Site terlebih dahulu untuk memuat data Ruangan
+                            </div>
+                          )}
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Rekam Medis / Poli Anak / UGD"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                            className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 placeholder-slate-400 font-bold focus:border-indigo-500 text-xs"
+                          />
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
 
                 {/* Split grid for Status & Priority */}
@@ -1242,6 +2085,81 @@ export default function TicketsView({
                       <option value="Medium">Medium</option>
                       <option value="High">High</option>
                       <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* PIC Pelapor & PIC Tugas (Requirement 1 & 2) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div className="flex flex-col gap-1.5 border-indigo-100 dark:border-indigo-950/20">
+                    <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest font-sans text-indigo-600 dark:text-indigo-400">PIC Pelapor (Otomatis) *</label>
+                    <input
+                      type="text"
+                      required
+                      readOnly
+                      disabled
+                      value={picPelapor}
+                      className="bg-slate-100/60 dark:bg-slate-950/65 border border-slate-205 dark:border-slate-805 py-2.5 px-3 rounded-xl text-slate-500 dark:text-slate-400 font-bold select-none cursor-not-allowed text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest font-sans text-indigo-600 dark:text-indigo-400">PIC Tugas (Opsional)</label>
+                    <select
+                      value={picTugas}
+                      onChange={(e) => setPicTugas(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-200 font-bold focus:border-indigo-500 transition-all cursor-pointer text-xs"
+                    >
+                      <option value="">-- Pilih PIC Tugas (Opsional) --</option>
+                      {(() => {
+                        const currentSiteName = projectName || userSite || "";
+                        if (!currentSiteName) {
+                          return <option disabled value="">⚠️ Pilih Lokasi Site terlebih dahulu</option>;
+                        }
+
+                        const siteTugasClean = currentSiteName.toLowerCase().trim();
+                        // Filter active users whose site matches the ticket's site
+                        let eligiblePicTugas = users.filter(u => {
+                          if (u.statusAktif === false) return false;
+                          const uSiteClean = (u.siteTugas || "").toLowerCase().trim();
+                          return uSiteClean === siteTugasClean;
+                        });
+
+                        // Fall back to include Kantor Pusat/Support users if no users are registered to this site
+                        if (eligiblePicTugas.length === 0) {
+                          eligiblePicTugas = users.filter(u => {
+                            if (u.statusAktif === false) return false;
+                            const uSiteClean = (u.siteTugas || "").toLowerCase().trim();
+                            return !uSiteClean || uSiteClean === "kantor pusat";
+                          });
+                        }
+
+                        // Ensure the current assigned picTugas value is ALWAYS present in the options list so it never disappears on editing
+                        const namesSet = new Set(eligiblePicTugas.map(u => u.name));
+                        if (picTugas && !namesSet.has(picTugas)) {
+                          const existingUser = users.find(u => u.name === picTugas);
+                          if (existingUser) {
+                            eligiblePicTugas.push(existingUser);
+                          } else {
+                            eligiblePicTugas.push({
+                              id: "existing-pic-tugas",
+                              name: picTugas,
+                              username: picTugas,
+                              statusAktif: true
+                            } as any);
+                          }
+                        }
+
+                        if (eligiblePicTugas.length === 0) {
+                          return <option disabled value="">Tidak ada petugas aktif</option>;
+                        }
+
+                        return eligiblePicTugas.map(u => (
+                          <option key={u.id} value={u.name}>
+                            {u.name}
+                          </option>
+                        ));
+                      })()}
                     </select>
                   </div>
                 </div>
@@ -1502,65 +2420,99 @@ export default function TicketsView({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative space-y-6 text-xs text-slate-700 dark:text-slate-300 font-semibold"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 max-w-xl w-full shadow-2xl relative space-y-4 text-xs text-slate-700 dark:text-slate-300 font-semibold"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-emerald-500" />
+                  <Activity className="w-4.5 h-4.5 text-emerald-500 animate-pulse" />
                   <h3 className="text-sm font-black text-slate-850 dark:text-white tracking-tight">
                     Follow Up & Solusi Penyelesaian Tiket
                   </h3>
                 </div>
                 <button
                   onClick={() => setIsFollowUpOpen(false)}
-                  className="p-1 px-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded text-slate-400 hover:text-slate-650 transition-colors"
+                  className="p-1 px-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded text-slate-400 hover:text-slate-650 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Informational Header cards */}
-              <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-150 dark:border-slate-850 rounded-2xl space-y-2 text-[11px] font-medium leading-relaxed">
-                <div>
-                  <span className="text-slate-405 font-bold uppercase tracking-widest text-[9px] block">No. Tiket / Judul Kasus</span>
-                  <p className="text-slate-850 dark:text-white font-black text-xs font-mono">{followUpTicket.ticketNumber || "TCK-..."}</p>
-                  <p className="text-slate-600 dark:text-slate-350 font-bold mt-1 line-clamp-1">{followUpTicket.title}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 border-t border-slate-100 dark:border-slate-800 pt-2 text-[10px]">
-                  <div>
-                    <span className="text-slate-405 block font-bold uppercase tracking-widest text-[9px]">Nama Pelapor</span>
-                    <span className="text-slate-700 dark:text-slate-300 font-bold">{followUpTicket.reporterName} ({followUpTicket.unit})</span>
+              {/* Informational Header cards - Extremely compact & sleek design */}
+              <div className="bg-slate-50/80 dark:bg-slate-950/40 p-3.5 border border-slate-150/65 dark:border-slate-850/80 rounded-2xl text-[10.5px] font-medium leading-relaxed">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="col-span-2">
+                    <span className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest text-[8.5px] block">No. Tiket & Judul Kasus</span>
+                    <p className="font-extrabold mt-0.5">
+                      <span className="text-indigo-600 dark:text-indigo-400 font-mono text-[11px] font-black mr-1.5">{followUpTicket.ticketNumber || "TCK-..."}</span> 
+                      <span className="text-slate-700 dark:text-slate-300 line-clamp-1 inline">{followUpTicket.title}</span>
+                    </p>
                   </div>
                   <div>
-                    <span className="text-slate-405 block font-bold uppercase tracking-widest text-[9px]">Status Saat Ini</span>
-                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded text-[9.5px] font-black w-fit block mt-0.5">{followUpTicket.status}</span>
+                    <span className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest text-[8.5px] block">Pelapor / Unit</span>
+                    <span className="text-slate-700 dark:text-slate-300 font-bold mt-0.5 block truncate" title={`${followUpTicket.reporterName} (${followUpTicket.unit})`}>
+                      {followUpTicket.reporterName} ({followUpTicket.unit})
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest text-[8.5px] block">Status Saat Ini</span>
+                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100/60 dark:border-indigo-950/60 rounded text-[9px] font-black w-fit block mt-0.5">
+                      {followUpTicket.status}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Follow-up Form */}
               <form onSubmit={handleSubmitFollowUp} className="space-y-4">
-                {/* Updated Status Dropdown */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest">Update Status Tiket Menjadi *</label>
-                  <select
-                    required
-                    value={followUpStatus}
-                    onChange={(e) => setFollowUpStatus(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 font-bold focus:border-indigo-500"
-                  >
-                    <option value="">-- Pilih Status Baru --</option>
-                    <option value="In Progress">In Progress (Sedang Dikerjakan/Follow Up)</option>
-                    <option value="Solved">Solved (Kasus Selesai / Teratasi)</option>
-                  </select>
+                
+                {/* 3 Columns segment for Status, Date & Time Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Updated Status Dropdown */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Update Status *</label>
+                    <select
+                      required
+                      value={followUpStatus}
+                      onChange={(e) => setFollowUpStatus(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                    >
+                      <option value="">-- Pilih Status --</option>
+                      <option value="In Progress">In Progress (Follow Up)</option>
+                      <option value="Solved">Solved (Selesai)</option>
+                    </select>
+                  </div>
+
+                  {/* Action Date Picker */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tanggal Tindakan *</label>
+                    <input
+                      type="date"
+                      required
+                      value={followUpDate}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Action Time Picker / Clock Input (Requirement 2) */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Jam / Waktu Tindakan *</label>
+                    <input
+                      type="time"
+                      required
+                      value={followUpTime}
+                      onChange={(e) => setFollowUpTime(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-850 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                    />
+                  </div>
                 </div>
 
                 {/* Follow-up Notes textarea */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-550 uppercase tracking-widest">Catatan Tindakan / Deskripsi Solusi *</label>
+                  <label className="text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-widest">Catatan Tindakan / Deskripsi Solusi *</label>
                   <textarea
-                    rows={4}
+                    rows={3}
                     required
                     value={followUpNotes}
                     onChange={(e) => setFollowUpNotes(e.target.value)}
@@ -1570,11 +2522,11 @@ export default function TicketsView({
                 </div>
 
                 {/* Action controls */}
-                <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-850">
+                <div className="flex justify-end gap-2.5 pt-3.5 border-t border-slate-100 dark:border-slate-850">
                   <button
                     type="button"
                     onClick={() => setIsFollowUpOpen(false)}
-                    className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                    className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-55 dark:hover:bg-slate-850 transition-all cursor-pointer"
                   >
                     Batal
                   </button>
@@ -1586,6 +2538,209 @@ export default function TicketsView({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* =================== EXPORT DATA EXCEL & PDF MODAL =================== */}
+        {isExportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs select-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 max-w-md w-full shadow-2xl relative space-y-4 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-default"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+                  <h3 className="text-sm font-black text-slate-850 dark:text-white tracking-tight">
+                    Ekspor Tiket Helpdesk (Excel / PDF)
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="p-1 px-1.5 hover:bg-slate-100 dark:hover:bg-slate-855 rounded text-slate-400 hover:text-slate-650 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Range Type Selector */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                  Pilih Rentang Waktu Ekspor *
+                </label>
+                <select
+                  value={exportRangeType}
+                  onChange={(e) => setExportRangeType(e.target.value as any)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                >
+                  <option value="today">Hari Ini (Today)</option>
+                  <option value="week">Minggu Ini (This Week)</option>
+                  <option value="month">Pilih Bulan Tertentu</option>
+                  <option value="range">Kustom Rentang Tanggal</option>
+                  <option value="filtered">Sesuai Filter Aktif di Tabel</option>
+                  <option value="all">Semua Tiket (Tanpa Filter)</option>
+                </select>
+              </div>
+
+              {/* Conditional Inputs */}
+              {exportRangeType === "month" && (
+                <div className="flex flex-col gap-1.5 animate-fadeIn">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    Pilih Bulan & Tahun *
+                  </label>
+                  <input
+                    type="month"
+                    required
+                    value={exportMonth}
+                    onChange={(e) => setExportMonth(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                  />
+                </div>
+              )}
+
+              {exportRangeType === "range" && (
+                <div className="grid grid-cols-2 gap-3.5 animate-fadeIn">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                      Tanggal Mulai *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                      Tanggal Selesai *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 py-2.5 px-3 rounded-xl text-slate-855 dark:text-slate-100 font-bold focus:border-indigo-500 text-xs transition-colors cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Count Preview Indicator */}
+              {(() => {
+                let list = [...tickets];
+                const now = new Date();
+                
+                const getStartOfDay = (d: Date) => {
+                  const nd = new Date(d);
+                  nd.setHours(0, 0, 0, 0);
+                  return nd;
+                };
+
+                const getEndOfDay = (d: Date) => {
+                  const nd = new Date(d);
+                  nd.setHours(23, 59, 59, 999);
+                  return nd;
+                };
+
+                if (exportRangeType === "today") {
+                  const todayStart = getStartOfDay(now);
+                  const todayEnd = getEndOfDay(now);
+                  list = tickets.filter(t => {
+                    const tDate = new Date(t.createdAt);
+                    return tDate >= todayStart && tDate <= todayEnd;
+                  });
+                } else if (exportRangeType === "week") {
+                  const currentDay = now.getDay();
+                  const startOfWeek = new Date(now);
+                  startOfWeek.setDate(now.getDate() - currentDay);
+                  const weekStart = getStartOfDay(startOfWeek);
+                  
+                  const endOfWeek = new Date(startOfWeek);
+                  endOfWeek.setDate(startOfWeek.getDate() + 6);
+                  const weekEnd = getEndOfDay(endOfWeek);
+
+                  list = tickets.filter(t => {
+                    const tDate = new Date(t.createdAt);
+                    return tDate >= weekStart && tDate <= weekEnd;
+                  });
+                } else if (exportRangeType === "month") {
+                  if (exportMonth) {
+                    const [yearStr, monthStr] = exportMonth.split("-");
+                    const year = parseInt(yearStr, 10);
+                    const monthIndex = parseInt(monthStr, 10) - 1;
+
+                    const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+                    const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+
+                    list = tickets.filter(t => {
+                      const tDate = new Date(t.createdAt);
+                      return tDate >= monthStart && tDate <= monthEnd;
+                    });
+                  } else {
+                    list = [];
+                  }
+                } else if (exportRangeType === "range") {
+                  if (exportStartDate && exportEndDate) {
+                    const customStart = getStartOfDay(new Date(exportStartDate));
+                    const customEnd = getEndOfDay(new Date(exportEndDate));
+
+                    list = tickets.filter(t => {
+                      const tDate = new Date(t.createdAt);
+                      return tDate >= customStart && tDate <= customEnd;
+                    });
+                  } else {
+                    list = [];
+                  }
+                } else if (exportRangeType === "filtered") {
+                  list = [...filteredTickets];
+                }
+
+                const count = list.length;
+
+                return (
+                  <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-150 dark:border-slate-850 flex items-center justify-between text-xs transition-all">
+                    <span className="text-slate-450 dark:text-slate-400 font-bold">Total estimasi baris hasil ekspor:</span>
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-black ${
+                      count > 0 
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900" 
+                        : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900"
+                    }`}>
+                      {count} Tiket
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3.5 border-t border-slate-100 dark:border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="order-last sm:order-first px-4.5 py-2.5 border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-55 dark:hover:bg-slate-855 transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  type="button"
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Download Excel
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  type="button"
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4" /> Download PDF
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

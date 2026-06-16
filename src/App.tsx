@@ -1485,20 +1485,6 @@ export default function App() {
 
         {/* MIDDLE SCROLLABLE WRAPPER */}
         <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5 scrollbar-thin select-none">
-          {/* User Account Quick Details Card */}
-          <div 
-            className={`bg-slate-50 dark:bg-slate-850 rounded-xl p-3 border border-slate-200 dark:border-slate-800 flex items-center gap-2 ${isSidebarMini ? "md:justify-center md:p-1.5" : ""}`}
-            title={isSidebarMini ? `${currentUser?.name || currentUser?.username} (${currentUser?.role})` : undefined}
-          >
-            <span className="w-8 h-8 rounded-full bg-blue-650 font-black text-xs text-white flex items-center justify-center shrink-0">
-              {currentUser?.username.slice(0, 2).toUpperCase()}
-            </span>
-            <div className={`min-w-0 flex-1 ${isSidebarMini ? "md:hidden" : ""}`}>
-              <p className="text-xs font-black text-slate-800 dark:text-white truncate leading-tight">{currentUser?.name || currentUser?.username}</p>
-              <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold mt-1 uppercase tracking-wider">{currentUser?.role}</p>
-            </div>
-          </div>
-
           {/* Menus Map items */}
           <div className="space-y-4">
             {activeCategories.map((cat, catIdx) => {
@@ -1734,15 +1720,20 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
-                className="flex items-center gap-2 p-1.5 px-2.5 border border-slate-200 dark:border-slate-800 text-slate-755 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors font-extrabold text-xs shrink-0 select-none cursor-pointer"
+                className="flex items-center gap-3 p-1.5 px-2.5 border border-slate-200 dark:border-slate-800 text-slate-755 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
                 title="Sistem Profile & Password"
               >
-                <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0">
                   {currentUser?.nickname?.slice(0, 2).toUpperCase() || currentUser?.username?.slice(0, 2).toUpperCase()}
                 </div>
-                <span className="max-w-[70px] truncate hidden sm:inline text-[11px] select-none font-bold">
-                  {currentUser?.nickname || currentUser?.username}
-                </span>
+                <div className="text-left hidden sm:flex flex-col select-none">
+                  <span className="truncate max-w-[120px] text-[11px] font-black text-slate-800 dark:text-white leading-tight">
+                    {currentUser?.name || currentUser?.nickname || currentUser?.username}
+                  </span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                    {currentUser?.role || "-"}
+                  </span>
+                </div>
               </button>
 
               {isProfileMenuOpen && (
@@ -1910,6 +1901,7 @@ export default function App() {
               projects={scopedProjects}
               currentUser={currentUser}
               settings={settings}
+              users={users}
               onAddTicket={handleAddTicket}
               onUpdateTicket={handleUpdateTicket}
               onDeleteTicket={handleDeleteTicket}
@@ -2019,6 +2011,8 @@ export default function App() {
               statusImplementasiList={settings?.statusImplementasi ? settings.statusImplementasi.filter((x: any) => x.active).map((x: any) => x.value) : undefined}
               appModules={scopedAppModules}
               currentUser={currentUser}
+              assets={assets}
+              tickets={tickets}
             />
           )}
 

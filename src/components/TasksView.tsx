@@ -235,7 +235,14 @@ export default function TasksView({
   const [filterCatProgress, setFilterCatProgress] = useState("");
   
   // View mode State: 'ticket' (interactive grid cards), 'table' (rows) or 'delegation' (hierarchical trees)
-  const [viewMode, setViewMode] = useState<'ticket' | 'table' | 'delegation'>('ticket');
+  const [viewMode, setViewMode] = useState<'ticket' | 'table' | 'delegation'>('table');
+
+  // Custom states matching impeccable layout
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [inlineNote, setInlineNote] = useState<string>("");
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>("Semua Kategori");
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   // Detail Modal State
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -501,6 +508,18 @@ export default function TasksView({
     const matchesTaskType = filterTaskType === "" || t.taskType === filterTaskType;
     const matchesCatProgress = filterCatProgress === "" || t.categoryProgress === filterCatProgress;
 
+    // Filter by our exquisite top categorical tabs
+    let matchesCategoryTab = true;
+    if (selectedCategoryTab === "Mandiri") {
+      matchesCategoryTab = t.taskCategoryType === "Mandiri";
+    } else if (selectedCategoryTab === "Incident") {
+      matchesCategoryTab = t.taskCategoryType === "Incident";
+    } else if (selectedCategoryTab === "Request") {
+      matchesCategoryTab = t.taskCategoryType === "Request";
+    } else if (selectedCategoryTab === "Tugas Proyek") {
+      matchesCategoryTab = !["Mandiri", "Incident", "Request"].includes(t.taskCategoryType || "");
+    }
+
     return (
       matchesTrash &&
       matchesSearch &&
@@ -509,7 +528,8 @@ export default function TasksView({
       matchesPic &&
       matchesProject &&
       matchesTaskType &&
-      matchesCatProgress
+      matchesCatProgress &&
+      matchesCategoryTab
     );
   });
 
@@ -2160,142 +2180,190 @@ export default function TasksView({
         
         {/* Left Side: Task List View Section (collapses columns/density when task selected in split column mode) */}
         <div className={`transition-all duration-350 space-y-4 ${(selectedTask && detailLayout === 'split') ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"}`}>
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
-            <CheckSquare className="w-10 h-10 text-slate-300 mx-auto mb-2 opacity-40" />
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada tugas ditemukan</p>
-            <p className="text-xs text-slate-400">Sesuaikan saringan atau parameter pencarian Anda di formulir atas.</p>
-          </div>
-        ) : viewMode === 'ticket' ? (
+         {/* Category Selector Tabs - Rendered permanently & beautifully above the list/cards */}
+         <div className="flex flex-wrap items-end space-x-1 border-b border-slate-200 dark:border-slate-800/80 mb-0 select-none px-2 pt-2 bg-slate-50/50 dark:bg-slate-900/30 rounded-t-2xl">
+           {["Semua Kategori", "Mandiri", "Request", "Incident", "Tugas Proyek"].map((tab) => {
+             const isActive = selectedCategoryTab === tab;
+             return (
+               <button
+                 key={tab}
+                 onClick={() => {
+                   setSelectedCategoryTab(tab);
+                   setExpandedTaskId(null);
+                 }}
+                 className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 rounded-t-xl cursor-pointer ${
+                   isActive
+                     ? "bg-white dark:bg-slate-900 border-blue-600 dark:border-blue-400 text-blue-605 dark:text-blue-400 font-extrabold shadow-xs -mb-[1px]"
+                     : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                 }`}
+               >
+                 {tab}
+               </button>
+             );
+           })}
+         </div>
+
+         {filtered.length === 0 ? (
+           <div className="text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-b-2xl">
+             <CheckSquare className="w-10 h-10 text-slate-300 mx-auto opacity-44 mb-2 animate-pulse" />
+             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tidak ada tugas ditemukan</p>
+             <p className="text-xs text-slate-400">Pilih kategori lain di atas, atau sesuaikan saringan pencarian Anda di form atas.</p>
+           </div>
+         ) : viewMode === 'ticket' ? (
           
           /* VIEW MODE: TICKET/CARDS GRID */
-          <div className={`grid gap-4 font-sans ${(selectedTask && detailLayout === 'split') ? "grid-cols-1 md:grid-cols-1 xl:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
+          <div className={`grid gap-5 font-sans ${(selectedTask && detailLayout === 'split') ? "grid-cols-1 md:grid-cols-1 xl:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
             {filtered.map((t) => {
               const overdue = t.status !== "Done" && t.status !== "Cancelled" && t.dueDate && t.dueDate < todayStr;
               const subTotal = t.subtasks?.length || 0;
               const subDone = t.subtasks?.filter(s => s.done).length || 0;
               const childCount = tasks.filter(x => x.parentTaskId === t.id).length;
 
+              // Left accent strip or clean custom coloring theme
+              let categoryCardStyles = "border-t-blue-500 hover:border-t-blue-600";
+              if (t.taskCategoryType === "Mandiri") {
+                categoryCardStyles = "border-t-amber-500 hover:border-t-amber-650";
+              } else if (t.taskCategoryType === "Incident") {
+                categoryCardStyles = "border-t-rose-500 hover:border-t-rose-650";
+              } else if (t.taskCategoryType === "Request") {
+                categoryCardStyles = "border-t-sky-500 hover:border-t-sky-600";
+              }
+
               return (
                 <div 
                   key={t.id}
                   onClick={() => setSelectedTask(t)}
-                  className={`bg-white dark:bg-slate-900 border-t-4 border border-x-slate-200 border-b-slate-200 dark:border-x-slate-800 dark:border-b-slate-800 rounded-xl p-5 shadow-xs hover:shadow-md hover:border-blue-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
-                    t.taskCategoryType === "Mandiri"
-                      ? "border-t-amber-500"
-                      : t.taskCategoryType === "Incident"
-                      ? "border-t-rose-500"
-                      : t.taskCategoryType === "Request"
-                      ? "border-t-sky-500"
-                      : "border-t-blue-500"
-                  }`}
+                  className={`bg-white dark:bg-slate-900 border-t-[3.5px] border-x border-b border-x-slate-205 border-b-slate-205 dark:border-x-slate-800/80 dark:border-b-slate-800/80 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)] hover:-translate-y-1 hover:border-blue-500/20 dark:hover:border-blue-500/35 transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 group relative ${categoryCardStyles} ${selectedTask?.id === t.id ? "ring-2 ring-blue-500/30 dark:ring-blue-500/40 border-slate-300 dark:border-slate-700" : ""}`}
                 >
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
-                      <span>TKT-{String(tasks.indexOf(t) + 1).padStart(4, "0")}</span>
-                      <span className={getPriorityStyle(t.priority)}>{t.priority}</span>
+                  {/* Glassmorphic accent inside container cards */}
+                  <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-slate-50/40 dark:from-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none rounded-t-2xl" />
+
+                  <div className="space-y-3 relative z-10 select-none">
+                    <div className="flex justify-between items-center text-[10px] font-mono">
+                      <span className="text-slate-400 dark:text-slate-500 font-extrabold bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-850/30">
+                        TKT-{String(tasks.indexOf(t) + 1).padStart(4, "0")}
+                      </span>
+                      <span className={`${getPriorityStyle(t.priority)} scale-90 origin-right`} />
                     </div>
                     
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug truncate-2-lines line-clamp-2">
-                      {t.task}
-                    </h4>
-                    <p className="text-xs text-slate-400 font-medium truncate">
-                      {projects.find(p => p.kode === t.project)?.nama || t.project || "Umum / Non-Proyek"}
-                    </p>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug line-clamp-2" title={t.task}>
+                        {t.task}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-450 font-bold truncate flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-705 inline-block" />
+                        {projects.find(p => p.kode === t.project)?.nama || t.project || "Umum / Non-Proyek"}
+                      </p>
+                    </div>
 
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${getStatusStyle(t.status)}`}>
+                    {/* Integrated tags flow */}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-wide uppercase shrink-0 ${getStatusStyle(t.status)}`}>
                         {t.status}
                       </span>
                       {t.taskCategoryType && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black shrink-0 ${
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-wide select-none uppercase shrink-0 ${
                           t.taskCategoryType === "Mandiri"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-400 border border-amber-205/10"
                             : t.taskCategoryType === "Incident"
-                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-400"
+                            ? "bg-rose-50 text-rose-700 dark:bg-rose-955/20 dark:text-rose-450 border border-rose-205/10"
                             : t.taskCategoryType === "Request"
-                            ? "bg-sky-100 text-sky-850 dark:bg-sky-950/40 dark:text-sky-400"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-950/45 dark:text-blue-400"
+                            ? "bg-sky-50 text-sky-750 dark:bg-sky-955/10 dark:text-sky-450 border border-sky-205/10"
+                            : "bg-blue-50 text-blue-800 dark:bg-blue-955/20 dark:text-blue-400 border border-blue-205/10"
                         }`}>
                           🏷️ {t.taskCategoryType}
                         </span>
                       )}
-                      {subTotal > 0 && (
-                        <span className="bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          Check {subDone}/{subTotal}
-                        </span>
-                      )}
+
                       {t.categoryProgress && (
-                        <span className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="bg-slate-50 dark:bg-slate-950 border border-slate-105 dark:border-slate-850/55 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
                           {t.categoryProgress}
                         </span>
                       )}
+
+                      {subTotal > 0 && (
+                        <span className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 select-none">
+                          <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-555" />
+                          <span>Check {subDone}/{subTotal}</span>
+                        </span>
+                      )}
                       {t.assignerName ? (
-                        <span className="bg-purple-50 text-purple-700 dark:bg-purple-950/25 dark:text-purple-400 text-[10px] font-black px-1.5 py-0.5 rounded" title={`Ditugaskan oleh ${t.assignerName}`}>
-                          👑 dari {t.assignerName}
+                        <span className="bg-purple-50 text-purple-700 dark:bg-purple-950/20 dark:text-purple-400 text-[9px] font-black px-1.5 py-0.5 rounded-md" title={`Ditugaskan oleh ${t.assignerName}`}>
+                          👑 {t.assignerName}
                         </span>
                       ) : t.createdBy ? (
-                        <span className="bg-indigo-50/75 dark:bg-indigo-950/45 border border-indigo-100/35 text-indigo-650 dark:text-indigo-400 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-100/10 text-indigo-600 dark:text-indigo-400 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md">
                           🧑‍💻 {t.createdBy}
                         </span>
                       ) : null}
                       {t.parentTaskId && (
                         <span 
-                          className="bg-amber-50/80 border border-amber-200/50 text-amber-700 dark:bg-amber-950/35 dark:text-amber-400 text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 select-none"
+                          className="bg-amber-50/80 border border-amber-200/10 text-amber-700 dark:bg-amber-950/15 dark:text-amber-400 text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 select-none"
                           title={t.assignerName ? `Didelegasikan oleh ${t.assignerName} (${t.assignerRole})` : "Tugas Delegasi"}
                         >
-                          <Share2 className="w-2.5 h-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <Share2 className="w-2.5 h-2.5 shrink-0 text-amber-600" />
                           <span>Delegasi Atasan</span>
                         </span>
                       )}
                       {childCount > 0 && (
-                        <span className="bg-indigo-50/85 border border-indigo-200/40 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 select-none">
-                          <Layers className="w-2.5 h-2.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                        <span className="bg-indigo-50 border border-indigo-200/10 text-indigo-700 dark:bg-indigo-950/25 dark:text-indigo-400 text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 select-none">
+                          <Layers className="w-2.5 h-2.5 shrink-0 text-indigo-600" />
                           <span>Delegasi Turunan ({childCount})</span>
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Footer Stats of Ticket */}
-                  <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3 space-y-2.5">
+                  {/* Footer stats metadata */}
+                  <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3.5 space-y-3 relative z-10 select-none">
                     <div className="flex justify-between items-center text-xs">
-                      <div className="flex items-center gap-1.5 shrink-0 max-w-[50%]">
-                        <span className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ${picThemeColors(t.pic || "")}`}>
+                      <div className="flex items-center gap-2 shrink-0 max-w-[55%]">
+                        <span className={`w-6 h-6 rounded-full text-[9px] font-black flex items-center justify-center border border-white dark:border-slate-800 shadow-xs ring-2 ring-slate-100/30 ${picThemeColors(t.pic || "")}`}>
                           {t.pic ? t.pic.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?"}
                         </span>
-                        <span className="text-slate-700 dark:text-slate-300 font-semibold truncate text-[11px]">
-                          {t.pic || "Unassigned"}
+                        <span className="text-slate-700 dark:text-slate-350 font-bold truncate text-[11px] hover:text-blue-500 transition-colors">
+                          {t.pic || "Belum Ditugaskan"}
                         </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Jatuh Tempo</p>
-                        <p className={`font-mono text-[11px] font-bold ${overdue ? "text-red-500" : "text-slate-600 dark:text-slate-400"}`}>
+                        <p className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest leading-none">Jatuh Tempo</p>
+                        <p className={`font-mono text-[11px] font-black mt-0.5 ${overdue ? "text-rose-500 font-black animate-pulse" : "text-slate-600 dark:text-slate-400"}`}>
                           {t.dueDate ? new Date(t.dueDate).toLocaleDateString("id-ID") : "—"}
                         </p>
                       </div>
                     </div>
 
-                    {/* Progress Slider Display */}
+                    {/* Progress with adaptive coloring schemas */}
                     <div className="space-y-1">
-                      <div className="flex justify-between text-[9px] text-slate-400 uppercase tracking-wider font-bold">
+                      <div className="flex justify-between text-[8px] text-slate-400 uppercase tracking-widest font-black leading-none">
                         <span>Penyelesaian</span>
-                        <span>{t.progress}%</span>
+                        <span className="font-mono text-[10px] font-bold text-slate-700 dark:text-slate-350">{t.progress}%</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 dark:bg-slate-805 h-1 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-600 transition-all font-mono" style={{ width: `${t.progress}%` }} />
+                      <div className="h-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-full overflow-hidden p-[1px]">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            t.status === "Done"
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+                              : t.status === "In Progress"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-400"
+                              : t.status === "Pending"
+                              ? "bg-gradient-to-r from-purple-500 to-pink-400"
+                              : "bg-slate-300 dark:bg-slate-700"
+                          }`} 
+                          style={{ width: `${t.progress}%` }} 
+                        />
                       </div>
                     </div>
 
                     {t.isDeleted && (
-                      <div className="flex gap-2 pt-2 border-t border-red-200/20 dark:border-red-950/20">
+                      <div className="flex gap-2 pt-2 border-t border-red-200/10 dark:border-red-950/10">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             executeRestoreTask(t);
                           }}
-                          className="flex-1 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] rounded-lg cursor-pointer text-center uppercase tracking-widest transition-all"
+                          className="flex-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black text-[9px] rounded-lg cursor-pointer text-center uppercase tracking-wider border border-emerald-500/10 transition-all select-none"
                         >
                           🌟 Pulihkan Tugas
                         </button>
@@ -2305,7 +2373,7 @@ export default function TasksView({
                             e.stopPropagation();
                             initiateDeleteTask(t);
                           }}
-                          className="px-2.5 py-1.5 bg-red-500/15 hover:bg-red-500/20 text-red-650 dark:text-red-400 font-extrabold text-[10px] rounded-lg cursor-pointer text-center uppercase tracking-widest transition-all"
+                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/15 text-red-650 dark:text-red-405 font-black text-[9px] rounded-lg cursor-pointer text-center uppercase tracking-wider border border-red-500/10 transition-all select-none"
                           title="Hapus Permanen Selamanya"
                         >
                           🔥 Hapus Permanen
@@ -2319,139 +2387,379 @@ export default function TasksView({
             })}
           </div>
         ) : viewMode === 'table' ? (
-          
-          /* VIEW MODE: SPREADSHEET TABLE */
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-850 dark:text-slate-200 border-collapse">
-                <thead className="bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold">
-                  <tr>
-                    <th className="p-3">Project</th>
-                    <th className="p-3">Uraian Tugas</th>
-                    <th className="p-3">Kategori</th>
-                    <th className="p-3">Pemberi Tugas</th>
-                    <th className="p-3">PIC / Penerima</th>
-                    <th className="p-3">Prioritas</th>
-                    <th className="p-3">Due Date</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Progress</th>
-                    <th className="p-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 leading-normal">
-                  {filtered.map((t) => {
-                    const overdue = t.status !== "Done" && t.status !== "Cancelled" && t.dueDate && t.dueDate < todayStr;
-                    return (
-                      <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-3">
-                          <span className="bg-blue-50 dark:bg-blue-950/40 text-blue-605 dark:text-blue-400 border border-blue-105/20 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold block w-fit">
-                            {t.project || "Umum"}
-                          </span>
-                        </td>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-100 max-w-xs truncate">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="truncate">{t.task}</span>
-                            <div className="flex gap-1 items-center">
-                              {t.parentTaskId && (
-                                <span className="bg-amber-50 text-amber-650 border border-amber-200/50 dark:bg-amber-955/20 dark:text-amber-400 text-[8.5px] font-extrabold px-1 py-0.2 rounded inline-block w-fit">
-                                  🗳️ Delegasi Atasan
-                                </span>
-                              )}
-                              {tasks.some(x => x.parentTaskId === t.id) && (
-                                <span className="bg-indigo-50 text-indigo-755 border border-indigo-200/40 dark:bg-indigo-955/20 dark:text-indigo-400 text-[8.5px] font-extrabold px-1 py-0.2 rounded inline-block w-fit">
-                                  👥 Delegasi Turunan ({tasks.filter(x => x.parentTaskId === t.id).length})
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 font-semibold text-slate-700 dark:text-slate-300">
-                          <div className="flex flex-col gap-1 items-start w-fit">
-                            {t.categoryProgress && (
-                              <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">{t.categoryProgress}</span>
-                            )}
-                            {t.taskCategoryType && (
-                              <span className={`text-[8.5px] font-bold px-1.5 py-0.2 rounded select-none ${
-                                t.taskCategoryType === "Mandiri"
-                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-450 font-black uppercase"
-                                  : t.taskCategoryType === "Incident"
-                                  ? "bg-rose-100 text-rose-800 dark:bg-rose-950/30 dark:text-rose-400 uppercase"
-                                  : t.taskCategoryType === "Request"
-                                  ? "bg-sky-100 text-sky-850 dark:bg-sky-950/30 dark:text-sky-400 uppercase"
-                                  : "bg-blue-105/10 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 uppercase"
-                              }`}>
-                                {t.taskCategoryType}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex flex-col gap-0.5 w-fit">
-                            <span className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
-                              👑 {t.assignerName || t.createdBy || "System"}
-                            </span>
-                            {t.assignerRole && (
-                              <span className="text-[9px] bg-slate-100 dark:bg-slate-800 px-1 py-0.2 rounded text-slate-450 font-bold uppercase tracking-wider">{t.assignerRole}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1.5 w-fit">
-                            <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${picThemeColors(t.pic || "")}`}>
-                              {t.pic ? t.pic.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?"}
-                            </span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{t.pic || "—"}</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className={getPriorityStyle(t.priority)}>{t.priority}</span>
-                        </td>
-                        <td className={`p-3 font-mono font-semibold ${overdue ? "text-red-500 font-bold" : "text-slate-600 dark:text-slate-400"}`}>
-                          {t.dueDate ? new Date(t.dueDate).toLocaleDateString("id-ID") : "—"}
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusStyle(t.status)}`}>
-                            {t.status}
-                          </span>
-                        </td>
-                        <td className="p-3 font-mono font-bold">{t.progress}%</td>
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end items-center gap-1.5 whitespace-nowrap">
-                            <button 
-                              onClick={() => setSelectedTask(t)}
-                              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-blue-500 transition-colors cursor-pointer"
-                              title="Tampilkan Detail"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
+          /* IMPECCABLE STYLE: RECONFIGURED HIGHER FLUID EXPANDABLE TABLE */
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-b-2xl overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-850 dark:text-slate-200 border-collapse select-none">
+                  <thead className="bg-slate-50/40 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800/80 text-[10px] text-slate-400 dark:text-slate-550 font-bold tracking-widest uppercase">
+                    <tr>
+                      <th className="p-4 pl-5">Jatuh Tempo (Date)</th>
+                      <th className="p-4">Project / RS</th>
+                      <th className="p-4">PIC / Penerima</th>
+                      <th className="p-4">Uraian / Judul Tugas</th>
+                      <th className="p-4 text-center">Kategori</th>
+                      <th className="p-4">Prioritas</th>
+                      <th className="p-4">Status Pekerjaan</th>
+                      <th className="p-4">Progress</th>
+                      <th className="p-4 pr-5 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40 leading-normal">
+                    {filtered.map((t) => {
+                      const overdue = t.status !== "Done" && t.status !== "Cancelled" && t.dueDate && t.dueDate < todayStr;
+                      const isExpanded = expandedTaskId === t.id;
+                      const hasSubtasks = t.subtasks && t.subtasks.length > 0;
+                      const countSubDone = t.subtasks?.filter(x => x.done)?.length || 0;
+                      const countSubTotal = t.subtasks?.length || 0;
 
-                            {t.isDeleted && (
-                              <>
-                                <button
-                                  onClick={() => executeRestoreTask(t)}
-                                  className="p-1 hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-950/40 dark:text-emerald-400 rounded transition-colors cursor-pointer"
-                                  title="🌟 Pulihkan Tugas"
+                      // Dynamic styling inspired by table status
+                      let statusBadgeStyles = "bg-slate-50 text-slate-600 dark:bg-slate-950/40 dark:text-slate-400";
+                      if (t.status === "Done") {
+                        statusBadgeStyles = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-500/10";
+                      } else if (t.status === "In Progress") {
+                        statusBadgeStyles = "bg-blue-50 text-blue-700 dark:bg-blue-955/10 dark:text-blue-400 border border-blue-500/10";
+                      } else if (t.status === "Pending") {
+                        statusBadgeStyles = "bg-purple-50 text-purple-700 dark:bg-purple-955/10 dark:text-purple-400 border border-purple-500/10";
+                      } else if (t.status === "Cancelled") {
+                        statusBadgeStyles = "bg-rose-50 text-rose-700 dark:bg-rose-955/15 dark:text-rose-400 border border-rose-500/10";
+                      }
+
+                      return (
+                        <React.Fragment key={t.id}>
+                          {/* PRIMARY TABLE ROW */}
+                          <tr 
+                            onClick={() => setExpandedTaskId(isExpanded ? null : t.id)}
+                            className={`hover:bg-slate-50/80 dark:hover:bg-slate-950/40 transition-all cursor-pointer ${
+                              isExpanded 
+                                ? "bg-slate-50/80 dark:bg-slate-950/30 border-l-[3.5px] border-l-blue-600 dark:border-l-blue-400" 
+                                : "border-l-4 border-l-transparent"
+                            }`}
+                          >
+                            {/* DATE COLUMN */}
+                            <td className="p-4 pl-5 font-mono text-slate-500 dark:text-slate-400">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 opacity-40 shrink-0" />
+                                <span className={overdue ? "text-rose-500 font-extrabold" : "font-semibold"}>
+                                  {t.dueDate ? new Date(t.dueDate).toLocaleDateString("id-ID", { day: 'numeric', month: 'short' }) : "—"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* PROJECT COLUMN */}
+                            <td className="p-4 whitespace-nowrap">
+                              <span className="bg-blue-50/65 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/10 px-2 py-0.5 rounded-md text-[10.5px] font-mono font-extrabold">
+                                {t.project || "Umum"}
+                              </span>
+                            </td>
+
+                            {/* PIC COLUMN */}
+                            <td className="p-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-full text-[8px] font-extrabold flex items-center justify-center shrink-0 border border-white dark:border-slate-800 shadow-xs ${picThemeColors(t.pic || "")}`}>
+                                  {t.pic ? t.pic.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?"}
+                                </span>
+                                <span className="font-extrabold text-slate-700 dark:text-slate-300 text-[11px] truncate max-w-[80px]">
+                                  {t.pic || "—"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* TASK TITLE */}
+                            <td className="p-4 max-w-xs">
+                              <p className="font-extrabold text-slate-905 dark:text-slate-100 truncate text-[12px] hover:text-blue-605 dark:hover:text-blue-450 transition-colors" title={t.task}>
+                                {t.task}
+                              </p>
+                            </td>
+
+                            {/* CATEGORY (TAG PILLS) */}
+                            <td className="p-4 text-center">
+                              {t.taskCategoryType ? (
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide inline-block ${
+                                  t.taskCategoryType === "Mandiri"
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-400"
+                                    : t.taskCategoryType === "Incident"
+                                    ? "bg-rose-50 text-rose-700 dark:bg-rose-955/20 dark:text-rose-450"
+                                    : t.taskCategoryType === "Request"
+                                    ? "bg-sky-50 text-sky-700 dark:bg-sky-955/10 dark:text-sky-400"
+                                    : "bg-blue-50 text-blue-850 dark:bg-blue-955/10"
+                                }`}>
+                                  {t.taskCategoryType}
+                                </span>
+                              ) : <span className="text-slate-350">—</span>}
+                            </td>
+
+                            {/* PRIORITY CARD */}
+                            <td className="p-4 whitespace-nowrap">
+                              <span className={`${getPriorityStyle(t.priority)} scale-90 inline-block`} />
+                            </td>
+
+                            {/* STATUS COL */}
+                            <td className="p-4">
+                              <span className={`px-2.5 py-0.5 rounded-md text-[9px] font-black tracking-wide uppercase inline-block ${statusBadgeStyles}`}>
+                                {t.status}
+                              </span>
+                            </td>
+
+                            {/* PROGRESS BAR */}
+                            <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-7 text-right shrink-0">{t.progress}%</span>
+                                <div className="w-12 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-[0.5px] hidden sm:block">
+                                  <div 
+                                    className="h-full bg-blue-600 dark:bg-blue-400 rounded-full" 
+                                    style={{ width: `${t.progress}%` }} 
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* ACTIONS TRIGGERS */}
+                            <td className="p-4 pr-5 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex justify-end items-center gap-1">
+                                <button 
+                                  onClick={() => setSelectedTask(t)}
+                                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 rounded-md transition-colors cursor-pointer"
+                                  title="Tampilkan Detail Laci"
                                 >
-                                  <RefreshCw className="w-4 h-4" />
+                                  <Eye className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => initiateDeleteTask(t)}
-                                  className="p-1 hover:bg-red-50 text-red-650 dark:hover:bg-red-950/40 dark:text-red-400 rounded transition-colors cursor-pointer"
-                                  title="🔥 Hapus Permanen"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+
+                                {t.isDeleted && (
+                                  <>
+                                    <button
+                                      onClick={() => executeRestoreTask(t)}
+                                      className="p-1.5 hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-950/40 dark:text-emerald-400 rounded-md transition-colors cursor-pointer"
+                                      title="🌟 Pulihkan Tugas"
+                                    >
+                                      <RefreshCw className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => initiateDeleteTask(t)}
+                                      className="p-1.5 hover:bg-red-50 text-red-650 dark:hover:bg-red-950/40 dark:text-red-400 rounded-md transition-colors cursor-pointer"
+                                      title="🔥 Hapus Permanen"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* EXPANDABLE MULTI-MODULE PANEL */}
+                          {isExpanded && (
+                            <tr className="bg-slate-50/40 dark:bg-slate-950/20">
+                              <td colSpan={9} className="p-0 border-t-0 pl-1">
+                                <div className="p-6 bg-slate-50/70 dark:bg-slate-955 border-x border-b border-slate-205 dark:border-slate-805/40 text-left space-y-6 animate-in slide-in-from-top-2 duration-200">
+                                  
+                                  {/* GRID DETAILS PANEL */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                                    
+                                    {/* Column 1: Services Required & Task attributes */}
+                                    <div className="lg:col-span-5 space-y-4">
+                                      <div>
+                                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Uraian / Judul Tugas</p>
+                                        <h5 className="text-sm font-extrabold text-slate-900 dark:text-white leading-relaxed">
+                                          {t.task}
+                                        </h5>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-4 pt-1.5">
+                                        <div>
+                                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1">Pemberi Tugas</p>
+                                          <p className="text-xs font-bold text-slate-750 dark:text-slate-350">
+                                            👑 {t.assignerName || t.createdBy || "System"}
+                                          </p>
+                                          {t.assignerRole && (
+                                            <span className="text-[9px] font-semibold text-slate-400 tracking-wider uppercase mt-1 block">
+                                              ({t.assignerRole})
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1">Target Penyelesaian</p>
+                                          <p className={`text-xs font-mono font-bold ${overdue ? "text-rose-500" : "text-slate-700 dark:text-slate-300"}`}>
+                                            ⏰ {t.dueDate ? new Date(t.dueDate).toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : "Tanpa Target"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1">Kategori Progress & Modul</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {t.modul && (
+                                            <span className="bg-slate-100 dark:bg-slate-850 text-slate-700 dark:text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                                              🖥️ Modul {t.modul}
+                                            </span>
+                                          )}
+                                          {t.categoryProgress && (
+                                            <span className="bg-slate-100 dark:bg-slate-850 text-slate-600 dark:text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                                              📈 Kategori: {t.categoryProgress}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {hasSubtasks && (
+                                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mb-1.5">Checklist / Sub-Tugas ({countSubDone}/{countSubTotal})</p>
+                                          <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 text-[11.5px]">
+                                            {t.subtasks?.map((sb: SubTask) => (
+                                              <div key={sb.id} className="flex items-center gap-2 text-slate-705 dark:text-slate-305">
+                                                <input 
+                                                  type="checkbox" 
+                                                  checked={sb.done} 
+                                                  readOnly 
+                                                  className="rounded text-blue-500 w-3.5 h-3.5 border-slate-300 dark:border-slate-750 focus:ring-0 cursor-default pointer-events-none"
+                                                />
+                                                <span className={sb.done ? "line-through text-slate-400" : "font-semibold"}>
+                                                  {sb.title}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Column 2: Interactive Notes System */}
+                                    <div className="lg:col-span-4 space-y-3">
+                                      <div className="flex justify-between items-center">
+                                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest flex items-center gap-1">
+                                          <span>✍️ Catatan & Aktivitas Terbaru</span>
+                                          {(t.notes || noteDrafts[t.id]) && (
+                                            <span className="text-[8.5px] text-blue-500 font-black tracking-wider uppercase ml-1.5">Catatan Tersedia</span>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <textarea
+                                        value={noteDrafts[t.id] !== undefined ? noteDrafts[t.id] : (t.notes || "")}
+                                        onChange={(e) => {
+                                          setNoteDrafts({
+                                            ...noteDrafts,
+                                            [t.id]: e.target.value
+                                          });
+                                        }}
+                                        placeholder="Tulis rincian aktivitas, kendala teknis lapangan, atau info terbaru terkait progress tugas ini di sini..."
+                                        className="w-full h-32 p-3 text-xs bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500/30 text-slate-800 dark:text-slate-200 shadow-inner resize-none font-sans leading-relaxed"
+                                      />
+                                      <div className="flex justify-end">
+                                        <button
+                                          onClick={async () => {
+                                            const val = noteDrafts[t.id] !== undefined ? noteDrafts[t.id] : (t.notes || "");
+                                            setSavingNoteId(t.id);
+                                            await onUpdateTask(t.id, { notes: val });
+                                            setSavingNoteId(null);
+                                          }}
+                                          disabled={savingNoteId === t.id}
+                                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-650 disabled:bg-blue-400 text-white font-extrabold text-[10.5px] rounded-lg tracking-wide uppercase transition-colors shrink-0 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                        >
+                                          {savingNoteId === t.id ? (
+                                            <>
+                                              <RefreshCw className="w-3 h-3 animate-spin" />
+                                              <span>Menyimpan...</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>Simpan Catatan</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Column 3: Radial custom progress circle */}
+                                    <div className="lg:col-span-3 flex flex-col items-center justify-center p-3">
+                                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-3 text-center">Rasio Penyelesaian</p>
+                                      
+                                      <div className="relative flex flex-col items-center justify-center shrink-0 w-32 h-32 select-none mx-auto group">
+                                        {/* Outer glowing border */}
+                                        <div className="absolute inset-0 rounded-full border border-slate-100 dark:border-slate-800/40 pointer-events-none scale-105" />
+
+                                        {/* SVG Radial Meter */}
+                                        <svg className="w-full h-full transform -rotate-90">
+                                          {/* Background path */}
+                                          <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="45"
+                                            className="stroke-slate-100/80 dark:stroke-slate-805/40"
+                                            strokeWidth="7"
+                                            fill="transparent"
+                                          />
+                                          {/* Colorful filling path */}
+                                          <circle
+                                            cx="64"
+                                            cy="64"
+                                            r="45"
+                                            className="stroke-blue-600 dark:stroke-blue-400 transition-all duration-500"
+                                            strokeWidth="7"
+                                            fill="transparent"
+                                            strokeDasharray={2 * Math.PI * 45}
+                                            strokeDashoffset={2 * Math.PI * 45 * (1 - t.progress / 100)}
+                                            strokeLinecap="round"
+                                          />
+                                        </svg>
+                                        
+                                        {/* Center Percentage Display */}
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                          <span className="text-2xl font-black text-slate-850 dark:text-slate-100 tracking-tighter leading-none">{t.progress}%</span>
+                                          <span className="text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest mt-1">Progress</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                  </div>
+
+                                  {/* BOTTOM ACTION BUTTONS BAR */}
+                                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800/65 flex flex-wrap gap-2.5 justify-between items-center">
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        onClick={() => setSelectedTask(t)}
+                                        className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-650 hover:to-indigo-700 text-white font-black text-[10.5px] rounded-xl uppercase tracking-wider shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer inline-flex items-center gap-1.5"
+                                      >
+                                        <span>Tampilkan Detail Lengkap ↗</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          setEditingTask(t);
+                                          setIsFormOpen(true);
+                                        }}
+                                        className="px-3.5 py-2 bg-white dark:bg-slate-905 border border-slate-250 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 font-black text-[10.5px] rounded-xl uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1.5"
+                                      >
+                                        <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+                                        <span>Re-Orientasi & Edit PIC</span>
+                                      </button>
+                                    </div>
+
+                                    <div>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Yakin ingin menyembunyikan/arsip tugas "${t.task}"?`)) {
+                                            initiateDeleteTask(t);
+                                          }
+                                        }}
+                                        className="px-3.5 py-2 bg-red-50 hover:bg-red-105/30 border border-red-200/40 text-red-650 dark:bg-red-955/10 dark:text-red-400 dark:border-red-900/10 font-bold text-[10.5px] rounded-xl uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 text-red-555" />
+                                        <span>Arsipkan Tugas</span>
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
         ) : (
           
           /* VIEW MODE: DELEGATION TREE MAP */

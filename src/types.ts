@@ -28,6 +28,15 @@ export interface DirectorHistory {
   isActive: boolean; // Status Aktif
 }
 
+export interface ClientRoom {
+  id: string;
+  name: string;      // Nama Ruangan (e.g. Ruang UGD, Poli Anak)
+  code?: string;      // Kode Ruangan (e.g. RU-01)
+  floor?: string;     // Lantai (e.g. Lantai 1, Lantai 2)
+  description?: string; // Keterangan tambahan
+  createdAt: string;
+}
+
 export interface Client {
   id: string;
   namaRS: string;      // Nama RS
@@ -42,6 +51,7 @@ export interface Client {
   createdBy?: string;
   persentaseKSO?: number; // Persentase KSO (e.g. 10.5)
   directors?: DirectorHistory[]; // List of historical directors
+  rooms?: ClientRoom[]; // Daftar Ruangan penempatan aset
 }
 
 export interface Project {
@@ -193,11 +203,15 @@ export interface Ticket {
   status: 'Open' | 'In Progress' | 'Resolved' | string;
   priority: string; // Low, Medium, High, Urgent
   category?: string; // e.g. "Software/SIMRS", "Hardware/PC", "Network/Internet", etc.
+  subCategory?: string; // Sub Kategori
+  problemType?: string; // Jenis Masalah
   createdAt: string;
   createdBy?: string;
   ticketNumber?: string;
   fileUrl?: string;
   fileName?: string;
+  picPelapor?: string;
+  picTugas?: string;
 }
 
 export interface SubModule {
@@ -266,6 +280,8 @@ export interface Asset {
   serialNumber: string;
   deviceName: string;
   clientRS: string; // Deployment location (Master Data Client RS)
+  roomId?: string;  // ID Ruangan penempatan
+  roomName?: string; // Nama Ruangan penempatan
   pic: string;
   status: 'Aktif' | 'Rusak' | 'Maintenance' | string;
   specs: AssetSpecs;

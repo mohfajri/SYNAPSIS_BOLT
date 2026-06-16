@@ -54,6 +54,8 @@ interface SettingsConfig {
   kategoriImplementasi?: ItemConfig[];
   jenisLaporan?: ItemConfig[];
   kategoriLaporan?: ItemConfig[];
+  subKategori?: ItemConfig[];
+  jenisMasalah?: ItemConfig[];
 }
 
 const AVAILABLE_VIEWS = [
@@ -106,6 +108,54 @@ export default function SettingsView({
   const [editingValue, setEditingValue] = useState<string>("");
   const [newValInput, setNewValInput] = useState<string>("");
 
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>("");
+  const [subCategoryInput, setSubCategoryInput] = useState<string>("");
+
+  const [selectedParentSubCategory, setSelectedParentSubCategory] = useState<string>("");
+  const [problemTypeInput, setProblemTypeInput] = useState<string>("");
+
+  const handleAddSubKategori = () => {
+    if (!selectedParentCategory) {
+      triggerToast("Silahkan pilih Kategori terlebih dahulu!", true);
+      return;
+    }
+    if (!subCategoryInput.trim()) {
+      triggerToast("Nama Sub Kategori wajib diisi!", true);
+      return;
+    }
+    const combinedValue = `${selectedParentCategory}: ${subCategoryInput.trim()}`;
+    const currentList = (settings.subKategori || []) as ItemConfig[];
+    if (currentList.some(item => item && item.value.toLowerCase() === combinedValue.toLowerCase())) {
+      triggerToast("Sub Kategori ini sudah terdaftar!", true);
+      return;
+    }
+    const nextList = [...currentList, { value: combinedValue, active: true }];
+    handleSaveSettings({ ...settings, subKategori: nextList });
+    setSubCategoryInput("");
+    triggerToast("Sub Kategori berhasil ditambahkan.");
+  };
+
+  const handleAddJenisMasalah = () => {
+    if (!selectedParentSubCategory) {
+      triggerToast("Silahkan pilih Sub Kategori terlebih dahulu!", true);
+      return;
+    }
+    if (!problemTypeInput.trim()) {
+      triggerToast("Nama Jenis Masalah wajib diisi!", true);
+      return;
+    }
+    const combinedValue = `${selectedParentSubCategory}: ${problemTypeInput.trim()}`;
+    const currentList = (settings.jenisMasalah || []) as ItemConfig[];
+    if (currentList.some(item => item && item.value.toLowerCase() === combinedValue.toLowerCase())) {
+      triggerToast("Jenis Masalah ini sudah terdaftar!", true);
+      return;
+    }
+    const nextList = [...currentList, { value: combinedValue, active: true }];
+    handleSaveSettings({ ...settings, jenisMasalah: nextList });
+    setProblemTypeInput("");
+    triggerToast("Jenis Masalah berhasil ditambahkan.");
+  };
+
   const [editingRoleIndex, setEditingRoleIndex] = useState<number | null>(null);
   const [editingRoleValue, setEditingRoleValue] = useState<string>("");
 
@@ -144,6 +194,8 @@ export default function SettingsView({
       case "kategoriImplementasi":
       case "jenisLaporan":
       case "kategoriLaporan":
+      case "subKategori":
+      case "jenisMasalah":
         return false;
       default: return false;
     }
@@ -540,6 +592,22 @@ export default function SettingsView({
             <Layers className="w-4.5 h-4.5 shrink-0" />
             <span>Kategori Laporan (Helpdesk)</span>
           </button>
+
+          <button
+            onClick={() => { setActiveTab("subKategori"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "subKategori" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Boxes className="w-4.5 h-4.5 shrink-0" />
+            <span>Sub Kategori (Helpdesk)</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("jenisMasalah"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "jenisMasalah" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Zap className="w-4.5 h-4.5 shrink-0" />
+            <span>Jenis Masalah (Helpdesk)</span>
+          </button>
         </div>
 
         {/* Dynamic Detail Card Panels */}
@@ -736,33 +804,114 @@ export default function SettingsView({
                     {activeTab === "kategoriImplementasi" && "Kategori Kategori Implementasi Site (e.g. Request, Pengembangan)"}
                     {activeTab === "jenisLaporan" && "Katalog Jenis Laporan Helpdesk (Incident/Request, dsb)"}
                     {activeTab === "kategoriLaporan" && "Katalog Kategori Masalah Helpdesk (SIMRS, PC, Printer, dsb)"}
+                    {activeTab === "subKategori" && "Katalog Sub Kategori Helpdesk (e.g. SIMRS: EMR, PC: Monitor, dsb)"}
+                    {activeTab === "jenisMasalah" && "Katalog Jenis Masalah Helpdesk (e.g. EMR: Gagal Buka Pasien, dsb)"}
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Kelola data isian rujukan secara global, data lama tetap dipertahankan.</p>
                 </div>
               </div>
-
+ 
               {/* Inline addition channel */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ketik entri data baru disini..."
-                  value={newValInput}
-                  onChange={(e) => setNewValInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleAddListItem(activeTab as keyof SettingsConfig);
-                    }
-                  }}
-                  className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2.5 px-3 rounded-lg font-semibold text-xs focus:ring-2 focus:ring-blue-500/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddListItem(activeTab as keyof SettingsConfig)}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-750 text-white text-xs font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer font-sans shadow-2xs hover:shadow-xs"
-                >
-                  <Plus className="w-4 h-4" /> Tambah
-                </button>
-              </div>
+              {activeTab === "subKategori" ? (
+                <div className="flex flex-wrap items-end gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-205 dark:border-slate-800">
+                  <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Kategori Laporan (Parent) *</label>
+                    <select
+                      value={selectedParentCategory}
+                      onChange={(e) => setSelectedParentCategory(e.target.value)}
+                      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2 px-3 rounded-lg text-xs font-bold"
+                    >
+                      <option value="">-- Pilih Kategori --</option>
+                      {((settings.kategoriLaporan || []).filter(x => x.active)).map((catObj) => (
+                        <option key={catObj.value} value={catObj.value}>{catObj.value}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nama Sub Kategori *</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: EMR, Pendaftaran, Apotek"
+                      value={subCategoryInput}
+                      onChange={(e) => setSubCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddSubKategori();
+                      }}
+                      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2 px-3 rounded-lg text-xs font-semibold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddSubKategori}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-750 text-white text-xs font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-2xs hover:shadow-xs self-end h-[38px] font-sans"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Sub Kategori
+                  </button>
+                </div>
+              ) : activeTab === "jenisMasalah" ? (
+                <div className="flex flex-wrap items-end gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-205 dark:border-slate-800">
+                  <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Sub Kategori (Parent) *</label>
+                    <select
+                      value={selectedParentSubCategory}
+                      onChange={(e) => setSelectedParentSubCategory(e.target.value)}
+                      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2 px-3 rounded-lg text-xs font-bold"
+                    >
+                      <option value="">-- Pilih Sub Kategori --</option>
+                      {((settings.subKategori || []).filter(x => x.active)).map((subObj) => {
+                        const parts = subObj.value.split(":");
+                        const displayLabel = parts.length > 1 ? `${parts[1].trim()} (dari ${parts[0].trim()})` : subObj.value;
+                        const subOnlyVal = parts.length > 1 ? parts[1].trim() : subObj.value;
+                        return (
+                          <option key={subObj.value} value={subOnlyVal}>{displayLabel}</option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Nama Jenis Masalah *</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Gagal Buka Pasien, Resep pending, dsb"
+                      value={problemTypeInput}
+                      onChange={(e) => setProblemTypeInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddJenisMasalah();
+                      }}
+                      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2 px-3 rounded-lg text-xs font-semibold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddJenisMasalah}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-750 text-white text-xs font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-2xs hover:shadow-xs self-end h-[38px] font-sans"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Jenis Masalah
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ketik entri data baru disini..."
+                    value={newValInput}
+                    onChange={(e) => setNewValInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleAddListItem(activeTab as keyof SettingsConfig);
+                      }
+                    }}
+                    className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 py-2.5 px-3 rounded-lg font-semibold text-xs focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddListItem(activeTab as keyof SettingsConfig)}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-750 text-white text-xs font-black rounded-lg transition-all flex items-center gap-1 cursor-pointer font-sans shadow-2xs hover:shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah
+                  </button>
+                </div>
+              )}
 
               {/* Configured Item rows table */}
               <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">

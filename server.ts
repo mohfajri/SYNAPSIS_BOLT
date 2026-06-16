@@ -136,6 +136,41 @@ const DEFAULT_SETTINGS = {
     { value: "Network/Internet", active: true },
     { value: "Peripheral/Printer", active: true },
     { value: "Access/Account", active: true }
+  ],
+  subKategori: [
+    { value: "Software/SIMRS: EMR", active: true },
+    { value: "Software/SIMRS: Pendaftaran", active: true },
+    { value: "Software/SIMRS: Poli", active: true },
+    { value: "Software/SIMRS: Apotek", active: true },
+    { value: "Software/SIMRS: Laboratorium", active: true },
+    { value: "Software/SIMRS: Kasir", active: true },
+    { value: "Hardware/PC: PC Desktop", active: true },
+    { value: "Hardware/PC: Laptop", active: true },
+    { value: "Hardware/PC: Monitor", active: true },
+    { value: "Hardware/PC: RAM/Harddisk", active: true },
+    { value: "Network/Internet: Koneksi Wifi", active: true },
+    { value: "Network/Internet: LAN Cable", active: true },
+    { value: "Network/Internet: Switch/Hub", active: true },
+    { value: "Network/Internet: Mikrotik Router", active: true },
+    { value: "Peripheral/Printer: Printer Thermal", active: true },
+    { value: "Peripheral/Printer: Printer Inkjet", active: true },
+    { value: "Peripheral/Printer: Barcode Scanner", active: true },
+    { value: "Access/Account: Akun SIMRS", active: true },
+    { value: "Access/Account: Email RS", active: true },
+    { value: "Access/Account: Hak Akses Menu", active: true }
+  ],
+  jenisMasalah: [
+    { value: "EMR: Buka Berkas Pasien", active: true },
+    { value: "EMR: Input Diagnosa Gagal", active: true },
+    { value: "EMR: Cari Berkas Pasien", active: true },
+    { value: "EMR: Resep EMR tidak tampil", active: true },
+    { value: "Pendaftaran: Gagal Cetak Tracer", active: true },
+    { value: "Pendaftaran: No RM Ganda", active: true },
+    { value: "Pendaftaran: Pasien BPJS tidak valid", active: true },
+    { value: "Apotek: Stok Obat Minus", active: true },
+    { value: "Apotek: Resep Elektronik pending", active: true },
+    { value: "Printer Thermal: Kertas printer macet", active: true },
+    { value: "Printer Thermal: Cetak struk pudar / tidak jelas", active: true }
   ]
 };
 
@@ -1282,7 +1317,7 @@ app.get("/api/clients", async (req, res) => {
 
 app.post("/api/clients", async (req, res) => {
   try {
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms } = req.body;
     if (!namaRS) {
       return res.status(400).json({ error: "Nama RS wajib diisi!" });
     }
@@ -1299,7 +1334,8 @@ app.post("/api/clients", async (req, res) => {
       createdAt: new Date().toISOString(),
       moduleStatuses: moduleStatuses || [],
       persentaseKSO: persentaseKSO !== undefined ? parseFloat(persentaseKSO) : 100,
-      directors: directors || []
+      directors: directors || [],
+      rooms: rooms || []
     };
     db.clients.push(newClient);
     await writeDB(db);
@@ -1312,7 +1348,7 @@ app.post("/api/clients", async (req, res) => {
 app.put("/api/clients/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms } = req.body;
     const db = await readDB();
     const idx = db.clients.findIndex((cl: any) => cl.id === id);
     if (idx === -1) {
@@ -1328,6 +1364,7 @@ app.put("/api/clients/:id", async (req, res) => {
     if (moduleStatuses !== undefined) db.clients[idx].moduleStatuses = moduleStatuses;
     if (persentaseKSO !== undefined) db.clients[idx].persentaseKSO = persentaseKSO !== null ? parseFloat(persentaseKSO) : undefined;
     if (directors !== undefined) db.clients[idx].directors = directors;
+    if (rooms !== undefined) db.clients[idx].rooms = rooms;
     
     await writeDB(db);
     return res.json(db.clients[idx]);
@@ -1570,7 +1607,7 @@ app.get("/api/settings", async (req, res) => {
       await writeDB(db);
     } else {
       let modified = false;
-      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul", "jenisLaporan", "kategoriLaporan"];
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul", "jenisLaporan", "kategoriLaporan", "subKategori", "jenisMasalah"];
       for (const key of keys) {
         if (!db.settings[key]) {
           db.settings[key] = (DEFAULT_SETTINGS as any)[key];
