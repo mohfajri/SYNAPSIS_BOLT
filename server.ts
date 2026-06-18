@@ -517,6 +517,86 @@ async function initializeDB() {
 // Ensure the DB is ready on load
 initializeDB();
 
+const DEFAULT_CHECKLIST_ITEMS = [
+  // 1. NETWORKING
+  { id: "cl-item-1", category: "NETWORKING", name: "A. The Dude", okLabel: "Reply", notOkLabel: "RTO", active: true, order: 1 },
+  { id: "cl-item-2", category: "NETWORKING", name: "B. Link Internet - 1. Test Email", okLabel: "ON", notOkLabel: "OFF", active: true, order: 2 },
+  { id: "cl-item-3", category: "NETWORKING", name: "B. Link Internet - 2. Link Gitlab", okLabel: "ON", notOkLabel: "OFF", active: true, order: 3 },
+  { id: "cl-item-4", category: "NETWORKING", name: "B. Link Internet - 3. Link Mantis", okLabel: "ON", notOkLabel: "OFF", active: true, order: 4 },
+  
+  // 2. ANTRIAN PENDAFTARAN MANDIRI
+  { id: "cl-item-5", category: "ANTRIAN PENDAFTARAN MANDIRI", name: "1. KiosK", okLabel: "ON", notOkLabel: "OFF", active: true, order: 5 },
+  { id: "cl-item-6", category: "ANTRIAN PENDAFTARAN MANDIRI", name: "2. APM 1", okLabel: "ON", notOkLabel: "OFF", active: true, order: 6 },
+  { id: "cl-item-7", category: "ANTRIAN PENDAFTARAN MANDIRI", name: "3. APM 2", okLabel: "ON", notOkLabel: "OFF", active: true, order: 7 },
+  { id: "cl-item-8", category: "ANTRIAN PENDAFTARAN MANDIRI", name: "4. APM 3", okLabel: "ON", notOkLabel: "OFF", active: true, order: 8 },
+  { id: "cl-item-9", category: "ANTRIAN PENDAFTARAN MANDIRI", name: "5. Cetak Antrian", okLabel: "ON", notOkLabel: "OFF", active: true, order: 9 },
+
+  // 3. LOKET PENDAFTARAN
+  { id: "cl-item-10", category: "LOKET PENDAFTARAN", name: "1. www.admission.healthcare/daftar-pasien", okLabel: "ON", notOkLabel: "OFF", active: true, order: 10 },
+  { id: "cl-item-11", category: "LOKET PENDAFTARAN", name: "2. Suara", okLabel: "ON", notOkLabel: "OFF", active: true, order: 11 },
+  { id: "cl-item-12", category: "LOKET PENDAFTARAN", name: "3. Cetak Antrian", okLabel: "ON", notOkLabel: "OFF", active: true, order: 12 },
+  { id: "cl-item-13", category: "LOKET PENDAFTARAN", name: "4. Display Antrian Loket TV 42 Inc .1", okLabel: "ON", notOkLabel: "OFF", active: true, order: 13 },
+  { id: "cl-item-14", category: "LOKET PENDAFTARAN", name: "5. Loket 1 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 14 },
+  { id: "cl-item-15", category: "LOKET PENDAFTARAN", name: "6. Loket 2 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 15 },
+  { id: "cl-item-16", category: "LOKET PENDAFTARAN", name: "7. Loket 3 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 16 },
+  { id: "cl-item-17", category: "LOKET PENDAFTARAN", name: "8. Loket 4 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 17 },
+  { id: "cl-item-18", category: "LOKET PENDAFTARAN", name: "9. Loket 5 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 18 },
+  { id: "cl-item-19", category: "LOKET PENDAFTARAN", name: "10. Loket 6 : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 19 },
+
+  // 4. FARMASI
+  { id: "cl-item-20", category: "FARMASI", name: "1. Suara", okLabel: "ON", notOkLabel: "OFF", active: true, order: 20 },
+  { id: "cl-item-21", category: "FARMASI", name: "2. www.farmasi.healthcare/daftar-pasien", okLabel: "Reply", notOkLabel: "RTO", active: true, order: 21 },
+  { id: "cl-item-22", category: "FARMASI", name: "3. Printer Antrian", okLabel: "ON", notOkLabel: "Tidak", active: true, order: 22 },
+  { id: "cl-item-23", category: "FARMASI", name: "4. Nomer Antrian", okLabel: "ON", notOkLabel: "Tidak", active: true, order: 23 },
+  { id: "cl-item-24", category: "FARMASI", name: "5. Display Antrian Farmasi BPJS TV 42 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 24 },
+  { id: "cl-item-25", category: "FARMASI", name: "6. Display Antrian Farmasi Umum TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 25 },
+  { id: "cl-item-26", category: "FARMASI", name: "7. Antrian Farmasi", okLabel: "ON", notOkLabel: "OFF", active: true, order: 26 },
+
+  // 5. PELAYANAN
+  { id: "cl-item-27", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 1. Display Antrian Pelayanan Poli TV 42 Inc .1", okLabel: "ON", notOkLabel: "OFF", active: true, order: 27 },
+  { id: "cl-item-28", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 2. Display Antrian Pelayanan Poli TV 42 Inc .2", okLabel: "ON", notOkLabel: "OFF", active: true, order: 28 },
+  { id: "cl-item-29", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 3. Display Antrian Pelayanan Poli TV 42 Inc .3", okLabel: "ON", notOkLabel: "OFF", active: true, order: 29 },
+  { id: "cl-item-30", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 4. Display Antrian Pelayanan Rehab TV 42 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 30 },
+  { id: "cl-item-31", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 5. Poli Paru : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 31 },
+  { id: "cl-item-32", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 6. Poli Penyakit Dalam : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 32 },
+  { id: "cl-item-33", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 7. Poli Gigi : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 33 },
+  { id: "cl-item-34", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 8. Poli THT : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 34 },
+  { id: "cl-item-35", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 9. Poli Kandungan : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 35 },
+  { id: "cl-item-36", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 10. Poli Psikiatri : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 36 },
+  { id: "cl-item-37", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 11. Poli Psikologi : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 37 },
+  { id: "cl-item-38", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 12. Poli Bedah : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 38 },
+  { id: "cl-item-39", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 13. Poli Kulit Kelamin : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 39 },
+  { id: "cl-item-40", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 14. Poli Anak : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 40 },
+  { id: "cl-item-41", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 15. Poli Mata : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 41 },
+  { id: "cl-item-42", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 16. Poli Bedah Saraf/Urologi : Display TV 22 Inc Ind", okLabel: "ON", notOkLabel: "OFF", active: true, order: 42 },
+  { id: "cl-item-43", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 17. Poli Saraf : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 43 },
+  { id: "cl-item-44", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 18. Poli Jantung : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 44 },
+  { id: "cl-item-45", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 19. Poli Penyakit Dalam : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 45 },
+  { id: "cl-item-46", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 20. Poli Geriatri : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 46 },
+  { id: "cl-item-47", category: "PELAYANAN", name: "A. ANTRIAN PELAYANAN - 21. Poli Bedah Tulang : Display TV 22 Inc", okLabel: "ON", notOkLabel: "OFF", active: true, order: 47 },
+  { id: "cl-item-48", category: "PELAYANAN", name: "B. EMR PELAYANAN - 1. https://ww.pelayanan.healthcare/#/home", okLabel: "Reply", notOkLabel: "RTO", active: true, order: 48 },
+
+  // 6. BED MONITORING & JADWAL OPERASI
+  { id: "cl-item-49", category: "BED MONITORING & JADWAL OPERASI", name: "1. Display Bed Monitoring", okLabel: "ON", notOkLabel: "OFF", active: true, order: 49 },
+  { id: "cl-item-50", category: "BED MONITORING & JADWAL OPERASI", name: "2. Jadwal Operasi", okLabel: "ON", notOkLabel: "OFF", active: true, order: 50 },
+
+  // 7. BI DIREKSI
+  { id: "cl-item-51", category: "BI DIREKSI", name: "1. Display BI DIREKSI", okLabel: "ON", notOkLabel: "OFF", active: true, order: 51 },
+
+  // 8. BRIDGING
+  { id: "cl-item-52", category: "BRIDGING", name: "1. Server Antrian RS", okLabel: "ON", notOkLabel: "OFF", active: true, order: 52 },
+  { id: "cl-item-53", category: "BRIDGING", name: "2. Server APM", okLabel: "ON", notOkLabel: "OFF", active: true, order: 53 },
+  { id: "cl-item-54", category: "BRIDGING", name: "3. Server VClaim V2", okLabel: "ON", notOkLabel: "OFF", active: true, order: 54 },
+  { id: "cl-item-55", category: "BRIDGING", name: "4. Server Antrian Online", okLabel: "ON", notOkLabel: "OFF", active: true, order: 55 },
+  { id: "cl-item-56", category: "BRIDGING", name: "5. Server PDF", okLabel: "ON", notOkLabel: "OFF", active: true, order: 56 },
+  { id: "cl-item-57", category: "BRIDGING", name: "6. Vclaim", okLabel: "ON", notOkLabel: "OFF", active: true, order: 57 },
+  { id: "cl-item-58", category: "BRIDGING", name: "7. Aplicares", okLabel: "ON", notOkLabel: "OFF", active: true, order: 58 },
+  { id: "cl-item-59", category: "BRIDGING", name: "8. Siranap", okLabel: "ON", notOkLabel: "OFF", active: true, order: 59 },
+  { id: "cl-item-60", category: "BRIDGING", name: "9. Reparasi Database Eklaim", okLabel: "ON", notOkLabel: "OFF", active: true, order: 60 },
+  { id: "cl-item-61", category: "BRIDGING", name: "10. Apotek Online", okLabel: "ON", notOkLabel: "OFF", active: true, order: 61 },
+  { id: "cl-item-62", category: "BRIDGING", name: "11. SISRUTE", okLabel: "ON", notOkLabel: "OFF", active: true, order: 62 }
+];
+
 // DB Access helper
 async function readDB() {
   await initializeDB();
@@ -578,6 +658,14 @@ async function readDB() {
     db.kasUnlockRequests = [];
     modified = true;
   }
+  if (!db.checklistItemsSetting) {
+    db.checklistItemsSetting = [...DEFAULT_CHECKLIST_ITEMS];
+    modified = true;
+  }
+  if (!db.checklists) {
+    db.checklists = [];
+    modified = true;
+  }
   if (db.users) {
     db.users.forEach((u: any) => {
       if (u.statusAktif === undefined) {
@@ -621,6 +709,10 @@ async function readDB() {
         adminRole.allowedViews.push("kassite");
         modified = true;
       }
+      if (!adminRole.allowedViews.includes("checklist")) {
+        adminRole.allowedViews.push("checklist");
+        modified = true;
+      }
     }
     
     // Also enable for other roles by default so they are easy to access
@@ -650,6 +742,10 @@ async function readDB() {
           r.allowedViews.push("kassite");
           modified = true;
         }
+        if (!r.allowedViews.includes("checklist")) {
+          r.allowedViews.push("checklist");
+          modified = true;
+        }
       } else if (r.roleName === "Client") {
         // Can read or interact with it too if in their permissions
         if (!r.allowedViews.includes("monev")) {
@@ -658,6 +754,10 @@ async function readDB() {
         }
         if (!r.allowedViews.includes("billing")) {
           r.allowedViews.push("billing");
+          modified = true;
+        }
+        if (!r.allowedViews.includes("checklist")) {
+          r.allowedViews.push("checklist");
           modified = true;
         }
       }
@@ -1594,6 +1694,117 @@ app.delete("/api/siteimplementations/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── CHECKLISTS CRUD ──────────────────────────────────────────────────────
+app.get("/api/checklist/settings", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.checklistItemsSetting || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/checklist/settings", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newItem = {
+      id: "cl-item-" + Math.random().toString(36).slice(2, 9),
+      active: true,
+      order: (db.checklistItemsSetting || []).length + 1,
+      ...req.body
+    };
+    db.checklistItemsSetting = db.checklistItemsSetting || [];
+    db.checklistItemsSetting.push(newItem);
+    await writeDB(db);
+    return res.status(201).json(newItem);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/checklist/settings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.checklistItemsSetting || []).findIndex((item: any) => item.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Checklist item tidak ditemukan!" });
+    }
+    db.checklistItemsSetting[idx] = { ...db.checklistItemsSetting[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.checklistItemsSetting[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/checklist/settings/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.checklistItemsSetting = (db.checklistItemsSetting || []).filter((item: any) => item.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/checklists", async (req, res) => {
+  try {
+    const db = await readDB();
+    return res.json(db.checklists || []);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/checklists", async (req, res) => {
+  try {
+    const db = await readDB();
+    const newChecklist = {
+      id: "cl-sub-" + Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      ...req.body
+    };
+    db.checklists = db.checklists || [];
+    db.checklists.unshift(newChecklist);
+    await writeDB(db);
+    return res.status(201).json(newChecklist);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/checklists/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    const idx = (db.checklists || []).findIndex((cl: any) => cl.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Checklist submission tidak ditemukan!" });
+    }
+    db.checklists[idx] = { ...db.checklists[idx], ...req.body };
+    await writeDB(db);
+    return res.json(db.checklists[idx]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/checklists/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await readDB();
+    db.checklists = (db.checklists || []).filter((cl: any) => cl.id !== id);
+    await writeDB(db);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(550).json({ error: err.message });
   }
 });
 

@@ -212,6 +212,8 @@ export interface Ticket {
   fileName?: string;
   picPelapor?: string;
   picTugas?: string;
+  closedAt?: string;
+  followUpLog?: string;
 }
 
 export interface SubModule {
@@ -477,6 +479,40 @@ export interface KasUnlockRequest {
   createdBy: string;
   approvedAt?: string;
   approvedBy?: string;
+}
+
+export interface ChecklistItemSetting {
+  id: string;
+  category: string;
+  name: string;
+  okLabel: string;
+  notOkLabel: string;
+  active: boolean;
+  order?: number;
+}
+
+export interface ChecklistSubmissionItem {
+  id: string;
+  category: string;
+  name: string;
+  status: "OK" | "NOT OK" | "";
+  okLabel: string;
+  notOkLabel: string;
+  keterangan: string;
+}
+
+export interface ChecklistSubmission {
+  id: string;
+  site: string;       // RSUD / Client name
+  tanggal: string;    // e.g. "Monday, 15 Jun 2026" or "2026-06-15"
+  waktu: "Pagi" | "Sore";
+  userCreator: string;
+  roleCreator: string;
+  items: ChecklistSubmissionItem[];
+  photoName?: string;
+  photoUrl?: string; // Base64 of JPEG/PNG or attachment
+  createdAt: string;
+  createdBy: string;
 }
 
 

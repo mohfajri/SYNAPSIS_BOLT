@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder, KasSiteTransaction, KasSiteReplenishment, KasLock, KasUnlockRequest } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder, KasSiteTransaction, KasSiteReplenishment, KasLock, KasUnlockRequest, ChecklistItemSetting, ChecklistSubmission } from "../types";
 
 const API_BASE = "/api";
 
@@ -680,6 +680,68 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  // Checklist Settings CRUD APIs
+  async getChecklistSettings(): Promise<ChecklistItemSetting[]> {
+    const res = await fetch(`${API_BASE}/checklist/settings`);
+    return handleResponse(res);
+  },
+
+  async createChecklistItemSetting(data: Partial<ChecklistItemSetting>): Promise<ChecklistItemSetting> {
+    const res = await fetch(`${API_BASE}/checklist/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateChecklistItemSetting(id: string, data: Partial<ChecklistItemSetting>): Promise<ChecklistItemSetting> {
+    const res = await fetch(`${API_BASE}/checklist/settings/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteChecklistItemSetting(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/checklist/settings/${id}`, {
+      method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Checklist Submissions CRUD APIs
+  async getChecklistSubmissions(): Promise<ChecklistSubmission[]> {
+    const res = await fetch(`${API_BASE}/checklists`);
+    return handleResponse(res);
+  },
+
+  async createChecklistSubmission(data: Partial<ChecklistSubmission>): Promise<ChecklistSubmission> {
+    const res = await fetch(`${API_BASE}/checklists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async updateChecklistSubmission(id: string, data: Partial<ChecklistSubmission>): Promise<ChecklistSubmission> {
+    const res = await fetch(`${API_BASE}/checklists/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async deleteChecklistSubmission(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/checklists/${id}`, {
+      method: "DELETE"
     });
     return handleResponse(res);
   }

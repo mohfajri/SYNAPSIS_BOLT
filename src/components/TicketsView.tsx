@@ -204,6 +204,87 @@ export default function TicketsView({
     return `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
   });
 
+  const formatDateTimeFull = (dateStr?: string | null) => {
+    if (!dateStr) return "-";
+    try {
+      const dt = new Date(dateStr);
+      if (isNaN(dt.getTime())) return dateStr;
+      const dStr = dt.getDate().toString().padStart(2, "0");
+      const mStr = (dt.getMonth() + 1).toString().padStart(2, "0");
+      const yr = dt.getFullYear();
+      const hr = dt.getHours().toString().padStart(2, "0");
+      const mn = dt.getMinutes().toString().padStart(2, "0");
+      return `${dStr}-${mStr}-${yr} ${hr}:${mn}`;
+    } catch (_) {
+      return dateStr;
+    }
+  };
+
+  const getTicketClosedAt = (t: Ticket) => {
+    if (t.closedAt) return formatDateTimeFull(t.closedAt);
+    
+    // Parse from description fallback if available
+    if (t.description && (t.status === "Resolved" || t.status === "Solved" || t.status === "Closed")) {
+      const match = t.description.match(/\((\d{2}-\d{2}-\d{4} \d{2}:\d{2})\)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return "-";
+  };
+
+  const getInitialDescription = (desc?: string | null) => {
+    if (!desc) return "-";
+    const patterns = [
+      "\n\n---\n**[",
+      "\r\n\r\n---\r\n**[",
+      "\n---\n**[",
+      "\r\n---\r\n**[",
+      "\n\n---",
+      "\r\n\r\n---",
+      "\n---"
+    ];
+    for (const pat of patterns) {
+      const idx = desc.indexOf(pat);
+      if (idx !== -1) {
+        return desc.substring(0, idx).trim();
+      }
+    }
+    return desc.trim();
+  };
+
+  const getLegacyFollowUpsOnly = (desc?: string | null) => {
+    if (!desc) return "";
+    const patterns = [
+      "\n\n---\n**[",
+      "\r\n\r\n---\r\n**[",
+      "\n---\n**[",
+      "\r\n---\r\n**[",
+      "\n\n---",
+      "\r\n\r\n---",
+      "\n---"
+    ];
+    for (const pat of patterns) {
+      const idx = desc.indexOf(pat);
+      if (idx !== -1) {
+        return desc.substring(idx).trim();
+      }
+    }
+    return "";
+  };
+
+  const getCombinedFollowUpText = (t: Ticket) => {
+    const legacy = getLegacyFollowUpsOnly(t.description);
+    const modern = t.followUpLog || "";
+    if (legacy && modern) {
+      if (modern.includes(legacy.trim())) {
+        return modern.trim();
+      }
+      return `${legacy}\n\n${modern}`.trim();
+    }
+    return (modern || legacy || "").trim();
+  };
+
   const handleExportExcel = () => {
     try {
       let ticketsToExport = [...tickets];
@@ -280,31 +361,24 @@ export default function TicketsView({
       }
 
       const data = ticketsToExport.map((t, idx) => {
-        let formattedDate = "";
-        try {
-          const dt = new Date(t.createdAt);
-          formattedDate = `${dt.getDate().toString().padStart(2, "0")}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getFullYear()} ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
-        } catch (_) {
-          formattedDate = t.createdAt;
-        }
+        const openDate = formatDateTimeFull(t.createdAt);
+        const closeDate = getTicketClosedAt(t);
 
         return {
-          "No.": idx + 1,
-          "No. Tiket": t.ticketNumber || "-",
-          "Tanggal": formattedDate,
-          "Lokasi/Site": t.projectName,
-          "Ruangan/Unit": t.unit,
-          "Pelapor (User)": t.reporterName,
-          "PIC Pelapor": t.picPelapor || "-",
-          "PIC Tugas": t.picTugas || "Belum Ditugaskan",
-          "Jenis Laporan": t.reportType,
+          "No": idx + 1,
+          "No Tiket": t.ticketNumber || "-",
+          "Tanggal Open Tiket": openDate,
+          "Judul Laporan": t.title || "-",
+          "Deskripsi": getInitialDescription(t.description),
+          "Jenis Laporan": t.reportType || "-",
           "Kategori": t.category || "-",
           "Sub Kategori": t.subCategory || "-",
-          "Jenis Masalah": t.problemType || "-",
-          "Prioritas": t.priority,
-          "Judul Kasus": t.title,
-          "Detail Deskripsi": t.description || "-",
-          "Status": t.status
+          "Ruangan": t.unit || "-",
+          "Prioritas": t.priority || "-",
+          "PIC Tugas": t.picTugas || "Belum Ditugaskan",
+          "Status": t.status || "-",
+          "Tanggal Close Tiket": closeDate,
+          "Log Tindakan Follow Up": getCombinedFollowUpText(t) || "-"
         };
       });
 
@@ -416,34 +490,43 @@ export default function TicketsView({
         return;
       }
 
-      // Initialize jsPDF (Landscape, mm, A4)
+      // Initialize jsPDF (Landscape, mm, Custom size: F4 is 330 x 215 mm)
       const doc = new jsPDF({
         orientation: "landscape",
         unit: "mm",
-        format: "a4"
+        format: [330, 215]
       });
 
-      // Styling details for professional document header
-      doc.setFillColor(30, 41, 59); // dark slate Slate-800
-      doc.rect(0, 0, 297, 30, "F");
+      // Drawing clear elegant header with white background (as requested: header putih saja)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 330, 44, "F");
 
-      // Draw horizontal light silver separator
-      doc.setDrawColor(226, 232, 240); // slate-200
-      doc.setLineWidth(0.5);
+      // Draw horizontal separator line in slate-200
+      doc.setDrawColor(218, 224, 233);
+      doc.setLineWidth(0.6);
+      doc.line(15, 41, 315, 41);
 
-      // Title & Header Text
-      doc.setTextColor(255, 255, 255);
+      // Title & Header Text (slate-900 look)
+      doc.setTextColor(15, 23, 42); 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text("LAPORAN WORK TICKETS & HELPDESK", 14, 13);
+      doc.setFontSize(15);
+      doc.text("LAPORAN WORK TICKETS & HELPDESK", 15, 13);
       
+      // Selected Lokasi/Site Highlight
+      const selectedSite = filterProject || "Semua Lokasi / Site";
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(79, 70, 229); // Indigo-600
+      doc.text(`LOKASI SITE: ${selectedSite.toUpperCase()}`, 15, 21);
+
+      // Metadata info (slate-600)
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(203, 213, 225); // slate-300
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
       const formattedNow = now.toLocaleDateString("id-ID", {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
       });
-      doc.text(`Dicetak Pada: ${formattedNow}  |  Oleh: ${currentUser?.name || currentUser?.username || "Sistem"}`, 14, 19);
+      doc.text(`Dicetak Pada: ${formattedNow}  |  Oleh: ${currentUser?.name || currentUser?.username || "Sistem"}`, 15, 28);
 
       // Filter Information Highlight
       let rangeText = "Semua Tiket";
@@ -465,96 +548,109 @@ export default function TicketsView({
         rangeText = "Filtered View (Sesuai Filter di Tabel halaman utama)";
       }
 
-      // Add Range text badge next to the header on the right or below
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(56, 189, 248); // light blue sky-400
-      doc.text(`KRITERIA EKSPOR: ${rangeText.toUpperCase()}`, 14, 25);
+      // Add Range text badge below (slate-500)
+      doc.setFont("helvetica", "semibold");
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Kriteria Rentang Waktu: ${rangeText}`, 15, 34);
 
-      // Prepare table columns and rows
+      // Prepare table columns and rows in exact specified order:
+      // 1. No, 2. No Tiket, 3. Tanggal Open Tiket, 4. Judul Laporan, 5. Deskripsi, 6. Jenis Laporan, 7. Kategori, 8. Sub Kategori, 9. Ruangan, 10. Prioritas, 11. PIC Tugas, 12. Status, 13. Tanggal Close Tiket, 14. Log Follow-Up
       const tableHeaders = [
-        ["No.", "No. Tiket", "Tanggal", "Lokasi/Site", "Ruangan/Unit", "Pelapor", "P.I.C.", "Kategori", "Isu / Judul Kasus", "Status"]
+        [
+          "No", 
+          "No Tiket", 
+          "Tgl Open Tiket", 
+          "Judul Laporan", 
+          "Deskripsi", 
+          "Jenis Laporan", 
+          "Kategori", 
+          "Sub Kategori", 
+          "Ruangan", 
+          "Prioritas", 
+          "PIC Tugas", 
+          "Status", 
+          "Tgl Close Tiket",
+          "Log Follow-Up"
+        ]
       ];
-
+ 
       const tableRows = ticketsToExport.map((t, idx) => {
-        let formattedDate = "";
-        try {
-          const dt = new Date(t.createdAt);
-          const dStr = dt.getDate().toString().padStart(2, "0");
-          const mStr = (dt.getMonth() + 1).toString().padStart(2, "0");
-          const hr = dt.getHours().toString().padStart(2, "0");
-          const mn = dt.getMinutes().toString().padStart(2, "0");
-          formattedDate = `${dStr}-${mStr}-${dt.getFullYear()} ${hr}:${mn}`;
-        } catch (_) {
-          formattedDate = t.createdAt;
-        }
-
+        const openDate = formatDateTimeFull(t.createdAt);
+        const closeDate = getTicketClosedAt(t);
+ 
         return [
           idx + 1,
           t.ticketNumber || "-",
-          formattedDate,
-          t.projectName || "-",
-          t.unit || "-",
-          t.reporterName || "-",
-          t.picTugas || "Belum Ditugaskan",
-          t.category || "-",
+          openDate,
           t.title || "-",
-          t.status
+          getInitialDescription(t.description),
+          t.reportType || "-",
+          t.category || "-",
+          t.subCategory || "-",
+          t.unit || "-",
+          t.priority || "-",
+          t.picTugas || "Belum Ditugaskan",
+          t.status || "-",
+          closeDate,
+          getCombinedFollowUpText(t) || "-"
         ];
       });
-
-      // Draw autoTable start at y = 35
+ 
+      // Draw autoTable starting at y = 46 (below divider line at 41)
       autoTable(doc, {
         head: tableHeaders,
         body: tableRows,
-        startY: 35,
+        startY: 46,
         theme: "striped",
         headStyles: {
           fillColor: [79, 70, 229], // Indigo 600
           textColor: 255,
           fontStyle: "bold",
-          fontSize: 8,
+          fontSize: 7.5,
           halign: "left"
         },
         styles: {
-          fontSize: 7.5,
-          cellPadding: 2,
+          fontSize: 7,
+          cellPadding: 1.8,
           font: "helvetica",
           overflow: "linebreak"
         },
         columnStyles: {
-          0: { cellWidth: 10 }, // No.
-          1: { cellWidth: 26 }, // No. Tiket
-          2: { cellWidth: 28 }, // Tanggal
-          3: { cellWidth: 32 }, // Lokasi
-          4: { cellWidth: 30 }, // Ruangan
-          5: { cellWidth: 25 }, // Pelapor
-          6: { cellWidth: 25 }, // PIC
-          7: { cellWidth: 24 }, // Kategori
-          8: { cellWidth: 72 }, // Judul
-          9: { cellWidth: 21 }, // Status
+          0: { cellWidth: 8 },    // No
+          1: { cellWidth: 20 },   // No Tiket
+          2: { cellWidth: 24 },   // Tgl Open Tiket
+          3: { cellWidth: 25 },   // Judul Laporan
+          4: { cellWidth: 35 },   // Deskripsi
+          5: { cellWidth: 15 },   // Jenis Laporan
+          6: { cellWidth: 16 },   // Kategori
+          7: { cellWidth: 16 },   // Sub Kategori
+          8: { cellWidth: 18 },   // Ruangan
+          9: { cellWidth: 14 },   // Prioritas
+          10: { cellWidth: 20 },  // PIC Tugas
+          11: { cellWidth: 14 },  // Status
+          12: { cellWidth: 24 },  // Tgl Close Tiket
+          13: { cellWidth: 51 },  // Log Follow-Up
         },
         alternateRowStyles: {
-          fillColor: [248, 250, 252] // light slate bg
+          fillColor: [248, 250, 252]
         },
         didDrawPage: (data) => {
-          // Footer
-          const pageCount = (doc as any).internal.getNumberOfPages();
+          // Footer at bottom of F4 page
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(148, 163, 184); // slate-400
           doc.text(
             `Halaman ${data.pageNumber}`,
-            297 - 14 - 15,
-            202
+            330 - 15 - 15,
+            215 - 10
           );
           doc.text(
             "Sistem Informasi Manajemen Pelayanan RS - Helpdesk & Troubleshoot Module",
-            14,
-            202
+            15,
+            215 - 10
           );
         },
-        margin: { top: 35, bottom: 15, left: 14, right: 14 }
+        margin: { top: 46, bottom: 15, left: 15, right: 15 }
       });
 
       let rangeLabel = "Semua";
@@ -728,7 +824,7 @@ export default function TicketsView({
     }
 
     setTitle(tk.title || "");
-    setDescription(tk.description || "");
+    setDescription(getInitialDescription(tk.description));
     setStatus(tk.status || "");
     setPriority(tk.priority || "");
     setPicPelapor(tk.picPelapor || "");
@@ -813,6 +909,24 @@ export default function TicketsView({
     };
 
     if (isEditing) {
+      const oldTicket = tickets.find(t => t.id === editId);
+      if (oldTicket) {
+        const legacyFollowUps = getLegacyFollowUpsOnly(oldTicket.description);
+        const oldLog = oldTicket.followUpLog || "";
+        let combinedLog = oldLog.trim();
+        if (legacyFollowUps) {
+          if (combinedLog) {
+            if (!combinedLog.includes(legacyFollowUps.trim())) {
+              combinedLog = legacyFollowUps.trim() + "\n\n" + combinedLog;
+            }
+          } else {
+            combinedLog = legacyFollowUps.trim();
+          }
+        }
+        if (combinedLog) {
+          payload.followUpLog = combinedLog;
+        }
+      }
       await onUpdateTicket(editId, payload);
     } else {
       await onAddTicket(payload);
@@ -875,13 +989,24 @@ export default function TicketsView({
     const statusLabel = followUpStatus === "Solved" ? "Solved (Selesai)" : followUpStatus === "Closed" ? "Closed (Terkunci Selesai)" : "In Progress (Dalam Penindakan)";
     const followUpBlock = `\n\n---\n**[Follow Up / Penyelesaian]**\n* **Status Baru**: \`${statusLabel}\`\n* **Oleh**: ${operatorName} (${timestampStr})\n* **Catat Tindakan**: ${followUpNotes.trim()}`;
 
-    const updatedDescription = (followUpTicket.description || "") + followUpBlock;
+    const oldLog = followUpTicket.followUpLog || "";
+    const legacyFollowUps = getLegacyFollowUpsOnly(followUpTicket.description);
+    let baseLog = oldLog.trim();
+    if (!baseLog && legacyFollowUps) {
+      baseLog = legacyFollowUps.trim();
+    }
+    const updatedFollowUpLog = baseLog ? `${baseLog}\n\n${followUpBlock.trim()}` : followUpBlock.trim();
+
+    const cleanDescription = getInitialDescription(followUpTicket.description);
     const updatedStatus = followUpStatus;
+    const isNowClosed = updatedStatus === "Solved" || updatedStatus === "Resolved" || updatedStatus === "Closed";
 
     try {
       await onUpdateTicket(followUpTicket.id, {
         status: updatedStatus,
-        description: updatedDescription
+        description: cleanDescription,
+        followUpLog: updatedFollowUpLog,
+        ...(isNowClosed ? { closedAt: new Date().toISOString() } : {})
       });
       setIsFollowUpOpen(false);
       setFollowUpTicket(null);
@@ -904,12 +1029,25 @@ export default function TicketsView({
       followUpBlock = `\n\n---\n**[Reopen Ticket]**\n* **Status Berubah**: \`Reopened -> ${newStatus}\`\n* **Oleh**: ${operatorName} (${timestampStr})`;
     }
 
-    const updatedDescription = (tk.description || "") + followUpBlock;
+    const oldLog = tk.followUpLog || "";
+    const legacyFollowUps = getLegacyFollowUpsOnly(tk.description);
+    let baseLog = oldLog.trim();
+    if (!baseLog && legacyFollowUps) {
+      baseLog = legacyFollowUps.trim();
+    }
+    const updatedFollowUpLog = followUpBlock 
+      ? (baseLog ? `${baseLog}\n\n${followUpBlock.trim()}` : followUpBlock.trim())
+      : baseLog;
+
+    const cleanDescription = getInitialDescription(tk.description);
+    const isNowClosed = newStatus === "Closed" || newStatus === "Resolved" || newStatus === "Solved";
 
     try {
       await onUpdateTicket(tk.id, {
         status: newStatus,
-        description: updatedDescription
+        description: cleanDescription,
+        followUpLog: updatedFollowUpLog,
+        closedAt: isNowClosed ? new Date().toISOString() : ""
       });
       // Keep expanded
       setExpandedTicketId(tk.id);
@@ -1528,13 +1666,31 @@ export default function TicketsView({
                                     {tk.title}
                                   </h4>
                                   <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-850 shadow-xs min-h-[120px] font-semibold leading-relaxed text-xs text-slate-705 dark:text-slate-350 prose dark:prose-invert max-w-full overflow-x-auto">
-                                    {tk.description ? (
+                                    {getInitialDescription(tk.description) ? (
                                       <div 
-                                        dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(tk.description) }}
+                                        dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(getInitialDescription(tk.description)) }}
                                         className="space-y-1.5 break-words outline-none"
                                       />
                                     ) : (
                                       <p className="text-slate-400 italic font-medium">Tidak ada deskripsi detail tambahan.</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Separated Log Tindakan / History Follow Up Section */}
+                                <div className="space-y-2 pt-2">
+                                  <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
+                                    <Activity className="w-4 h-4 text-emerald-500" />
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan & Log Tindakan Follow-Up</span>
+                                  </div>
+                                  <div className="bg-emerald-50/10 dark:bg-emerald-950/5 p-5 rounded-2xl border border-emerald-100/50 dark:border-emerald-950 shadow-xs min-h-[85px] font-semibold leading-relaxed text-xs text-slate-705 dark:text-slate-350 prose dark:prose-invert max-w-full overflow-x-auto">
+                                    {getCombinedFollowUpText(tk) ? (
+                                      <div 
+                                        dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(getCombinedFollowUpText(tk)) }}
+                                        className="space-y-1.5 break-words outline-none"
+                                      />
+                                    ) : (
+                                      <p className="text-slate-400 italic font-medium">Belum ada catatan atau tindakan follow-up pada tiket ini.</p>
                                     )}
                                   </div>
                                 </div>

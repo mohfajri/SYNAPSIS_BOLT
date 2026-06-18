@@ -46,6 +46,7 @@ import MonevView from "./components/MonevView";
 import BillingKSOView from "./components/BillingKSOView";
 import AtkOrdersView from "./components/AtkOrdersView";
 import KasSiteView from "./components/KasSiteView";
+import ChecklistView from "./components/ChecklistView";
 
 // Icons
 import { 
@@ -78,7 +79,8 @@ import {
   Activity,
   Receipt,
   Package,
-  Wallet
+  Wallet,
+  ClipboardCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1408,7 +1410,8 @@ export default function App() {
         { id: "assets", label: "Aset & Alat Tambahan", icon: Laptop },
         { id: "atk", label: "Pemesanan ATK (Logistik)", icon: Package },
         { id: "billing", label: "Billing KSO & ATK", icon: Receipt },
-        { id: "kassite", label: "Kas Site (Petty Cash)", icon: Wallet }
+        { id: "kassite", label: "Kas Site (Petty Cash)", icon: Wallet },
+        { id: "checklist", label: "Checklist", icon: ClipboardCheck }
       ]
     },
     {
@@ -1446,6 +1449,11 @@ export default function App() {
   // Grant 'kassite' view automatically for admin, direktur, manager keuangan, staff, or site coordinator
   if ((currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager Keuangan" || currentUser?.role === "Site Coordinator" || currentUser?.role === "Staff") && !allowedViewIds.includes("kassite")) {
     allowedViewIds = [...allowedViewIds, "kassite"];
+  }
+
+  // Grant 'checklist' view automatically for everyone
+  if (!allowedViewIds.includes("checklist")) {
+    allowedViewIds = [...allowedViewIds, "checklist"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -1986,6 +1994,13 @@ export default function App() {
                   .then(data => setBillings(data))
                   .catch(err => console.error("Error refreshing billing list:", err));
               }}
+            />
+          )}
+
+          {currentView === "checklist" && (
+            <ChecklistView 
+              currentUser={currentUser}
+              clients={scopedClients}
             />
           )}
 
