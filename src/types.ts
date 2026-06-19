@@ -513,6 +513,10 @@ export interface ChecklistSubmission {
   photoUrl?: string; // Base64 of JPEG/PNG or attachment
   createdAt: string;
   createdBy: string;
+  isApproved?: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  approvedRole?: string;
 }
 
 

@@ -4,11 +4,30 @@ const API_BASE = "/api";
 
 // Helper for dynamic response handling
 async function handleResponse(res: Response) {
+  const contentType = res.headers.get("content-type") || "";
+  
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `HTTP error! status: ${res.status}`);
+    let errorMessage = `HTTP error! status: ${res.status}`;
+    if (contentType.includes("application/json")) {
+      const errData = await res.json().catch(() => ({}));
+      errorMessage = errData.error || errorMessage;
+    } else {
+      const text = await res.text().catch(() => "");
+      console.error(`Error response body: ${text.slice(0, 200)}`);
+    }
+    throw new Error(errorMessage);
   }
-  return res.json();
+  
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    console.error(`Expected JSON but received content-type: ${contentType}. Body sample: ${text.slice(0, 200)}`);
+    throw new Error(`Server returned unexpected format (non-JSON response).`);
+  }
+  
+  return res.json().catch((err) => {
+    console.error("Failed to parse JSON response:", err);
+    throw new Error("Gagal mengurai respon server (Format JSON tidak valid).");
+  });
 }
 
 // Session Helpers

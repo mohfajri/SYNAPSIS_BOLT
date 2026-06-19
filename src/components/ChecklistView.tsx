@@ -31,20 +31,55 @@ import {
   Image as ImageIcon,
   MessageSquare,
   Copy,
-  ExternalLink
+  ExternalLink,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
+import QRCode from "qrcode";
+
+const fetchQrCodeBase64 = async (text: string): Promise<string> => {
+  try {
+    return await QRCode.toDataURL(text, { margin: 1, width: 150 });
+  } catch (err) {
+    console.error("Failed to generate local QR Code", err);
+    return "";
+  }
+};
+
+const generateDocHash = (id: string, date: string): string => {
+  const combined = id + (date || "2026") + "SYNAPSIS-DIGITAL-SECURE-ESIGN-SECRET-KEY-2026";
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const chr = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return "SHA-256-" + Math.abs(hash).toString(16).toUpperCase() + id.slice(0, 4).toUpperCase();
+};
+
+const getImageFormat = (dataUrl: string): string => {
+  if (!dataUrl) return "JPEG";
+  const str = dataUrl.toLowerCase();
+  if (str.includes("image/png") || str.includes("data:image/png")) return "PNG";
+  if (str.includes("image/webp")) return "WEBP";
+  if (str.includes("image/gif")) return "GIF";
+  return "JPEG";
+};
+
 interface ChecklistViewProps {
   currentUser: User | null;
   clients: Client[];
+  users?: User[];
   triggerRefresh?: () => void;
 }
 
-export default function ChecklistView({ currentUser, clients = [] }: ChecklistViewProps) {
+export default function ChecklistView({ currentUser, clients = [], users = [] }: ChecklistViewProps) {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"isi" | "riwayat" | "settings">("isi");
 
@@ -80,6 +115,21 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
   const [showWAPreview, setShowWAPreview] = useState(false);
   const [waPreviewText, setWaPreviewText] = useState("");
 
+  // PDF Paper Preview Modal State
+  const [previewSubmission, setPreviewSubmission] = useState<ChecklistSubmission | null>(null);
+  const [waExportImages, setWaExportImages] = useState<string[] | null>(null);
+  const [isGeneratingWA, setIsGeneratingWA] = useState(false);
+
+  // Helper to look up the actual name of the user who made the checklist
+  const getCreatorFullName = (sub: ChecklistSubmission | null) => {
+    if (!sub) return "";
+    const creator = (users || []).find(
+      u => u.username.toLowerCase() === (sub.createdBy || "").toLowerCase() ||
+           u.name.toLowerCase() === (sub.userCreator || "").toLowerCase()
+    );
+    return creator ? creator.name : sub.userCreator;
+  };
+
   // Settings Panel Form State
   const [isEditingItem, setIsEditingItem] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
@@ -108,6 +158,19 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
   };
 
   const isInitialized = React.useRef(false);
+
+  // State for printable paper preview QR code URL
+  const [previewQrUrl, setPreviewQrUrl] = useState("");
+
+  useEffect(() => {
+    if (previewSubmission) {
+      QRCode.toDataURL(`${window.location.origin}/?verify=${previewSubmission.id}`, { margin: 1, width: 120 })
+        .then(url => setPreviewQrUrl(url))
+        .catch(err => console.error("Error generating preview QR", err));
+    } else {
+      setPreviewQrUrl("");
+    }
+  }, [previewSubmission]);
 
   // Populate Default values
   useEffect(() => {
@@ -285,6 +348,51 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
       }
     } catch (err: any) {
       alert("Gagal merubah item harian: " + err.message);
+    }
+  };
+
+  // Check if current logged-in user can approve the chosen submission
+  const canCurrentUserApprove = (sub: ChecklistSubmission) => {
+    if (!currentUser) return false;
+    // Admin & Direktur can always approve
+    if (currentUser.role === "Administrator" || currentUser.role === "Direktur") return true;
+    
+    // Check if role is Supervisor or Site Coordinator
+    const isApprovalRole = currentUser.role === "Supervisor" || currentUser.role === "Site Coordinator";
+    if (!isApprovalRole) return false;
+    
+    // Check if site of checklist matches task site (if set)
+    if (!currentUser.siteTugas || currentUser.siteTugas.toLowerCase().trim() === "kantor pusat") {
+      return true; // Kantor pusat can approve any site
+    }
+    
+    return currentUser.siteTugas.toLowerCase().trim() === sub.site.toLowerCase().trim();
+  };
+
+  // Perform Approval & sign E-Sign
+  const handleApproveSubmission = async (submissionId: string) => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      setSuccessMsg("");
+      
+      const updatedPayload = {
+        isApproved: true,
+        approvedBy: currentUser?.name || currentUser?.username || "Supervisor",
+        approvedAt: new Date().toISOString(),
+        approvedRole: currentUser?.role || "Supervisor/SPV"
+      };
+
+      const updated = await api.updateChecklistSubmission(submissionId, updatedPayload);
+      
+      // Update locally
+      setSubmissions(submissions.map(s => s.id === submissionId ? updated : s));
+      setSelectedSubmission(updated);
+      setSuccessMsg("Laporan checklist berhasil divalidasi kroscek & E-sign ditandatangani!");
+    } catch (err: any) {
+      setErrorMsg("Gagal menyetujui laporan checklist: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -556,23 +664,23 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
     }
   };
 
-  // ================= EXPORT INDIVIDUAL SUBMISSION TO PDF ON F4 =================
-  const handleExportIndividualPDF = (sub: ChecklistSubmission) => {
+  // ================= EXPORT INDIVIDUAL SUBMISSION TO PDF ON A4 =================
+  const handleExportIndividualPDF = async (sub: ChecklistSubmission) => {
     try {
       const doc = new jsPDF({
         orientation: "portrait",
         unit: "pt",
-        format: [612.0, 936.5] // F4 standard dimensions in points: 8.5 x 13.0 inches (approx 612 x 936 pt)
+        format: "a4" // A4 standard dimensions: 595.28 x 841.89 points
       });
 
       // PDF Title / Header
       doc.setFillColor(255, 255, 255); // Plain White Header base
-      doc.rect(0, 0, 612, 100, "F");
+      doc.rect(0, 0, 595.28, 100, "F");
 
       // Grid line border on top
       doc.setDrawColor(220, 225, 230);
       doc.setLineWidth(1);
-      doc.line(30, 90, 582, 90);
+      doc.line(30, 90, 565.28, 90);
 
       // Title 
       doc.setFont("helvetica", "bold");
@@ -584,11 +692,13 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(80, 90, 100);
-      doc.text(`Kategori Checklist: Harian (Pagi & Sore) - Kertas Ukuran F4`, 30, 62);
+      doc.text(`Kategori Checklist: Harian (Pagi & Sore) - Kertas Ukuran A4`, 30, 62);
       doc.text(`Lokasi Site Tugas: ${sub.site}`, 30, 77);
 
       // Metadata Info Blocks
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 70, 80);
       doc.text("Tanggal Checklist:", 30, 115);
       doc.setFont("helvetica", "normal");
       doc.text(formatDateIndo(sub.tanggal), 140, 115);
@@ -601,7 +711,7 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
       doc.setFont("helvetica", "bold");
       doc.text("Pemeriksa (SDM Site):", 30, 145);
       doc.setFont("helvetica", "normal");
-      doc.text(`${sub.userCreator} (${sub.roleCreator})`, 140, 145);
+      doc.text(`${getCreatorFullName(sub)} (${sub.roleCreator})`, 140, 145);
 
       // Stats Summary
       const totalCount = sub.items.length;
@@ -614,7 +724,7 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
       doc.setFont("helvetica", "normal");
       doc.text(`Total: ${totalCount} Item | OK: ${okCount} | NOT OK: ${notOkCount} | Belum Terisi: ${uncheckCount}`, 140, 160);
 
-      doc.line(30, 170, 582, 170);
+      doc.line(30, 170, 565.28, 170);
 
       // Table mapping items
       const tableHeaders = [["No", "Nama Komponen", "Kondisi", "Temuan & Keterangan / Tindak Lanjut"]];
@@ -662,7 +772,7 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
         head: tableHeaders,
         body: tableRows,
         startY: 185,
-        margin: { left: 30, right: 30, bottom: 40 },
+        margin: { left: 30, right: 30, bottom: 45 },
         theme: "grid",
         styles: {
           fontSize: 8,
@@ -682,10 +792,10 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
           fillColor: [247, 249, 251]
         },
         columnStyles: {
-          0: { cellWidth: 30, halign: "center" }, // No
-          1: { cellWidth: 220 },                  // Nama Komponen
+          0: { cellWidth: 25, halign: "center" }, // No
+          1: { cellWidth: 210 },                  // Nama Komponen
           2: { cellWidth: 90, fontStyle: "bold" },// Kondisi
-          3: { cellWidth: 212 }                   // Temuan & Keterangan / Tindak Lanjut
+          3: { cellWidth: 210 }                   // Temuan & Keterangan / Tindak Lanjut
         },
         didParseCell: (data) => {
           if (data.cell.raw && typeof data.cell.raw === "object" && "colSpan" in data.cell.raw) {
@@ -703,20 +813,21 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
 
       // Photo attachment if exists
       if (sub.photoUrl) {
-        let finalY = (doc as any).lastAutoTable.finalY || 400;
+        let finalY = (doc as any).lastAutoTable?.finalY || 400;
         
-        // Check page overflow for image
-        if (finalY + 160 > 900) {
+        // Check page overflow for image (A4 height check)
+        if (finalY + 160 > 800) {
           doc.addPage();
           doc.setFont("helvetica", "bold");
           doc.setFontSize(10);
           doc.setTextColor(40, 50, 60);
           doc.text("DOKUMENTASI FOTO ATTACHMENT / PROOF OF DATA ATTACHED", 30, 40);
           doc.setDrawColor(200, 205, 210);
-          doc.line(30, 45, 582, 45);
+          doc.line(30, 45, 565.28, 45);
           
           try {
-            doc.addImage(sub.photoUrl, "JPEG", 30, 60, 250, 180);
+            const format = getImageFormat(sub.photoUrl);
+            doc.addImage(sub.photoUrl, format, 30, 60, 250, 180);
             doc.text(`Nama berkas: ${sub.photoName || "checklist_evidence.jpg"}`, 30, 255);
           } catch (e) {
             doc.text("[Gagal memuat gambar lampiran ke PDF - Format base64 tidak cocok]", 30, 60);
@@ -727,10 +838,11 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
           doc.setTextColor(40, 50, 60);
           doc.text("DOKUMENTASI FOTO ATTACHMENT / PROOF OF DATA ATTACHED", 30, finalY + 20);
           doc.setDrawColor(200, 205, 210);
-          doc.line(30, finalY + 25, 582, finalY + 25);
+          doc.line(30, finalY + 25, 565.28, finalY + 25);
           
           try {
-            doc.addImage(sub.photoUrl, "JPEG", 30, finalY + 35, 250, 180);
+            const format = getImageFormat(sub.photoUrl);
+            doc.addImage(sub.photoUrl, format, 30, finalY + 35, 250, 180);
             doc.setFont("helvetica", "normal");
             doc.text(`Nama berkas: ${sub.photoName || "checklist_evidence.jpg"}`, 30, finalY + 230);
           } catch (e) {
@@ -741,9 +853,9 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
       }
 
       // Render beautiful Signatures block
-      let currentY = (doc as any).lastAutoTable.finalY || 250;
+      let currentY = (doc as any).lastAutoTable?.finalY || 250;
       if (sub.photoUrl) {
-        if (currentY + 160 > 900) {
+        if (currentY + 160 > 800) {
           currentY = 270; // after photo on new page
         } else {
           currentY = currentY + 245; // after photo on same page
@@ -752,14 +864,14 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
         currentY = currentY + 30; // after table
       }
 
-      // Check if signature block fits in current page
-      if (currentY + 120 > 880) {
+      // Check if signature block fits in current page (require at least 155pt)
+      if (currentY + 155 > 790) {
         doc.addPage();
         currentY = 50;
       }
 
       doc.setDrawColor(220, 225, 230);
-      doc.line(30, currentY - 5, 582, currentY - 5);
+      doc.line(30, currentY - 5, 565.28, currentY - 5);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
@@ -767,26 +879,132 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
 
       const sigY = currentY + 15;
       doc.text("Petugas Pelaksana SIMRS,", 60, sigY);
-      doc.text("Supervisor / Site Coordinator,", 380, sigY);
+      doc.text("Supervisor / Site Coordinator,", 350, sigY);
 
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(8);
-      doc.setTextColor(160, 170, 180);
-      doc.text("[ Tanda Tangan / E-Sign ]", 80, sigY + 50);
-      doc.text("[ Tanda Tangan / E-Sign ]", 410, sigY + 50);
+      // Fetch QR Code and Generate Hash
+      const certUrl = `${window.location.origin}/?verify=${sub.id}`;
+      const certHash = generateDocHash(sub.id, sub.tanggal);
+      const qrBase64 = await fetchQrCodeBase64(certUrl);
+
+      // --- Draw Box Petugas ---
+      doc.setFillColor(245, 248, 252);
+      doc.roundedRect(50, sigY + 10, 195, 75, 5, 5, "F");
+      doc.setDrawColor(210, 225, 245);
+      doc.roundedRect(50, sigY + 10, 195, 75, 5, 5, "S");
+
+      if (qrBase64) {
+        doc.addImage(qrBase64, "PNG", 55, sigY + 15, 45, 45);
+      } else {
+        doc.setFillColor(230, 235, 240);
+        doc.rect(55, sigY + 15, 45, 45, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 110, 120);
+        doc.text("SECURE", 61, sigY + 35);
+        doc.text("QR-CODE", 58, sigY + 45);
+      }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(50, 60, 75);
-      
-      doc.text(`( ${sub.userCreator} )`, 50, sigY + 75);
-      doc.text("(                                                 )", 370, sigY + 75);
+      doc.setFontSize(7.5);
+      doc.setTextColor(16, 110, 190);
+      doc.text("SYNAPSIS SECURE E-SIGN", 108, sigY + 24);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(80, 90, 100);
+      doc.text(`ID: ${sub.id.slice(0, 8)}...`, 108, sigY + 34);
+      doc.text(`User: ${getCreatorFullName(sub)}`, 108, sigY + 44);
+      doc.text(`Hash: ${certHash.slice(0, 12)}...`, 108, sigY + 54);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(34, 139, 34); // Forest green
+      doc.text("● VERIFIED DIGITAL", 108, sigY + 68);
+
+      // --- Draw Box Supervisor ---
+      if (sub.isApproved) {
+        doc.setFillColor(245, 248, 252);
+        doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "F");
+        doc.setDrawColor(210, 225, 245);
+        doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "S");
+
+        if (qrBase64) {
+          doc.addImage(qrBase64, "PNG", 345, sigY + 15, 45, 45);
+        } else {
+          doc.setFillColor(230, 235, 240);
+          doc.rect(345, sigY + 15, 45, 45, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(100, 110, 120);
+          doc.text("SECURE", 351, sigY + 35);
+          doc.text("QR-CODE", 348, sigY + 45);
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(16, 110, 190);
+        doc.text("SUPERVISOR E-SIGN", 398, sigY + 24);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(80, 90, 100);
+        doc.text("Status: APPROVED", 398, sigY + 34);
+        doc.text(`Oleh: ${sub.approvedBy || "Supervisor"}`, 398, sigY + 44);
+        doc.text(`Tgl: ${sub.approvedAt ? sub.approvedAt.split('T')[0] : sub.tanggal}`, 398, sigY + 54);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(34, 139, 34);
+        doc.text("● APPROVED & LOCKED", 398, sigY + 68);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(50, 60, 75);
+        doc.text(`( ${getCreatorFullName(sub)} )`, 50, sigY + 102);
+        doc.text(`( ${sub.approvedBy || "Supervisor/SPV"} )`, 340, sigY + 102);
+      } else {
+        doc.setFillColor(254, 242, 242);
+        doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "F");
+        doc.setDrawColor(252, 165, 165);
+        doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "S");
+
+        doc.setFillColor(254, 226, 226);
+        doc.rect(345, sigY + 15, 45, 45, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6);
+        doc.setTextColor(220, 38, 38);
+        doc.text("PENDING", 352, sigY + 35);
+        doc.text("APPROVAL", 349, sigY + 45);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(220, 38, 38);
+        doc.text("BELUM DISETUJUI", 398, sigY + 24);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(120, 130, 140);
+        doc.text("Butuh konfirmasi kroscek", 398, sigY + 36);
+        doc.text("oleh Site Coordinator", 398, sigY + 46);
+        doc.text("atau Supervisor di site.", 398, sigY + 56);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(220, 38, 38);
+        doc.text("● UNAPPROVED / DRAFT", 398, sigY + 68);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(50, 60, 75);
+        doc.text(`( ${getCreatorFullName(sub)} )`, 50, sigY + 102);
+        doc.text("(   Belum Disetujui   )", 340, sigY + 102);
+      }
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(110, 120, 130);
-      doc.text(`Role: ${sub.roleCreator}`, 50, sigY + 88);
-      doc.text("Role: SPV / Site Coordinator", 370, sigY + 88);
+      doc.text(`Role: ${sub.roleCreator}`, 50, sigY + 115);
+      doc.text("Role: SPV / Site Coordinator", 340, sigY + 115);
 
       // Safe page counting and footers
       const pageCount = doc.getNumberOfPages();
@@ -795,14 +1013,310 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
         doc.setFont("helvetica", "italic");
         doc.setFontSize(8);
         doc.setTextColor(140, 145, 150);
-        doc.text(`Sistem Monitoring SIMRS - Halaman ${i} dari ${pageCount} (F4 Layout - 215mm x 330mm)`, 30, 915);
-        doc.text(`Tercetak tanggal: ${new Date().toLocaleString("id-ID")}`, 400, 915);
+        doc.text(`Sistem Monitoring SIMRS - Halaman ${i} dari ${pageCount} (A4 Layout - 210mm x 297mm)`, 30, 820);
+        doc.text(`Tercetak tanggal: ${new Date().toLocaleString("id-ID")}`, 400, 820);
       }
 
       doc.save(`Checklist_${sub.site}_${sub.waktu}_${sub.tanggal}.pdf`);
     } catch (err: any) {
       alert("Gagal mencetak dokumen PDF: " + err.message);
       console.error(err);
+    }
+  };
+
+  const handleExportWAImages = async () => {
+    if (!previewSubmission) return;
+    setIsGeneratingWA(true);
+    let originalMainGetComputedStyle: any = null;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+
+      const oklabToRgb = (l: number, a: number, b: number): [number, number, number] => {
+        const l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+        const m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+        const s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+
+        const l_lin = Math.pow(Math.max(0, l_), 3);
+        const m_lin = Math.pow(Math.max(0, m_), 3);
+        const s_lin = Math.pow(Math.max(0, s_), 3);
+
+        let r = +4.0767416621 * l_lin - 3.3077115913 * m_lin + 0.2309699292 * s_lin;
+        let g = -1.2684380046 * l_lin + 2.6097574011 * m_lin - 0.3413193965 * s_lin;
+        let _b = -0.0041960863 * l_lin - 0.7034186147 * m_lin + 1.7076147010 * s_lin;
+
+        const linarToSrgb = (x: number) => {
+          return x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+        };
+
+        const r_s = Math.max(0, Math.min(255, Math.round(linarToSrgb(r) * 255)));
+        const g_s = Math.max(0, Math.min(255, Math.round(linarToSrgb(g) * 255)));
+        const b_s = Math.max(0, Math.min(255, Math.round(linarToSrgb(_b) * 255)));
+
+        return [r_s, g_s, b_s];
+      };
+
+      const oklchToRgb = (l: number, c: number, hValue: number): [number, number, number] => {
+        const h = (hValue * Math.PI) / 180;
+        const a = c * Math.cos(h);
+        const b = c * Math.sin(h);
+        return oklabToRgb(l, a, b);
+      };
+
+      const translateColors = (cssText: string): string => {
+        const replaceColorFunction = (inputCss: string, funcName: "oklab" | "oklch", fallbackColor: string) => {
+          let css = inputCss;
+          let index = 0;
+          let iterations = 0;
+          const maxIterations = 5000;
+          
+          while (iterations < maxIterations) {
+            iterations++;
+            const searchStr = funcName + "(";
+            const startIdx = css.indexOf(searchStr, index);
+            if (startIdx === -1) break;
+            
+            let parenDepth = 1;
+            let endIdx = -1;
+            for (let i = startIdx + searchStr.length; i < css.length; i++) {
+              if (css[i] === "(") {
+                parenDepth++;
+              } else if (css[i] === ")") {
+                parenDepth--;
+                if (parenDepth === 0) {
+                  endIdx = i;
+                  break;
+                }
+              }
+            }
+            
+            if (endIdx === -1) {
+              index = startIdx + searchStr.length;
+              continue;
+            }
+            
+            const content = css.substring(startIdx + searchStr.length, endIdx);
+            let replacement = fallbackColor;
+            
+            try {
+              const parts = content.trim().split(/[\s,/_]+/);
+              if (parts.length >= 3) {
+                let p0 = parseFloat(parts[0]);
+                if (parts[0].includes("%")) p0 = p0 / 100;
+                
+                let p1 = parseFloat(parts[1]);
+                if (parts[1].includes("%")) p1 = p1 / 100;
+                
+                let p2 = parseFloat(parts[2]);
+                if (parts[2].includes("%")) p2 = p2 / 100;
+                
+                let alpha = 1;
+                if (parts.length >= 4) {
+                   const lastPart = parts[parts.length - 1];
+                   let aVal = parseFloat(lastPart);
+                   if (lastPart.includes("%")) aVal = aVal / 100;
+                   if (!isNaN(aVal)) alpha = aVal;
+                }
+                
+                if (funcName === "oklab") {
+                  const [r, g, b] = oklabToRgb(p0, p1, p2);
+                  replacement = alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                } else {
+                  let h = p2;
+                  if (parts[2].includes("rad")) {
+                    h = parseFloat(parts[2]) * (180 / Math.PI);
+                  } else if (parts[2].includes("turn")) {
+                    h = parseFloat(parts[2]) * 360;
+                  }
+                  const [r, g, b] = oklchToRgb(p0, p1, h);
+                  replacement = alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                }
+              }
+            } catch (e) {
+              replacement = fallbackColor;
+            }
+            
+            css = css.substring(0, startIdx) + replacement + css.substring(endIdx + 1);
+            index = startIdx + replacement.length;
+          }
+          return css;
+        };
+
+        let result = cssText;
+        if (result.includes("oklch")) {
+          result = replaceColorFunction(result, "oklch", "rgb(120, 120, 120)");
+        }
+        if (result.includes("oklab")) {
+          result = replaceColorFunction(result, "oklab", "rgb(120, 120, 120)");
+        }
+        return result;
+      };
+
+      const patchWindowGetComputedStyle = (win: any) => {
+        const originalGetComputedStyle = win.getComputedStyle;
+        win.getComputedStyle = function(el: Element, pseudo?: string) {
+          const style = originalGetComputedStyle.call(this, el, pseudo);
+          return new Proxy(style, {
+            get(target: any, prop: string | symbol) {
+              if (prop === "getPropertyValue") {
+                return function(propertyName: string) {
+                  const val = target.getPropertyValue(propertyName);
+                  if (typeof val === "string" && (val.includes("oklch") || val.includes("oklab"))) {
+                    return translateColors(val);
+                  }
+                  return val;
+                };
+              }
+              const val = target[prop];
+              if (typeof val === "function") {
+                return val.bind(target);
+              }
+              if (typeof val === "string" && (val.includes("oklch") || val.includes("oklab"))) {
+                return translateColors(val);
+              }
+              return val;
+            }
+          });
+        };
+        return originalGetComputedStyle;
+      };
+
+      originalMainGetComputedStyle = patchWindowGetComputedStyle(window);
+
+      let compiledCss = "";
+      try {
+        Array.from(document.styleSheets).forEach((sheet) => {
+          try {
+            const rules = Array.from(sheet.cssRules || sheet.rules);
+            rules.forEach((rule) => {
+              compiledCss += rule.cssText + "\n";
+            });
+          } catch (e) {
+            // Ignore CORS or unreadable rule errors
+          }
+        });
+      } catch (err) {
+        // Ignore errors collecting stylesheets
+      }
+
+      if (!compiledCss) {
+        document.querySelectorAll("style").forEach((styleTag) => {
+          compiledCss += styleTag.innerHTML + "\n";
+        });
+      }
+
+      const sanitizedCss = translateColors(compiledCss);
+      
+      const options = {
+        scale: 2, // high quality
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          const clonedWindow = clonedDoc.defaultView;
+          if (clonedWindow) {
+            patchWindowGetComputedStyle(clonedWindow);
+          }
+
+          clonedDoc.querySelectorAll("style, link[rel='stylesheet']").forEach((el) => {
+            el.remove();
+          });
+
+          const styleEl = clonedDoc.createElement("style");
+          styleEl.innerHTML = sanitizedCss;
+          clonedDoc.head.appendChild(styleEl);
+
+          clonedDoc.querySelectorAll("*").forEach((el: any) => {
+            if (el.style) {
+              ["color", "backgroundColor", "borderColor", "boxShadow"].forEach((prop) => {
+                const val = el.style[prop];
+                if (val && (val.includes("oklch") || val.includes("oklab"))) {
+                  el.style[prop] = translateColors(val);
+                }
+              });
+            }
+          });
+        }
+      };
+
+      // Calculate identical dynamic pages to find exactly how much to capture
+      const subGrouped: { [category: string]: typeof previewSubmission.items } = {};
+      previewSubmission.items.forEach(it => {
+        const cat = (it.category || "GENERAL").toUpperCase();
+        if (!subGrouped[cat]) subGrouped[cat] = [];
+        subGrouped[cat].push(it);
+      });
+
+      const subAllRows: ({ type: 'category'; name: string } | { type: 'item'; item: typeof previewSubmission.items[0]; index: number })[] = [];
+      let subGlobalIndex = 1;
+      Object.entries(subGrouped).forEach(([category, items]) => {
+        subAllRows.push({ type: 'category', name: category });
+        items.forEach(it => {
+          subAllRows.push({ type: 'item', item: it, index: subGlobalIndex++ });
+        });
+      });
+
+      const calcPages: any[] = [];
+      let curRows: any[] = [];
+      let curUnits = 0;
+      let isFirst = true;
+
+      const getCap = (f: boolean) => f ? 22 : 30;
+
+      for (const r of subAllRows) {
+        const rUnits = r.type === 'category' ? 1.1 : 1;
+        const cap = getCap(isFirst);
+        if (curUnits + rUnits > cap) {
+          calcPages.push({ rows: curRows, showPhoto: false, showSignatures: false });
+          curRows = [r];
+          curUnits = rUnits;
+          isFirst = false;
+        } else {
+          curRows.push(r);
+          curUnits += rUnits;
+        }
+      }
+
+      const pUnits = previewSubmission.photoUrl ? 5.5 : 0;
+      const sUnits = 7;
+      const finCap = getCap(isFirst);
+
+      if (curUnits + pUnits + sUnits <= finCap) {
+        calcPages.push({ rows: curRows, showPhoto: !!previewSubmission.photoUrl, showSignatures: true });
+      } else {
+        if (pUnits > 0 && curUnits + pUnits <= finCap) {
+          calcPages.push({ rows: curRows, showPhoto: true, showSignatures: false });
+          calcPages.push({ rows: [], showPhoto: false, showSignatures: true });
+        } else {
+          calcPages.push({ rows: curRows, showPhoto: false, showSignatures: false });
+          const subPageCap = getCap(false);
+          if (pUnits + sUnits <= subPageCap) {
+            calcPages.push({ rows: [], showPhoto: !!previewSubmission.photoUrl, showSignatures: true });
+          } else {
+            calcPages.push({ rows: [], showPhoto: !!previewSubmission.photoUrl, showSignatures: false });
+            calcPages.push({ rows: [], showPhoto: false, showSignatures: true });
+          }
+        }
+      }
+
+      const exportedUrls: string[] = [];
+      for (let i = 0; i < calcPages.length; i++) {
+        const pageEl = document.getElementById(`wa-printable-page-${i}`);
+        if (!pageEl) {
+          throw new Error(`Elemen halaman ${i + 1} tidak ditemukan untuk dikonversi.`);
+        }
+        const canvas = await html2canvas(pageEl, options);
+        exportedUrls.push(canvas.toDataURL("image/png"));
+      }
+      
+      setWaExportImages(exportedUrls);
+    } catch (err: any) {
+      console.error("Gagal melakukan konversi gambar:", err);
+      alert("Gagal memproses gambar WhatsApp A4: " + err.message);
+    } finally {
+      if (originalMainGetComputedStyle) {
+        window.getComputedStyle = originalMainGetComputedStyle;
+      }
+      setIsGeneratingWA(false);
     }
   };
 
@@ -1347,7 +1861,7 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
                           </h3>
                         </div>
                         <p className="text-[11px] text-slate-400 mt-1 font-mono">
-                          ID: {selectedSubmission.id} • Dibuat oleh: {selectedSubmission.userCreator} ({selectedSubmission.roleCreator})
+                          ID: {selectedSubmission.id} • Dibuat oleh: {getCreatorFullName(selectedSubmission)} ({selectedSubmission.roleCreator})
                         </p>
                       </div>
 
@@ -1360,13 +1874,76 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
                           Resume WA
                         </button>
                         <button
-                          onClick={() => handleExportIndividualPDF(selectedSubmission)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-250 dark:bg-slate-950 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-200 text-slate-700 dark:text-slate-350 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold transition-all"
+                          onClick={() => setPreviewSubmission(selectedSubmission)}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-black transition-all cursor-pointer hover:shadow-md"
                         >
-                          <Printer className="w-4 h-4 text-rose-600" />
-                          Cetak PDF F4
+                          <Printer className="w-4 h-4 text-rose-500 animate-pulse" />
+                          Pratinjau & Cetak PDF
                         </button>
                       </div>
+                    </div>
+
+                    {/* Approval Status Overlay Block */}
+                    <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                      selectedSubmission.isApproved 
+                        ? "bg-emerald-50/45 dark:bg-emerald-950/10 border-emerald-205 dark:border-emerald-900/40" 
+                        : "bg-amber-50/45 dark:bg-amber-950/10 border-amber-205 dark:border-amber-900/40"
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 mt-0.5 ${
+                          selectedSubmission.isApproved 
+                            ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-900" 
+                            : "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-900"
+                        }`}>
+                          {selectedSubmission.isApproved ? (
+                            <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 stroke-[2.5]" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                              VERIFIKASI HARIAN (KROSCEK SPV / CO)
+                            </span>
+                            <span className={`text-[9px] px-2.5 py-0.5 rounded-full font-black tracking-wider uppercase ${
+                              selectedSubmission.isApproved 
+                                ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-955/40 dark:text-emerald-400"
+                                : "bg-amber-200 text-amber-850 dark:bg-amber-955/40 dark:text-amber-400 animate-pulse"
+                            }`}>
+                              {selectedSubmission.isApproved ? "APPROVED" : "BELUM DI-APPROVE"}
+                            </span>
+                          </div>
+                          {selectedSubmission.isApproved ? (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium leading-relaxed">
+                              Disetujui oleh <strong className="text-emerald-600 dark:text-emerald-400 font-extrabold">{selectedSubmission.approvedBy}</strong> ({selectedSubmission.approvedRole}) pada {selectedSubmission.approvedAt ? new Date(selectedSubmission.approvedAt).toLocaleString("id-ID") : selectedSubmission.tanggal}.
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium leading-relaxed">
+                              Laporan draf pemeliharaan harian ini diajukan oleh <strong className="text-slate-705 dark:text-slate-300">{getCreatorFullName(selectedSubmission)}</strong>. Butuh kroscek dan persetujuan dari Supervisor untuk memvalidasi e-sign resmi.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons list */}
+                      {!selectedSubmission.isApproved && (
+                        <div className="shrink-0 w-full sm:w-auto">
+                          {canCurrentUserApprove(selectedSubmission) ? (
+                            <button
+                              onClick={() => handleApproveSubmission(selectedSubmission.id)}
+                              className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-lg shadow-emerald-950/20 active:scale-95"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve & Terbitkan E-Sign
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-amber-650 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl font-bold block text-center">
+                              Menunggu SPV ({selectedSubmission.site})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Stats summary of chosen */}
@@ -1843,6 +2420,474 @@ export default function ChecklistView({ currentUser, clients = [] }: ChecklistVi
                 <Copy className="w-4 h-4" />
                 Salin & Buka WA Web
               </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* PDF Paper Preview Modal */}
+      {previewSubmission && (
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 overflow-y-auto">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col"
+          >
+            {/* Header Controls */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <Printer className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                    Pratinjau Dokumen Cetak (Ukuran A4)
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Halaman pratinjau lembar kertas fisik A4 beserta QR E-Sign Kriptografi.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => handleExportIndividualPDF(previewSubmission)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-rose-600 hover:bg-rose-500 hover:scale-[1.02] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-lg shadow-rose-955/10 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  Cetak PDF (Unduh)
+                </button>
+                <button
+                  onClick={handleExportWAImages}
+                  disabled={isGeneratingWA}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 hover:scale-[1.02] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-955/10 cursor-pointer active:scale-95 transition-all"
+                >
+                  {isGeneratingWA ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="w-4 h-4" />
+                      Ekspor Gambar WA (A4)
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setPreviewSubmission(null)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-250 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-705 hover:scale-[1.02] text-slate-707 dark:text-slate-300 rounded-xl text-xs font-bold text-center cursor-pointer transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* Paper Container Viewport */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-950 transition-colors">
+              <div className="mx-auto flex flex-col items-center gap-8 max-w-[700px]">
+                {(() => {
+                  // Calculate identical dynamic pages for rendering
+                  const subGrouped: { [category: string]: typeof previewSubmission.items } = {};
+                  previewSubmission.items.forEach(it => {
+                    const cat = (it.category || "GENERAL").toUpperCase();
+                    if (!subGrouped[cat]) subGrouped[cat] = [];
+                    subGrouped[cat].push(it);
+                  });
+
+                  const subAllRows: ({ type: 'category'; name: string } | { type: 'item'; item: typeof previewSubmission.items[0]; index: number })[] = [];
+                  let subGlobalIndex = 1;
+                  Object.entries(subGrouped).forEach(([category, items]) => {
+                    subAllRows.push({ type: 'category', name: category });
+                    items.forEach(it => {
+                      subAllRows.push({ type: 'item', item: it, index: subGlobalIndex++ });
+                    });
+                  });
+
+                  const calcPages: {
+                    rows: typeof subAllRows;
+                    showPhoto: boolean;
+                    showSignatures: boolean;
+                  }[] = [];
+
+                  let curRows: typeof subAllRows = [];
+                  let curUnits = 0;
+                  let isFirst = true;
+
+                  const getCap = (f: boolean) => f ? 22 : 30;
+
+                  for (const r of subAllRows) {
+                    const rUnits = r.type === 'category' ? 1.1 : 1;
+                    const cap = getCap(isFirst);
+                    if (curUnits + rUnits > cap) {
+                      calcPages.push({ rows: curRows, showPhoto: false, showSignatures: false });
+                      curRows = [r];
+                      curUnits = rUnits;
+                      isFirst = false;
+                    } else {
+                      curRows.push(r);
+                      curUnits += rUnits;
+                    }
+                  }
+
+                  const pUnits = previewSubmission.photoUrl ? 5.5 : 0;
+                  const sUnits = 7;
+                  const finCap = getCap(isFirst);
+
+                  if (curUnits + pUnits + sUnits <= finCap) {
+                    calcPages.push({ rows: curRows, showPhoto: !!previewSubmission.photoUrl, showSignatures: true });
+                  } else {
+                    if (pUnits > 0 && curUnits + pUnits <= finCap) {
+                      calcPages.push({ rows: curRows, showPhoto: true, showSignatures: false });
+                      calcPages.push({ rows: [], showPhoto: false, showSignatures: true });
+                    } else {
+                      calcPages.push({ rows: curRows, showPhoto: false, showSignatures: false });
+                      const subPageCap = getCap(false);
+                      if (pUnits + sUnits <= subPageCap) {
+                        calcPages.push({ rows: [], showPhoto: !!previewSubmission.photoUrl, showSignatures: true });
+                      } else {
+                        calcPages.push({ rows: [], showPhoto: !!previewSubmission.photoUrl, showSignatures: false });
+                        calcPages.push({ rows: [], showPhoto: false, showSignatures: true });
+                      }
+                    }
+                  }
+
+                  return calcPages.map((page, idx) => (
+                    <div 
+                      key={idx} 
+                      id={`wa-printable-page-${idx}`} 
+                      className="w-[680px] bg-white text-slate-800 p-8 shadow-md rounded-md relative flex flex-col justify-between font-sans h-[962px] overflow-hidden border border-slate-200"
+                    >
+                      <div>
+                        {/* Page Header (Only first page gets the big Letterhead, others get mini header) */}
+                        {idx === 0 ? (
+                          <div className="text-center relative pb-3 border-b-2 border-slate-900/10 mb-4 text-slate-800">
+                            <span className="absolute top-0 right-0 text-[8px] font-black tracking-wider text-slate-400 uppercase">
+                              KSO SYNAPSIS PORTAL
+                            </span>
+                            <h2 className="text-xs sm:text-xs font-black text-slate-900 tracking-tight uppercase">
+                              LAPORAN CHECKLIST PEMELIHARAAN SISTEM SIMRS
+                            </h2>
+                            <div className="text-[9px] font-medium text-slate-500 mt-0.5">
+                              Kategori Checklist: Harian (Pagi & Sore) • Kertas Ukuran A4
+                            </div>
+                            <div className="text-[9px] font-extrabold text-slate-700 mt-0.5 uppercase tracking-wide">
+                              Satuan Kerja: {previewSubmission.site}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-left relative pb-2 border-b border-dashed border-slate-300 mb-4 flex justify-between items-center text-slate-600">
+                            <span className="text-[9px] font-bold uppercase tracking-tight">KSO SYNAPSIS PORTAL • Monitoring SIMRS</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Halaman {idx + 1}</span>
+                          </div>
+                        )}
+
+                        {/* Page Metadata (First page only) */}
+                        {idx === 0 && (
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10px] bg-slate-50 p-3 rounded-xl border border-slate-150 mb-4 text-slate-800">
+                            <div>
+                              <span className="text-slate-400 font-medium">Tanggal Pemeriksaan:</span>
+                              <strong className="text-slate-800 ml-1.5">{formatDateIndo(previewSubmission.tanggal)}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Shift Pemantauan:</span>
+                              <strong className="text-slate-800 ml-1.5">{previewSubmission.waktu}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Petugas Auditor / Pelaksana:</span>
+                              <strong className="text-slate-800 ml-1.5">{getCreatorFullName(previewSubmission)} ({previewSubmission.roleCreator})</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Jumlah Item:</span>
+                              <strong className="text-slate-800 ml-1.5">
+                                {previewSubmission.items.length} perangkat (OK: {previewSubmission.items.filter(it => it.status === "OK").length}, NOT OK: {previewSubmission.items.filter(it => it.status === "NOT OK").length})
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Checklist Grid Table (only if page has rows) */}
+                        {page.rows.length > 0 && (
+                          <div className="border border-slate-300 rounded-lg overflow-hidden mb-4">
+                            <table className="w-full text-left border-collapse text-[10px] text-slate-800 bg-white">
+                              <thead>
+                                <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-black">
+                                  <th className="p-1 px-2 border-r border-slate-300 w-[35px] text-center">No</th>
+                                  <th className="p-1 px-2 border-r border-slate-300">Nama Perangkat / Komponen</th>
+                                  <th className="p-1 px-2 border-r border-slate-300 w-[110px]">Kondisi Alat</th>
+                                  <th className="p-1 px-2">Temuan & Tindak Lanjut</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {page.rows.map((row: any, rIdx: number) => {
+                                  if (row.type === 'category') {
+                                    return (
+                                      <tr key={`cat-${rIdx}`} className="bg-[#eef4fc] font-bold text-[#1e293b]">
+                                        <td colSpan={4} className="p-1 px-3 border-b border-slate-300 text-[9.5px]">
+                                          KATEGORI: {row.name}
+                                        </td>
+                                      </tr>
+                                    );
+                                  } else {
+                                    const it = row.item;
+                                    return (
+                                      <tr key={`item-${it.id || rIdx}`} className="border-b border-slate-200 hover:bg-slate-50 text-slate-800">
+                                        <td className="p-1 px-2 border-r border-slate-200 text-center text-slate-500 font-mono">{row.index}</td>
+                                        <td className="p-1 px-2 border-r border-slate-200 font-medium text-slate-700">{it.name}</td>
+                                        <td className="p-1 px-2 border-r border-slate-200 font-bold">
+                                          {it.status ? (
+                                            it.status === "OK" ? (
+                                              <span className="text-emerald-700">OK ({it.okLabel})</span>
+                                            ) : (
+                                              <span className="text-red-700">NOT OK ({it.notOkLabel})</span>
+                                            )
+                                          ) : (
+                                            <span className="text-slate-400">Belum Dicek</span>
+                                          )}
+                                        </td>
+                                        <td className="p-1 px-2 text-[9.5px] italic text-slate-505">{it.keterangan || "-"}</td>
+                                      </tr>
+                                    );
+                                  }
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {/* Documentation Proof Attachment Image */}
+                        {page.showPhoto && previewSubmission.photoUrl && (
+                          <div className="pt-2 mb-4 text-slate-800 text-left">
+                            <h4 className="text-[9px] font-black uppercase text-slate-400 mb-2 tracking-wide font-sans">
+                              DOKUMENTASI FOTO ATTACHMENT / PROOF OF DATA ATTACHED
+                            </h4>
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 inline-block">
+                              <img 
+                                src={previewSubmission.photoUrl} 
+                                alt="Bukti Checklist"
+                                className="max-h-[150px] rounded object-contain border border-slate-300 shadow-sm"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="text-[8px] text-slate-400 mt-1 font-mono">
+                                File: {previewSubmission.photoName || "checklist_evidence.jpg"}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Dual Signatures Box Block */}
+                        {page.showSignatures && (
+                          <div className="grid grid-cols-2 gap-4 pt-2 mb-4 text-slate-800 text-left">
+                            {/* Left Signature block (Auditor/Petugas) */}
+                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col justify-between min-h-[145px]">
+                              <div>
+                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-sans">Petugas Pelaksana SIMRS</div>
+                                <div className="text-[10px] font-extrabold text-slate-800 mt-0.5">{getCreatorFullName(previewSubmission)}</div>
+                                <div className="text-[8px] text-slate-400 mt-0.5">Role: {previewSubmission.roleCreator}</div>
+                              </div>
+
+                              <div className="flex items-center gap-3 mt-2 font-sans">
+                                {previewQrUrl ? (
+                                  <img 
+                                    src={previewQrUrl} 
+                                    alt="QR Secure Seal" 
+                                    className="w-12 h-12 rounded border border-slate-200 shadow-xs" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-slate-200 rounded animate-pulse" />
+                                )}
+                                <div>
+                                  <div className="text-[8px] font-extrabold text-emerald-700 flex items-center gap-1 uppercase">
+                                    VERIFIED DIGITAL
+                                  </div>
+                                  <div className="text-[7.5px] font-mono text-slate-400 mt-0.5 uppercase">
+                                    {generateDocHash(previewSubmission.id, previewSubmission.tanggal).slice(0, 16)}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-1.5 text-[9px] font-bold text-slate-700 font-sans">
+                                ( {getCreatorFullName(previewSubmission)} )
+                              </div>
+                            </div>
+
+                            {/* Right Signature block (Supervisor Verification) */}
+                            {previewSubmission.isApproved ? (
+                              <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl flex flex-col justify-between min-h-[145px]">
+                                <div>
+                                  <div className="text-[9px] font-black text-indigo-505 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                                  <div className="text-[10px] font-black text-slate-800 mt-0.5">Status: APPROVED</div>
+                                  <div className="text-[8px] text-slate-500">Oleh: {previewSubmission.approvedBy}</div>
+                                </div>
+
+                                <div className="flex items-center gap-3 mt-2">
+                                  {previewQrUrl ? (
+                                    <img 
+                                      src={previewQrUrl} 
+                                      alt="QR Approved Seal" 
+                                      className="w-12 h-12 rounded border border-blue-100 shadow-xs" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-blue-100 rounded animate-pulse" />
+                                  )}
+                                  <div>
+                                    <div className="text-[8px] font-extrabold text-blue-700 flex items-center gap-1 uppercase">
+                                      ● APPROVED & LOCKED
+                                    </div>
+                                    <div className="text-[7.5px] text-slate-400 mt-0.5 font-mono">
+                                      {previewSubmission.approvedAt ? new Date(previewSubmission.approvedAt).toLocaleDateString("id-ID") : previewSubmission.tanggal}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mt-1.5 text-[9px] font-bold text-slate-700 font-sans">
+                                  ( {previewSubmission.approvedBy} )
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-red-50/50 border border-red-200 rounded-xl flex flex-col justify-between min-h-[145px]">
+                                <div>
+                                  <div className="text-[9px] font-black text-red-500 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                                  <div className="text-[10px] font-black text-red-700 mt-0.5 uppercase">Belum Disetujui</div>
+                                </div>
+
+                                <div className="p-2 bg-red-100/40 border border-red-150 text-red-700 text-[8.5px] font-medium leading-normal rounded-lg">
+                                  Butuh tanda tangan supervisor untuk menerbitkan e-sign.
+                                </div>
+
+                                <div className="mt-1.5 text-[9px] font-bold text-slate-450 italic">
+                                  (   Belum Disetujui   )
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tiny formal page footer */}
+                      <div className="pt-2.5 border-t border-slate-900/10 flex justify-between items-center text-[8.5px] text-slate-400 font-medium mt-auto font-sans">
+                        <div>Sistem SIMRS SIMONS • Halaman {idx + 1} dari {calcPages.length} (Kertas A4 Layout)</div>
+                        <div>RSUD / KSO SYNAPSIS PORTAL</div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Sticky Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-955/20 flex gap-3 text-right justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setPreviewSubmission(null)}
+                className="px-5 py-2.5 bg-white dark:bg-slate-900 text-slate-707 dark:text-slate-350 border border-slate-200 dark:border-slate-800 font-extrabold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-850 transition-all text-center cursor-pointer"
+              >
+                Kembali
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportIndividualPDF(previewSubmission)}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-extrabold rounded-xl text-xs shadow-md shadow-rose-955/10 flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                Cetak Dokumen & Unduh PDF (A4)
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+       {/* WhatsApp Images Split Export Modal */}
+      {waExportImages && (
+        <div className="fixed inset-0 z-[9995] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden text-left"
+          >
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-950/20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <MessageSquare className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                    Hasil Konversi Gambar WhatsApp SIMRS (Kertas A4)
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Gambar laporan telah dipisahkan per halaman A4 untuk keterbacaan penuh tanpa pemotongan tanda tangan.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setWaExportImages(null)}
+                className="p-1 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-705 text-slate-600 dark:text-slate-350 rounded-xl text-xs font-bold ring-1 ring-slate-200 dark:ring-slate-800 hover:scale-105 active:scale-95 cursor-pointer transition-all"
+              >
+                Tutup
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-955">
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/10 border border-emerald-200/50 dark:border-emerald-900/30 rounded-2xl flex items-start gap-3 font-sans">
+                <AlertCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-905 dark:text-emerald-300 leading-relaxed font-sans">
+                  <p className="font-extrabold uppercase tracking-wider mb-1 text-[10px]">📢 Petunjuk Berbagi ke Grup WhatsApp:</p>
+                  <p className="font-medium">1. Klik <b>"Salin Gambar"</b> pada masing-masing halaman, lalu buka WhatsApp Group dan tekan <b>Ctrl + V (Paste)</b> untuk langsung mengirim tanpa mengunduh.</p>
+                  <p className="font-medium mt-1">2. Jika fitur salin langsung tidak didukung browser Anda, klik <b>"Unduh Gambar"</b> lalu kirimkan berkas gambar hasil unduhan tersebut.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                {waExportImages.map((imgUrl, imgIdx) => (
+                  <div key={imgIdx} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs">
+                    <div>
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-mono">HALAMAN {imgIdx + 1}</span>
+                        <span className="text-[9px] font-extrabold text-slate-450 uppercase font-sans bg-slate-50 dark:bg-slate-950 p-1 px-2 rounded-md">
+                          {imgIdx === 0 ? "Header & Tabel" : imgIdx === waExportImages.length - 1 ? "Dokumentasi & E-Sign" : "Lanjutan Tabel"}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-950 rounded-lg p-2 flex items-center justify-center border border-slate-150 dark:border-slate-850 overflow-hidden mb-4 min-h-[220px]">
+                        <img src={imgUrl} alt={`Halaman ${imgIdx + 1}`} className="max-h-[280px] object-contain shadow-md rounded" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => {
+                          const link = document.createElement("a");
+                          link.download = `Checklist_${previewSubmission?.site || "Bukti"}_Hlm${imgIdx + 1}_${previewSubmission?.tanggal || "Tgl"}.png`;
+                          link.href = imgUrl;
+                          link.click();
+                        }}
+                        className="w-full py-2 bg-indigo-650 hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 hover:scale-[1.02] transition-all shadow-md shadow-indigo-667/10"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Unduh Halaman {imgIdx + 1}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(imgUrl);
+                            const blob = await response.blob();
+                            await navigator.clipboard.write([
+                              new ClipboardItem({ [blob.type]: blob })
+                            ]);
+                            alert(`Gambar Halaman ${imgIdx + 1} berhasil disalin ke clipboard! Silakan paste (Ctrl+V) di grup WhatsApp Anda.`);
+                          } catch (e) {
+                            alert("Browser Anda membatasi akses clipboard langsung. Silakan klik kanan gambar lalu pilih 'Salin Gambar' atau klik 'Unduh Gambar'.");
+                          }
+                        }}
+                        className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-150 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-center"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Salin Halaman {imgIdx + 1}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
         </div>

@@ -10,18 +10,18 @@ const DB_FILE = path.join(process.cwd(), "db.json");
 
 const DEFAULT_SETTINGS = {
   roles: [
-    { roleName: "Administrator", allowedViews: ["settings", "users", "clients"], active: true },
-    { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks"], active: true },
-    { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab"], active: true },
-    { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt"], active: true },
-    { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-    { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing"], active: true },
-    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing"], active: true },
-    { roleName: "Logistik Kantor Pusat", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "atk"], active: true }
+    { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "checklist"], active: true },
+    { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "Client", allowedViews: ["dashboard", "projects", "tasks", "checklist"], active: true },
+    { roleName: "Project Lead", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "checklist"], active: true },
+    { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "checklist"], active: true },
+    { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "checklist"], active: true },
+    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "checklist"], active: true },
+    { roleName: "Logistik Kantor Pusat", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "atk", "checklist"], active: true }
   ],
   milestoneStatuses: [
     { value: "On Track", active: true },
@@ -726,6 +726,10 @@ async function readDB() {
           r.allowedViews.push("appmodules");
           modified = true;
         }
+        if (!r.allowedViews.includes("sitemodules")) {
+          r.allowedViews.push("sitemodules");
+          modified = true;
+        }
         if (!r.allowedViews.includes("assets")) {
           r.allowedViews.push("assets");
           modified = true;
@@ -745,6 +749,12 @@ async function readDB() {
         if (!r.allowedViews.includes("checklist")) {
           r.allowedViews.push("checklist");
           modified = true;
+        }
+        if (["Logistik Kantor Pusat", "Manager", "Manager Keuangan", "Supervisor"].includes(r.roleName)) {
+          if (!r.allowedViews.includes("atk")) {
+            r.allowedViews.push("atk");
+            modified = true;
+          }
         }
       } else if (r.roleName === "Client") {
         // Can read or interact with it too if in their permissions

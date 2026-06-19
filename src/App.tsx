@@ -47,6 +47,7 @@ import BillingKSOView from "./components/BillingKSOView";
 import AtkOrdersView from "./components/AtkOrdersView";
 import KasSiteView from "./components/KasSiteView";
 import ChecklistView from "./components/ChecklistView";
+import PublicChecklistVerificationView from "./components/PublicChecklistVerificationView";
 
 // Icons
 import { 
@@ -90,6 +91,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isSessionLoading, setIsSessionLoading] = useState<boolean>(true);
+  const [verifyId, setVerifyId] = useState<string | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("verify");
+    } catch {
+      return null;
+    }
+  });
 
   // Common configuration lists
   const modulsList = ["Front Office", "Back Office", "Admin", "Reporting", "API Integration", "UAT System"];
@@ -1367,6 +1376,22 @@ export default function App() {
     );
   }
 
+  if (verifyId) {
+    return (
+      <PublicChecklistVerificationView 
+        verifyId={verifyId} 
+        onBack={() => {
+          setVerifyId(null);
+          try {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (e) {
+            console.error("Failed to click back", e);
+          }
+        }} 
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
@@ -1427,9 +1452,9 @@ export default function App() {
   const userRoleConfig = settings?.roles?.find((r: any) => r.roleName === currentUser?.role);
   
   // Default values based on specifications
-  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets"];
+  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets", "checklist"];
   if (currentUser?.role === "Administrator") {
-    allowedViewIds = ["settings", "users", "clients", "tickets", "appmodules", "assets"];
+    allowedViewIds = ["settings", "users", "clients", "tickets", "appmodules", "assets", "checklist"];
   }
 
   if (userRoleConfig && userRoleConfig.active) {
@@ -1449,11 +1474,6 @@ export default function App() {
   // Grant 'kassite' view automatically for admin, direktur, manager keuangan, staff, or site coordinator
   if ((currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager Keuangan" || currentUser?.role === "Site Coordinator" || currentUser?.role === "Staff") && !allowedViewIds.includes("kassite")) {
     allowedViewIds = [...allowedViewIds, "kassite"];
-  }
-
-  // Grant 'checklist' view automatically for everyone
-  if (!allowedViewIds.includes("checklist")) {
-    allowedViewIds = [...allowedViewIds, "checklist"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -2001,6 +2021,7 @@ export default function App() {
             <ChecklistView 
               currentUser={currentUser}
               clients={scopedClients}
+              users={users}
             />
           )}
 

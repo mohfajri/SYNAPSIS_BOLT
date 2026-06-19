@@ -1,6 +1,6 @@
 {
   "name": "SYNAPSIS",
-  "description": "System for Networked Analystics, Project Synchronization and Integrated Services",
+  "description": "System for Networked Analytics, Project Synchronization and Integrated Services",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
