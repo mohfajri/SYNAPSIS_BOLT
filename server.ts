@@ -2,11 +2,26 @@ import express from "express";
 import path from "path";
 import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
+import { createClient } from "@supabase/supabase-js";
 import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
 const app = express();
 const PORT = 3000;
 const DB_FILE = path.join(process.cwd(), "db.json");
+
+// Configure Supabase client if environment variables are provided
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
+
+const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+if (supabase) {
+  console.log("Supabase active. Database synchronization configured.");
+} else {
+  console.log("Supabase not configured. Using local JSON file store (db.json).");
+}
 
 const DEFAULT_SETTINGS = {
   roles: [
@@ -179,7 +194,32 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Helper to write database
 async function writeDB(data: any) {
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("simrs_config")
+        .upsert({ id: "app_state", data, updated_at: new Date().toISOString() });
+      if (error) {
+        console.error("Error writing to Supabase:", error.message);
+      } else {
+        console.log("Database state successfully synchronized with Supabase.");
+      }
+    } catch (e: any) {
+      console.error("Exception writing to Supabase:", e.message || e);
+    }
+  }
+
+  try {
+    await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (fsErr: any) {
+    // If it's a read-only environment (e.g. Serverless Vercel function), do not crash if Supabase is active
+    if (!supabase) {
+      console.error("Critical error: local db.json is not writable and Supabase is not active:", fsErr.message);
+      throw fsErr;
+    } else {
+      console.log("Local db.json write skipped or failed (read-only environment), synced via Supabase instead.");
+    }
+  }
 }
 
 // Initial seeding helper
@@ -600,8 +640,44 @@ const DEFAULT_CHECKLIST_ITEMS = [
 // DB Access helper
 async function readDB() {
   await initializeDB();
-  const raw = await fs.readFile(DB_FILE, "utf-8");
-  const db = JSON.parse(raw);
+  
+  let db: any = null;
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("simrs_config")
+        .select("data")
+        .eq("id", "app_state")
+        .single();
+
+      if (error) {
+        console.warn("Could not retrieve state from Supabase, error or row absent:", error.message);
+      } else if (data && data.data) {
+        db = data.data;
+      }
+    } catch (e: any) {
+      console.error("Exception fetching database from Supabase:", e.message || e);
+    }
+  }
+
+  if (!db) {
+    const raw = await fs.readFile(DB_FILE, "utf-8");
+    db = JSON.parse(raw);
+
+    if (supabase) {
+      console.log("Supabase active but database state empty. Migrating local db.json data directly to Supabase cloud table...");
+      try {
+        await supabase
+          .from("simrs_config")
+          .upsert({ id: "app_state", data: db, updated_at: new Date().toISOString() });
+        console.log("Migration successful!");
+      } catch (migErr: any) {
+        console.error("Failed to migrate initial data to Supabase:", migErr.message || migErr);
+      }
+    }
+  }
+
   let modified = false;
   if (!db.clients) {
     db.clients = [];
