@@ -2,6 +2,21 @@ import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Clie
 
 const API_BASE = "/api";
 
+// Robust fetch wrapper with backoff retry to handle dev server startup/restarts gracefully
+async function safeFetch(url: string, options?: RequestInit, retries = 5, delay = 800): Promise<Response> {
+  try {
+    return await fetch(url, options);
+  } catch (err: any) {
+    if (retries > 0) {
+      console.warn(`[API] Fetch to ${url} failed: ${err.message || err}. Retrying in ${delay}ms (${retries} attempts left)...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return safeFetch(url, options, retries - 1, delay * 1.5);
+    }
+    throw err;
+  }
+}
+
+
 // Helper for dynamic response handling
 async function handleResponse(res: Response) {
   const contentType = res.headers.get("content-type") || "";
@@ -53,7 +68,7 @@ export function clearSession() {
 export const api = {
   // Authentication
   async login(username: string, password: string): Promise<{ token: string; user: User }> {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await safeFetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
@@ -62,7 +77,7 @@ export const api = {
   },
 
   async register(data: Partial<User>): Promise<{ message: string; user: User }> {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+    const res = await safeFetch(`${API_BASE}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -72,12 +87,12 @@ export const api = {
 
   // Users CRUD (Admin Area)
   async getUsers(): Promise<User[]> {
-    const res = await fetch(`${API_BASE}/users`);
+    const res = await safeFetch(`${API_BASE}/users`);
     return handleResponse(res);
   },
 
   async createUser(data: Partial<User>): Promise<User> {
-    const res = await fetch(`${API_BASE}/users`, {
+    const res = await safeFetch(`${API_BASE}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -86,7 +101,7 @@ export const api = {
   },
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    const res = await safeFetch(`${API_BASE}/users/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -95,7 +110,7 @@ export const api = {
   },
 
   async deleteUser(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    const res = await safeFetch(`${API_BASE}/users/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -103,12 +118,12 @@ export const api = {
 
   // Projects CRUD
   async getProjects(): Promise<Project[]> {
-    const res = await fetch(`${API_BASE}/projects`);
+    const res = await safeFetch(`${API_BASE}/projects`);
     return handleResponse(res);
   },
 
   async createProject(data: Partial<Project>): Promise<Project> {
-    const res = await fetch(`${API_BASE}/projects`, {
+    const res = await safeFetch(`${API_BASE}/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -117,7 +132,7 @@ export const api = {
   },
 
   async updateProject(id: string, data: Partial<Project>): Promise<Project> {
-    const res = await fetch(`${API_BASE}/projects/${id}`, {
+    const res = await safeFetch(`${API_BASE}/projects/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -126,7 +141,7 @@ export const api = {
   },
 
   async deleteProject(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/projects/${id}`, {
+    const res = await safeFetch(`${API_BASE}/projects/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -134,12 +149,12 @@ export const api = {
 
   // Tasks CRUD
   async getTasks(): Promise<Task[]> {
-    const res = await fetch(`${API_BASE}/tasks`);
+    const res = await safeFetch(`${API_BASE}/tasks`);
     return handleResponse(res);
   },
 
   async createTask(data: Partial<Task>): Promise<Task> {
-    const res = await fetch(`${API_BASE}/tasks`, {
+    const res = await safeFetch(`${API_BASE}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -148,7 +163,7 @@ export const api = {
   },
 
   async updateTask(id: string, data: Partial<Task>): Promise<Task> {
-    const res = await fetch(`${API_BASE}/tasks/${id}`, {
+    const res = await safeFetch(`${API_BASE}/tasks/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -157,7 +172,7 @@ export const api = {
   },
 
   async deleteTask(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/tasks/${id}`, {
+    const res = await safeFetch(`${API_BASE}/tasks/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -165,12 +180,12 @@ export const api = {
 
   // Communication Logs CRUD
   async getCommLogs(): Promise<CommLog[]> {
-    const res = await fetch(`${API_BASE}/commlogs`);
+    const res = await safeFetch(`${API_BASE}/commlogs`);
     return handleResponse(res);
   },
 
   async createCommLog(data: Partial<CommLog>): Promise<CommLog> {
-    const res = await fetch(`${API_BASE}/commlogs`, {
+    const res = await safeFetch(`${API_BASE}/commlogs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -179,14 +194,14 @@ export const api = {
   },
 
   async deleteCommLog(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/commlogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/commlogs/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
   },
 
   async updateCommLog(id: string, data: Partial<CommLog>): Promise<CommLog> {
-    const res = await fetch(`${API_BASE}/commlogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/commlogs/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -196,12 +211,12 @@ export const api = {
 
   // Minutes of Meeting CRUD
   async getMeetingLogs(): Promise<MeetingLog[]> {
-    const res = await fetch(`${API_BASE}/meetinglogs`);
+    const res = await safeFetch(`${API_BASE}/meetinglogs`);
     return handleResponse(res);
   },
 
   async createMeetingLog(data: Partial<MeetingLog>): Promise<MeetingLog> {
-    const res = await fetch(`${API_BASE}/meetinglogs`, {
+    const res = await safeFetch(`${API_BASE}/meetinglogs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -210,14 +225,14 @@ export const api = {
   },
 
   async deleteMeetingLog(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/meetinglogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/meetinglogs/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
   },
 
   async updateMeetingLog(id: string, data: Partial<MeetingLog>): Promise<MeetingLog> {
-    const res = await fetch(`${API_BASE}/meetinglogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/meetinglogs/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -227,12 +242,12 @@ export const api = {
 
   // Documentations CRUD
   async getDocs(): Promise<Documentation[]> {
-    const res = await fetch(`${API_BASE}/docs`);
+    const res = await safeFetch(`${API_BASE}/docs`);
     return handleResponse(res);
   },
 
   async createDoc(data: Partial<Documentation>): Promise<Documentation> {
-    const res = await fetch(`${API_BASE}/docs`, {
+    const res = await safeFetch(`${API_BASE}/docs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -241,14 +256,14 @@ export const api = {
   },
 
   async deleteDoc(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/docs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/docs/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
   },
 
   async updateDoc(id: string, data: Partial<Documentation>): Promise<Documentation> {
-    const res = await fetch(`${API_BASE}/docs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/docs/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -258,12 +273,12 @@ export const api = {
 
   // Diagnostic Logs (issue, solution, focus) CRUD
   async getLogs(): Promise<LogEntry[]> {
-    const res = await fetch(`${API_BASE}/logs`);
+    const res = await safeFetch(`${API_BASE}/logs`);
     return handleResponse(res);
   },
 
   async createLog(data: Partial<LogEntry>): Promise<LogEntry> {
-    const res = await fetch(`${API_BASE}/logs`, {
+    const res = await safeFetch(`${API_BASE}/logs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -272,7 +287,7 @@ export const api = {
   },
 
   async deleteLog(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/logs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/logs/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -280,12 +295,12 @@ export const api = {
 
   // System Settings Config
   async getSettings(): Promise<any> {
-    const res = await fetch(`${API_BASE}/settings`);
+    const res = await safeFetch(`${API_BASE}/settings`);
     return handleResponse(res);
   },
 
   async updateSettings(data: any): Promise<any> {
-    const res = await fetch(`${API_BASE}/settings`, {
+    const res = await safeFetch(`${API_BASE}/settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -295,12 +310,12 @@ export const api = {
 
   // Clients / RS CRUD
   async getClients(): Promise<Client[]> {
-    const res = await fetch(`${API_BASE}/clients`);
+    const res = await safeFetch(`${API_BASE}/clients`);
     return handleResponse(res);
   },
 
   async createClient(data: Partial<Client>): Promise<Client> {
-    const res = await fetch(`${API_BASE}/clients`, {
+    const res = await safeFetch(`${API_BASE}/clients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -309,7 +324,7 @@ export const api = {
   },
 
   async updateClient(id: string, data: Partial<Client>): Promise<Client> {
-    const res = await fetch(`${API_BASE}/clients/${id}`, {
+    const res = await safeFetch(`${API_BASE}/clients/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -318,7 +333,7 @@ export const api = {
   },
 
   async deleteClient(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/clients/${id}`, {
+    const res = await safeFetch(`${API_BASE}/clients/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -326,12 +341,12 @@ export const api = {
 
   // Berita Acara (BA) Logs CRUD
   async getBALogs(): Promise<BALog[]> {
-    const res = await fetch(`${API_BASE}/balogs`);
+    const res = await safeFetch(`${API_BASE}/balogs`);
     return handleResponse(res);
   },
 
   async createBALog(data: Partial<BALog>): Promise<BALog> {
-    const res = await fetch(`${API_BASE}/balogs`, {
+    const res = await safeFetch(`${API_BASE}/balogs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -340,14 +355,14 @@ export const api = {
   },
 
   async deleteBALog(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/balogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/balogs/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
   },
 
   async updateBALog(id: string, data: Partial<BALog>): Promise<BALog> {
-    const res = await fetch(`${API_BASE}/balogs/${id}`, {
+    const res = await safeFetch(`${API_BASE}/balogs/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -357,12 +372,12 @@ export const api = {
 
   // Ticket / Helpdesk CRUD
   async getTickets(): Promise<Ticket[]> {
-    const res = await fetch(`${API_BASE}/tickets`);
+    const res = await safeFetch(`${API_BASE}/tickets`);
     return handleResponse(res);
   },
 
   async createTicket(data: Partial<Ticket>): Promise<Ticket> {
-    const res = await fetch(`${API_BASE}/tickets`, {
+    const res = await safeFetch(`${API_BASE}/tickets`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -371,7 +386,7 @@ export const api = {
   },
 
   async updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket> {
-    const res = await fetch(`${API_BASE}/tickets/${id}`, {
+    const res = await safeFetch(`${API_BASE}/tickets/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -380,7 +395,7 @@ export const api = {
   },
 
   async deleteTicket(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/tickets/${id}`, {
+    const res = await safeFetch(`${API_BASE}/tickets/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -388,12 +403,12 @@ export const api = {
 
   // App Modules CRUD
   async getAppModules(): Promise<AppModule[]> {
-    const res = await fetch(`${API_BASE}/appmodules`);
+    const res = await safeFetch(`${API_BASE}/appmodules`);
     return handleResponse(res);
   },
 
   async createAppModule(data: Partial<AppModule>): Promise<AppModule> {
-    const res = await fetch(`${API_BASE}/appmodules`, {
+    const res = await safeFetch(`${API_BASE}/appmodules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -402,7 +417,7 @@ export const api = {
   },
 
   async updateAppModule(id: string, data: Partial<AppModule>): Promise<AppModule> {
-    const res = await fetch(`${API_BASE}/appmodules/${id}`, {
+    const res = await safeFetch(`${API_BASE}/appmodules/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -411,7 +426,7 @@ export const api = {
   },
 
   async deleteAppModule(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/appmodules/${id}`, {
+    const res = await safeFetch(`${API_BASE}/appmodules/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -419,12 +434,12 @@ export const api = {
 
   // Assets Management CRUD
   async getAssets(): Promise<Asset[]> {
-    const res = await fetch(`${API_BASE}/assets`);
+    const res = await safeFetch(`${API_BASE}/assets`);
     return handleResponse(res);
   },
 
   async createAsset(data: Partial<Asset>): Promise<Asset> {
-    const res = await fetch(`${API_BASE}/assets`, {
+    const res = await safeFetch(`${API_BASE}/assets`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -433,7 +448,7 @@ export const api = {
   },
 
   async updateAsset(id: string, data: Partial<Asset>): Promise<Asset> {
-    const res = await fetch(`${API_BASE}/assets/${id}`, {
+    const res = await safeFetch(`${API_BASE}/assets/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -442,7 +457,7 @@ export const api = {
   },
 
   async deleteAsset(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/assets/${id}`, {
+    const res = await safeFetch(`${API_BASE}/assets/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -450,12 +465,12 @@ export const api = {
 
   // Site Module Implementations CRUD
   async getSiteImplementations(): Promise<SiteModuleImplementation[]> {
-    const res = await fetch(`${API_BASE}/siteimplementations`);
+    const res = await safeFetch(`${API_BASE}/siteimplementations`);
     return handleResponse(res);
   },
 
   async createSiteImplementation(data: Partial<SiteModuleImplementation>): Promise<SiteModuleImplementation> {
-    const res = await fetch(`${API_BASE}/siteimplementations`, {
+    const res = await safeFetch(`${API_BASE}/siteimplementations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -464,7 +479,7 @@ export const api = {
   },
 
   async updateSiteImplementation(id: string, data: Partial<SiteModuleImplementation>): Promise<SiteModuleImplementation> {
-    const res = await fetch(`${API_BASE}/siteimplementations/${id}`, {
+    const res = await safeFetch(`${API_BASE}/siteimplementations/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -473,7 +488,7 @@ export const api = {
   },
 
   async deleteSiteImplementation(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/siteimplementations/${id}`, {
+    const res = await safeFetch(`${API_BASE}/siteimplementations/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -481,12 +496,12 @@ export const api = {
 
   // Monitoring Evaluasi (Monev) CRUD
   async getMonevLogs(): Promise<MonevLog[]> {
-    const res = await fetch(`${API_BASE}/monev`);
+    const res = await safeFetch(`${API_BASE}/monev`);
     return handleResponse(res);
   },
 
   async createMonevLog(data: Partial<MonevLog>): Promise<MonevLog> {
-    const res = await fetch(`${API_BASE}/monev`, {
+    const res = await safeFetch(`${API_BASE}/monev`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -495,7 +510,7 @@ export const api = {
   },
 
   async updateMonevLog(id: string, data: Partial<MonevLog>): Promise<MonevLog> {
-    const res = await fetch(`${API_BASE}/monev/${id}`, {
+    const res = await safeFetch(`${API_BASE}/monev/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -504,7 +519,7 @@ export const api = {
   },
 
   async deleteMonevLog(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/monev/${id}`, {
+    const res = await safeFetch(`${API_BASE}/monev/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -512,12 +527,12 @@ export const api = {
 
   // Billing KSO & ATK CRUD
   async getBillings(): Promise<BillingKSO[]> {
-    const res = await fetch(`${API_BASE}/billing`);
+    const res = await safeFetch(`${API_BASE}/billing`);
     return handleResponse(res);
   },
 
   async createBilling(data: Partial<BillingKSO>): Promise<BillingKSO> {
-    const res = await fetch(`${API_BASE}/billing`, {
+    const res = await safeFetch(`${API_BASE}/billing`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -526,7 +541,7 @@ export const api = {
   },
 
   async updateBilling(id: string, data: Partial<BillingKSO>): Promise<BillingKSO> {
-    const res = await fetch(`${API_BASE}/billing/${id}`, {
+    const res = await safeFetch(`${API_BASE}/billing/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -535,7 +550,7 @@ export const api = {
   },
 
   async deleteBilling(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/billing/${id}`, {
+    const res = await safeFetch(`${API_BASE}/billing/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -543,12 +558,12 @@ export const api = {
 
   // ATK Master Items API
   async getAtkItems(): Promise<AtkItem[]> {
-    const res = await fetch(`${API_BASE}/atk/items`);
+    const res = await safeFetch(`${API_BASE}/atk/items`);
     return handleResponse(res);
   },
 
   async createAtkItem(data: Partial<AtkItem>): Promise<AtkItem> {
-    const res = await fetch(`${API_BASE}/atk/items`, {
+    const res = await safeFetch(`${API_BASE}/atk/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -557,7 +572,7 @@ export const api = {
   },
 
   async updateAtkItem(id: string, data: Partial<AtkItem>): Promise<AtkItem> {
-    const res = await fetch(`${API_BASE}/atk/items/${id}`, {
+    const res = await safeFetch(`${API_BASE}/atk/items/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -566,7 +581,7 @@ export const api = {
   },
 
   async deleteAtkItem(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/atk/items/${id}`, {
+    const res = await safeFetch(`${API_BASE}/atk/items/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -574,12 +589,12 @@ export const api = {
 
   // ATK Orders API
   async getAtkOrders(): Promise<AtkOrder[]> {
-    const res = await fetch(`${API_BASE}/atk/orders`);
+    const res = await safeFetch(`${API_BASE}/atk/orders`);
     return handleResponse(res);
   },
 
   async createAtkOrder(data: Partial<AtkOrder>): Promise<AtkOrder> {
-    const res = await fetch(`${API_BASE}/atk/orders`, {
+    const res = await safeFetch(`${API_BASE}/atk/orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -588,7 +603,7 @@ export const api = {
   },
 
   async updateAtkOrder(id: string, data: Partial<AtkOrder>): Promise<AtkOrder> {
-    const res = await fetch(`${API_BASE}/atk/orders/${id}`, {
+    const res = await safeFetch(`${API_BASE}/atk/orders/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -597,7 +612,7 @@ export const api = {
   },
 
   async deleteAtkOrder(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/atk/orders/${id}`, {
+    const res = await safeFetch(`${API_BASE}/atk/orders/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -605,12 +620,12 @@ export const api = {
 
   // Kas Site CRUD API
   async getKasSiteTransactions(): Promise<KasSiteTransaction[]> {
-    const res = await fetch(`${API_BASE}/kassite`);
+    const res = await safeFetch(`${API_BASE}/kassite`);
     return handleResponse(res);
   },
 
   async createKasSiteTransaction(data: Partial<KasSiteTransaction>): Promise<KasSiteTransaction> {
-    const res = await fetch(`${API_BASE}/kassite`, {
+    const res = await safeFetch(`${API_BASE}/kassite`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -619,7 +634,7 @@ export const api = {
   },
 
   async updateKasSiteTransaction(id: string, data: Partial<KasSiteTransaction>): Promise<KasSiteTransaction> {
-    const res = await fetch(`${API_BASE}/kassite/${id}`, {
+    const res = await safeFetch(`${API_BASE}/kassite/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -628,7 +643,7 @@ export const api = {
   },
 
   async deleteKasSiteTransaction(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/kassite/${id}`, {
+    const res = await safeFetch(`${API_BASE}/kassite/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -636,12 +651,12 @@ export const api = {
 
   // Kas Site Replenishment CRUD API
   async getKasSiteReplenishments(): Promise<KasSiteReplenishment[]> {
-    const res = await fetch(`${API_BASE}/kassite/replenish`);
+    const res = await safeFetch(`${API_BASE}/kassite/replenish`);
     return handleResponse(res);
   },
 
   async createKasSiteReplenishment(data: Partial<KasSiteReplenishment>): Promise<KasSiteReplenishment> {
-    const res = await fetch(`${API_BASE}/kassite/replenish`, {
+    const res = await safeFetch(`${API_BASE}/kassite/replenish`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -650,7 +665,7 @@ export const api = {
   },
 
   async updateKasSiteReplenishment(id: string, data: Partial<KasSiteReplenishment>): Promise<KasSiteReplenishment> {
-    const res = await fetch(`${API_BASE}/kassite/replenish/${id}`, {
+    const res = await safeFetch(`${API_BASE}/kassite/replenish/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -659,7 +674,7 @@ export const api = {
   },
 
   async deleteKasSiteReplenishment(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/kassite/replenish/${id}`, {
+    const res = await safeFetch(`${API_BASE}/kassite/replenish/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -667,12 +682,12 @@ export const api = {
 
   // Lock and Unlock Requests API
   async getKasLocks(): Promise<KasLock[]> {
-    const res = await fetch(`${API_BASE}/kassite/locks`);
+    const res = await safeFetch(`${API_BASE}/kassite/locks`);
     return handleResponse(res);
   },
 
   async toggleKasLock(data: Partial<KasLock>): Promise<KasLock> {
-    const res = await fetch(`${API_BASE}/kassite/locks`, {
+    const res = await safeFetch(`${API_BASE}/kassite/locks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -681,12 +696,12 @@ export const api = {
   },
 
   async getKasUnlockRequests(): Promise<KasUnlockRequest[]> {
-    const res = await fetch(`${API_BASE}/kassite/unlock-requests`);
+    const res = await safeFetch(`${API_BASE}/kassite/unlock-requests`);
     return handleResponse(res);
   },
 
   async createKasUnlockRequest(data: Partial<KasUnlockRequest>): Promise<KasUnlockRequest> {
-    const res = await fetch(`${API_BASE}/kassite/unlock-requests`, {
+    const res = await safeFetch(`${API_BASE}/kassite/unlock-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -695,7 +710,7 @@ export const api = {
   },
 
   async updateKasUnlockRequest(id: string, data: Partial<KasUnlockRequest>): Promise<KasUnlockRequest> {
-    const res = await fetch(`${API_BASE}/kassite/unlock-requests/${id}`, {
+    const res = await safeFetch(`${API_BASE}/kassite/unlock-requests/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -705,12 +720,12 @@ export const api = {
 
   // Checklist Settings CRUD APIs
   async getChecklistSettings(): Promise<ChecklistItemSetting[]> {
-    const res = await fetch(`${API_BASE}/checklist/settings`);
+    const res = await safeFetch(`${API_BASE}/checklist/settings`);
     return handleResponse(res);
   },
 
   async createChecklistItemSetting(data: Partial<ChecklistItemSetting>): Promise<ChecklistItemSetting> {
-    const res = await fetch(`${API_BASE}/checklist/settings`, {
+    const res = await safeFetch(`${API_BASE}/checklist/settings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -719,7 +734,7 @@ export const api = {
   },
 
   async updateChecklistItemSetting(id: string, data: Partial<ChecklistItemSetting>): Promise<ChecklistItemSetting> {
-    const res = await fetch(`${API_BASE}/checklist/settings/${id}`, {
+    const res = await safeFetch(`${API_BASE}/checklist/settings/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -728,7 +743,7 @@ export const api = {
   },
 
   async deleteChecklistItemSetting(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/checklist/settings/${id}`, {
+    const res = await safeFetch(`${API_BASE}/checklist/settings/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
@@ -736,12 +751,12 @@ export const api = {
 
   // Checklist Submissions CRUD APIs
   async getChecklistSubmissions(): Promise<ChecklistSubmission[]> {
-    const res = await fetch(`${API_BASE}/checklists`);
+    const res = await safeFetch(`${API_BASE}/checklists`);
     return handleResponse(res);
   },
 
   async createChecklistSubmission(data: Partial<ChecklistSubmission>): Promise<ChecklistSubmission> {
-    const res = await fetch(`${API_BASE}/checklists`, {
+    const res = await safeFetch(`${API_BASE}/checklists`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -750,7 +765,7 @@ export const api = {
   },
 
   async updateChecklistSubmission(id: string, data: Partial<ChecklistSubmission>): Promise<ChecklistSubmission> {
-    const res = await fetch(`${API_BASE}/checklists/${id}`, {
+    const res = await safeFetch(`${API_BASE}/checklists/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -759,7 +774,7 @@ export const api = {
   },
 
   async deleteChecklistSubmission(id: string): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/checklists/${id}`, {
+    const res = await safeFetch(`${API_BASE}/checklists/${id}`, {
       method: "DELETE"
     });
     return handleResponse(res);
