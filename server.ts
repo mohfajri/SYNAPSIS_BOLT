@@ -1320,9 +1320,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server is running beautifully at http://localhost:${PORT}`);
-  });
+  // Only call app.listen if NOT running on Vercel serverless environment
+  if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () => {
+      console.log(`Development server running at http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer().catch(console.error);
