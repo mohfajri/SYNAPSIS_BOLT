@@ -9,13 +9,29 @@ const app = express();
 const PORT = 3000;
 const DB_FILE = path.join(process.cwd(), "db.json");
 
-// Configure Supabase client if environment variables are provided
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
+// Helper to sanitize environment variables (removes quotes & extra spaces added by mistake)
+function cleanEnvVar(val: string): string {
+  if (!val) return "";
+  let cleaned = val.trim();
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
 
-const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+// Configure Supabase client if environment variables are provided
+const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
+const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY || "");
+
+let supabase: any = null;
+try {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase client initialized successfully with URL:", SUPABASE_URL);
+  }
+} catch (err: any) {
+  console.error("Critical: Failed to initialize Supabase client:", err.message || err);
+}
 
 if (supabase) {
   console.log("Supabase active. Database synchronization configured.");
@@ -200,8 +216,12 @@ const DEFAULT_SETTINGS = {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+let memoryDB: any = null;
+
 // Helper to write database
 async function writeDB(data: any) {
+  memoryDB = data; // Keep in-memory store updated!
+
   if (supabase) {
     try {
       const { error } = await supabase
@@ -220,12 +240,12 @@ async function writeDB(data: any) {
   try {
     await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch (fsErr: any) {
-    // If it's a read-only environment (e.g. Serverless Vercel function), do not crash if Supabase is active
-    if (!supabase) {
-      console.error("Critical error: local db.json is not writable and Supabase is not active:", fsErr.message);
-      throw fsErr;
+    // Graceful handling for read-only environments like Vercel Serverless
+    console.warn("Local db.json write skipped or failed (read-only environment like Vercel). Status has been updated in-memory.");
+    if (supabase) {
+      console.log("State has been safely synchronized via Supabase.");
     } else {
-      console.log("Local db.json write skipped or failed (read-only environment), synced via Supabase instead.");
+      console.warn("WARNING: Supabase is not configured! Changes will be lost when the serverless function cold-starts. Please configure SUPABASE_URL and SUPABASE_ANON_KEY on Vercel for persistence.");
     }
   }
 }
@@ -670,11 +690,22 @@ async function readDB() {
   }
 
   if (!db) {
-    const raw = await fs.readFile(DB_FILE, "utf-8");
-    db = JSON.parse(raw);
+    if (memoryDB) {
+      db = memoryDB;
+    } else {
+      try {
+        const raw = await fs.readFile(DB_FILE, "utf-8");
+        db = JSON.parse(raw);
+        memoryDB = db;
+      } catch (err: any) {
+        console.warn("Could not read local DB_FILE, fallback to empty state:", err.message);
+        db = { users: [] };
+        memoryDB = db;
+      }
+    }
 
     if (supabase) {
-      console.log("Supabase active but database state empty. Migrating local db.json data directly to Supabase cloud table...");
+      console.log("Supabase active but database state empty. Migrating local data directly to Supabase cloud table...");
       try {
         await supabase
           .from("simrs_config")
@@ -2510,3 +2541,5 @@ async function startServer() {
 }
 
 startServer();
+
+export default app;
