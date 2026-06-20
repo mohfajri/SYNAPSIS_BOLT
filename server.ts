@@ -3,13 +3,18 @@ import path from "path";
 import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
 const app = express();
 const PORT = 3000;
 const DB_FILE = path.join(process.cwd(), "db.json");
 
-// Helper to sanitize environment variables (removes quotes & extra spaces added by mistake)
+// Cache database di memori untuk mempercepat pembacaan data
+let dbCache: any = null;
+
+// Mengaktifkan parsing JSON untuk request body
+app.use(express.json());
+
+// Helper untuk membersihkan tanda kutip ganda/tunggal pada Environment Variables
 function cleanEnvVar(val: string): string {
   if (!val) return "";
   let cleaned = val.trim();
@@ -19,7 +24,7 @@ function cleanEnvVar(val: string): string {
   return cleaned;
 }
 
-// Configure Supabase client if environment variables are provided
+// Konfigurasi Klien Supabase
 const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
 const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY || "");
 
@@ -31,38 +36,6 @@ try {
   }
 } catch (err: any) {
   console.error("Critical: Failed to initialize Supabase client:", err.message);
-}
-
-async function readDB(): Promise<any> {
-  if (dbCache) return dbCache; // Gunakan memori cache jika sudah ada data
-
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from("simrs_config")
-        .select("data")
-        .eq("id", "app_state")
-        .single();
-
-      if (!error && data?.data) {
-        dbCache = data.data; // Simpan ke cache
-        return data.data;    // Kembalikan data dari Supabase
-      }
-    } catch (err) {
-      console.error("Supabase read error:", err);
-    }
-  }
-
-  // Fallback: Jika Supabase mati/gagal/kosong, baca dari file lokal db.json
-  try {
-    const fileData = await fs.readFile(DB_FILE, "utf-8");
-    dbCache = JSON.parse(fileData);
-    return dbCache;
-  } catch (err) {
-    // Jika file belum ada, buat struktur objek default agar tidak crash
-    dbCache = { users: [], projects: [], tasks: [], settings: DEFAULT_SETTINGS };
-    return dbCache;
-  }
 }
 
 const DEFAULT_SETTINGS = {
@@ -80,29 +53,76 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
+// Fungsi Utama Pembacaan Database
+async function readDB(): Promise<any> {
+  if (dbCache) return dbCache;
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("simrs_config")
+        .select("data")
+        .eq("id", "app_state")
+        .single();
+
+      if (!error && data?.data) {
+        dbCache = data.data;
+        return data.data;
+      }
+    } catch (err) {
+      console.error("Supabase read error:", err);
+    }
+  }
+
+  try {
+    const fileData = await fs.readFile(DB_FILE, "utf-8");
+    dbCache = JSON.parse(fileData);
+    return dbCache;
+  } catch (err) {
+    dbCache = { users: [], projects: [], tasks: [], settings: DEFAULT_SETTINGS };
+    return dbCache;
+  }
+}
+
+// Fungsi Utama Penyimpanan Database
+async function writeDB(data: any): Promise<void> {
+  dbCache = data;
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from("simrs_config")
+        .upsert({ id: "app_state", data: data });
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Supabase write error:", err);
+    }
+  }
+
+  try {
+    await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Local JSON write error:", err);
+  }
+}
+
+// Fungsi Validasi Migrasi Skema Data
 async function checkAndMigrateSchema(db: any): Promise<boolean> {
   let changed = false;
-  if (!db.users) { db.users = []; changed = true; }
-  if (!db.projects) { db.projects = []; changed = true; }
-  if (!db.tasks) { db.tasks = []; changed = true; }
-  if (!db.commLogs) { db.commLogs = []; changed = true; }
-  if (!db.meetingLogs) { db.meetingLogs = []; changed = true; }
-  if (!db.docs) { db.docs = []; changed = true; }
-  if (!db.logs) { db.logs = []; changed = true; }
-  if (!db.clients) { db.clients = []; changed = true; }
-  if (!db.siteImplementations) { db.siteImplementations = []; changed = true; }
-  if (!db.tickets) { db.tickets = []; changed = true; }
-  if (!db.appModules) { db.appModules = []; changed = true; }
-  if (!db.assets) { db.assets = []; changed = true; }
-  if (!db.monev) { db.monev = []; changed = true; }
-  if (!db.billing) { db.billing = []; changed = true; }
-  if (!db.atkItems) { db.atkItems = []; changed = true; }
-  if (!db.atkOrders) { db.atkOrders = []; changed = true; }
-  if (!db.kasSiteTransactions) { db.kasSiteTransactions = []; changed = true; }
-  if (!db.kasLocks) { db.kasLocks = []; changed = true; }
-  if (!db.kasUnlockRequests) { db.kasUnlockRequests = []; changed = true; }
-  if (!db.checklistItemsSetting) { db.checklistItemsSetting = []; changed = true; }
-  if (!db.checklists) { db.checklists = []; changed = true; }
+  const tables = [
+    "users", "projects", "tasks", "commLogs", "meetingLogs", "docs", "logs", 
+    "clients", "siteImplementations", "tickets", "appModules", "assets", 
+    "monev", "billing", "atkItems", "atkOrders", "kasSiteTransactions", 
+    "kasLocks", "kasUnlockRequests", "checklistItemsSetting", "checklists"
+  ];
+
+  tables.forEach((table) => {
+    if (!db[table]) {
+      db[table] = [];
+      changed = true;
+    }
+  });
 
   if (!db.settings || !db.settings.roles || db.settings.roles.length === 0) {
     db.settings = DEFAULT_SETTINGS;
@@ -111,12 +131,11 @@ async function checkAndMigrateSchema(db: any): Promise<boolean> {
   return changed;
 }
 
-// Initial seeding helper safely refactored for Serverless
+// Inisialisasi Database Saat Server Mulai Berjalan
 async function initializeDB() {
   try {
     let current = await readDB();
     
-    // Jika database kosong, terputus, atau user admin belum terbuat, injeksi akun default
     if (!current || !current.users || current.users.length === 0) {
       current = {
         users: [
@@ -133,35 +152,27 @@ async function initializeDB() {
             siteTugas: "",
           },
         ],
-        projects: [],
-        tasks: [],
-        commLogs: [],
-        meetingLogs: [],
-        docs: [],
-        logs: [],
-        settings: DEFAULT_SETTINGS,
-        clients: [],
-        siteImplementations: [],
-        tickets: [],
-        appModules: [],
-        assets: [],
-        monev: [],
-        billing: [],
-        atkItems: [],
-        atkOrders: [],
-        kasSiteTransactions: [],
-        kasLocks: [],
-        kasUnlockRequests: [],
-        checklistItemsSetting: [],
-        checklists: [],
+        projects: [], tasks: [], commLogs: [], meetingLogs: [], docs: [], logs: [],
+        settings: DEFAULT_SETTINGS, clients: [], siteImplementations: [], tickets: [],
+        appModules: [], assets: [], monev: [], billing: [], atkItems: [], atkOrders: [],
+        kasSiteTransactions: [], kasLocks: [], kasUnlockRequests: [], 
+        checklistItemsSetting: [], checklists: [],
       };
       await writeDB(current);
       console.log("Database initialized with default administrator account.");
     } else {
-      // Jika data sudah ada, lakukan validasi kelengkapan struktur tabel (skema)
       const migrated = await checkAndMigrateSchema(current);
       if (migrated) {
         await writeDB(current);
+        console.log("Database schema successfully verified and auto-migrated.");
+      }
+    }
+  } catch (e: any) {
+    console.error("Database initialization bypassed safely:", e.message);
+  }
+}
+
+initializeDB().catch(console.error);
 
 // ─── AUTHENTICATION ENDPOINTS ────────────────────────────────────────────────
 app.post("/api/auth/login", async (req, res) => {
@@ -1303,7 +1314,6 @@ app.put("/api/checklists/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-} // <-- KURUNG KUNCI: Menutup paksa blok endpoint/fungsi di atas yang sempat menggantung
 
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────
 async function startServer() {
