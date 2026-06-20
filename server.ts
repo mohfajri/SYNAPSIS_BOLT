@@ -21,8 +21,6 @@ function cleanEnvVar(val: string): string {
 
 // Configure Supabase client if environment variables are provided
 const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
-// Configure Supabase client if environment variables are provided
-const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
 const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY || "");
 
 let supabase: any = null;
