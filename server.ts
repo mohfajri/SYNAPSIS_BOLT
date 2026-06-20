@@ -26,7 +26,7 @@ if (supabase) {
 const DEFAULT_SETTINGS = {
   roles: [
     { roleName: "Administrator", allowedViews: ["settings", "users", "clients", "checklist"], active: true },
-    { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
+    { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "checklist", "atk"], active: true },
     { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
     { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
     { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "checklist"], active: true },
@@ -35,7 +35,6 @@ const DEFAULT_SETTINGS = {
     { roleName: "Developer", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "checklist"], active: true },
     { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "checklist"], active: true },
     { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "checklist"], active: true },
-    { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "checklist"], active: true },
     { roleName: "Logistik Kantor Pusat", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "atk", "checklist"], active: true }
   ],
   milestoneStatuses: [
@@ -186,6 +185,15 @@ const DEFAULT_SETTINGS = {
     { value: "Apotek: Resep Elektronik pending", active: true },
     { value: "Printer Thermal: Kertas printer macet", active: true },
     { value: "Printer Thermal: Cetak struk pudar / tidak jelas", active: true }
+  ],
+  divisi: [
+    { value: "Site Management", active: true },
+    { value: "Quality Control", active: true },
+    { value: "Development", active: true },
+    { value: "HRD", active: true },
+    { value: "Keuangan", active: true },
+    { value: "Infrastruktur", active: true },
+    { value: "General Affair", active: true }
   ]
 };
 
@@ -826,7 +834,7 @@ async function readDB() {
           r.allowedViews.push("checklist");
           modified = true;
         }
-        if (["Logistik Kantor Pusat", "Manager", "Manager Keuangan", "Supervisor"].includes(r.roleName)) {
+        if (["Logistik Kantor Pusat", "Manager", "Manager Keuangan", "Site Coordinator"].includes(r.roleName)) {
           if (!r.allowedViews.includes("atk")) {
             r.allowedViews.push("atk");
             modified = true;
@@ -963,7 +971,7 @@ app.post("/api/auth/login", async (req, res) => {
 // PRIVATE REGISTER (can be called by guests or admins depending on interface context)
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { username, name, nickname, password, email, role } = req.body;
+    const { username, name, nickname, password, email, role, divisi } = req.body;
     if (!username || !name || !password || !email) {
       return res.status(400).json({ error: "Input formulir registrasi tidak lengkap!" });
     }
@@ -981,6 +989,7 @@ app.post("/api/auth/register", async (req, res) => {
       password,
       role: role || "Technical Support",
       email,
+      divisi: divisi || "",
       createdAt: new Date().toISOString()
     };
 
@@ -1009,7 +1018,7 @@ app.get("/api/users", async (req, res) => {
 
 app.post("/api/users", async (req, res) => {
   try {
-    const { username, name, nickname, password, email, role, siteTugas, statusAktif } = req.body;
+    const { username, name, nickname, password, email, role, siteTugas, statusAktif, divisi } = req.body;
     if (!username || !name || !nickname || !password || !email || !role) {
       return res.status(400).json({ error: "Seluruh data user wajib diisi!" });
     }
@@ -1029,6 +1038,7 @@ app.post("/api/users", async (req, res) => {
       email,
       siteTugas: siteTugas || "",
       statusAktif: statusAktif !== undefined ? Boolean(statusAktif) : true,
+      divisi: divisi || "",
       createdAt: new Date().toISOString()
     };
 
@@ -1045,7 +1055,7 @@ app.post("/api/users", async (req, res) => {
 app.put("/api/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, nickname, email, role, password, siteTugas, statusAktif } = req.body;
+    const { name, nickname, email, role, password, siteTugas, statusAktif, divisi } = req.body;
     const db = await readDB();
     const idx = db.users.findIndex((u: any) => u.id === id);
     if (idx === -1) {
@@ -1061,6 +1071,9 @@ app.put("/api/users/:id", async (req, res) => {
     }
     if (statusAktif !== undefined) {
       db.users[idx].statusAktif = Boolean(statusAktif);
+    }
+    if (divisi !== undefined) {
+      db.users[idx].divisi = divisi;
     }
     if (password) {
       db.users[idx].password = password;
@@ -1904,7 +1917,7 @@ app.get("/api/settings", async (req, res) => {
       await writeDB(db);
     } else {
       let modified = false;
-      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul", "jenisLaporan", "kategoriLaporan", "subKategori", "jenisMasalah"];
+      const keys = ["tipeMedika", "kategoriDokumen", "jenisBeritaAcara", "jenisModul", "statusImplementasi", "tipeMedia", "statusImplementasiSite", "statusPenggunaan", "kategoriImplementasi", "jenisAplikasiModul", "platformModul", "statusModul", "jenisLaporan", "kategoriLaporan", "subKategori", "jenisMasalah", "divisi"];
       for (const key of keys) {
         if (!db.settings[key]) {
           db.settings[key] = (DEFAULT_SETTINGS as any)[key];

@@ -356,10 +356,10 @@ export default function TasksView({
     let targetRoles: string[] = [];
     
     if (myRole === "Direktur" || myRole === "Administrator") {
-      targetRoles = ["Manager", "Supervisor"];
+      targetRoles = ["Manager", "Site Coordinator"];
     } else if (myRole === "Manager") {
-      targetRoles = ["Supervisor"];
-    } else if (myRole === "Supervisor") {
+      targetRoles = ["Site Coordinator"];
+    } else if (myRole === "Site Coordinator") {
       targetRoles = ["Staff", "System Support", "Technical Support", "Assistant Technical Support"];
     } else {
       targetRoles = ["Staff", "System Support", "Technical Support", "Assistant Technical Support"];
@@ -1001,14 +1001,14 @@ export default function TasksView({
       if (editingTask) {
         await onUpdateTask(editingTask.id, payload);
       } else if (isBroadcast) {
-        const targetRoles = ["Supervisor", "Site Coordinator"];
+        const targetRoles = ["Site Coordinator"];
         const targetUsers = users.filter(u => 
           u.statusAktif !== false && 
           targetRoles.includes(u.role)
         );
 
         if (targetUsers.length === 0) {
-          alert("⚠️ Tidak ditemukan pengguna dengan peran Supervisor atau Site Coordinator aktif. Tugas akan disimpan sebagai tugas biasa untuk " + pic);
+          alert("⚠️ Tidak ditemukan pengguna dengan peran Site Coordinator aktif. Tugas akan disimpan sebagai tugas biasa untuk " + pic);
           await onAddTask({ ...payload, pic });
         } else {
           for (const u of targetUsers) {
@@ -1019,7 +1019,7 @@ export default function TasksView({
               notes: (notes ? notes + "\n\n" : "") + `[Broadcast Massal] Tugas otomatis didelegasikan ke ${userPic} (${u.role}) di site ${u.siteTugas || "Umum"}.`
             });
           }
-          alert(`📢 Berhasil membuat & mendistribusikan ${targetUsers.length} tugas secara merata ke semua Supervisor & Site Coordinator aktif!`);
+          alert(`📢 Berhasil membuat & mendistribusikan ${targetUsers.length} tugas secara merata ke semua Site Coordinator aktif!`);
         }
       } else {
         await onAddTask(payload);
@@ -1155,8 +1155,8 @@ export default function TasksView({
       roleName = "Kantor Pusat / Owner";
     } else if (currentUser?.role === "Manager") {
       roleName = "Kantor Pusat / Manager";
-    } else if (currentUser?.role === "Supervisor") {
-      roleName = "Supervisor Site";
+    } else if (currentUser?.role === "Site Coordinator") {
+      roleName = "Site Coordinator";
     }
 
     const newComment: TaskComment = {
@@ -1227,7 +1227,7 @@ export default function TasksView({
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 leading-none">
               <span className="bg-slate-100 dark:bg-slate-850 text-slate-700 dark:text-slate-300 text-[9px] font-black px-1.5 py-0.5 rounded tracking-wide uppercase select-none">
-                Lvl {level + 1} • {task.assignerRole || (level === 0 ? "Direktur" : level === 1 ? "Manager" : "Supervisor")}
+                Lvl {level + 1} • {task.assignerRole || (level === 0 ? "Direktur" : level === 1 ? "Manager" : "Site Coordinator")}
               </span>
               <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${getStatusStyle(task.status)}`}>
                 {task.status}
@@ -1536,7 +1536,7 @@ export default function TasksView({
                   }`}
                 >
                   {isBroadcast ? (
-                    <option value="">-- Semua Supervisor & Site Co. (Massal) --</option>
+                    <option value="">-- Semua Site Coordinator (Massal) --</option>
                   ) : (
                     getDynamicPicsList().map(p => (
                       <option key={p} value={p}>{p}</option>
@@ -1556,10 +1556,10 @@ export default function TasksView({
                   />
                   <div className="flex-1">
                     <label htmlFor="broadcast-toggle" className="text-xs font-black text-blue-800 dark:text-blue-300 cursor-pointer select-none uppercase tracking-wide flex items-center gap-1.5">
-                      📢 Kirim Massal / Broadcast ke Semua Supervisor & Site Coordinator
+                      📢 Kirim Massal / Broadcast ke Semua Site Coordinator
                     </label>
-                    <p className="text-[11px] text-slate-505 dark:text-slate-400 mt-0.5 leading-relaxed font-semibold">
-                      Opsi Spesial Manager: Sistem akan otomatis menduplikasi tugas ini untuk <span className="text-blue-600 dark:text-blue-400 font-bold">seluruh Supervisor dan Site Coordinatoraktif</span> di semua site rumah sakit agar dapat dikerjakan secara serentak.
+                    <p className="text-[11px] text-slate-550 dark:text-slate-400 mt-0.5 leading-relaxed font-semibold">
+                      Opsi Spesial Manager: Sistem akan otomatis menduplikasi tugas ini untuk <span className="text-blue-600 dark:text-blue-400 font-bold">seluruh Site Coordinator aktif</span> di semua site rumah sakit agar dapat dikerjakan secara serentak.
                     </p>
                   </div>
                 </div>
@@ -2771,7 +2771,7 @@ export default function TasksView({
                   Peta Progress Hubungan Delegasi Berjenjang (Hierarki Tugas)
                 </h4>
                 <p className="text-xs text-slate-500 select-none">
-                  Lacak runtutan delegasi tugas dari <strong>Direktur &rarr; Manager &rarr; Supervisor &rarr; Staff</strong>.
+                  Lacak runtutan delegasi tugas dari <strong>Direktur &rarr; Manager &rarr; Site Coordinator &rarr; Staff</strong>.
                 </p>
               </div>
               <div className="text-xs sm:text-right whitespace-nowrap">
@@ -3199,7 +3199,7 @@ export default function TasksView({
                     const isEligibleToDelegate = currentUser?.role === "Administrator" || 
                                                   currentUser?.role === "Direktur" || 
                                                   currentUser?.role === "Manager" || 
-                                                  currentUser?.role === "Supervisor" ||
+                                                  currentUser?.role === "Site Coordinator" ||
                                                   selectedTask.pic === (currentUser?.nickname || currentUser?.username);
                     if (isEligibleToDelegate) {
                       return (
@@ -3967,7 +3967,7 @@ export default function TasksView({
                     const isEligibleToDelegate = currentUser?.role === "Administrator" || 
                                                   currentUser?.role === "Direktur" || 
                                                   currentUser?.role === "Manager" || 
-                                                  currentUser?.role === "Supervisor" ||
+                                                  currentUser?.role === "Site Coordinator" ||
                                                   selectedTask.pic === (currentUser?.nickname || currentUser?.username);
                     if (isEligibleToDelegate) {
                       return (

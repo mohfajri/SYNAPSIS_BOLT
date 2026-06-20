@@ -56,6 +56,7 @@ interface SettingsConfig {
   kategoriLaporan?: ItemConfig[];
   subKategori?: ItemConfig[];
   jenisMasalah?: ItemConfig[];
+  divisi?: ItemConfig[];
 }
 
 const AVAILABLE_VIEWS = [
@@ -176,6 +177,7 @@ export default function SettingsView({
   const getIsUsed = (category: string, value: string) => {
     switch (category) {
       case "roles": return isRoleUsed(value);
+      case "divisi": return users.some(u => u.divisi === value);
       case "milestoneStatuses": return isMilestoneUsed(value);
       case "taskTypes": return isTaskTypeUsed(value);
       case "catProgresses": return isCatProgressUsed(value);
@@ -440,6 +442,14 @@ export default function SettingsView({
           >
             <ShieldCheck className="w-4.5 h-4.5 shrink-0" />
             <span>Hak Akses / Role</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("divisi"); setEditingIndex(null); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "divisi" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
+          >
+            <Layers className="w-4.5 h-4.5 shrink-0" />
+            <span>Daftar Divisi (User)</span>
           </button>
 
           <button
@@ -762,7 +772,7 @@ export default function SettingsView({
                       required
                       value={newRoleName}
                       onChange={(e) => setNewRoleName(e.target.value)}
-                      placeholder="Contoh: General Manager atau Supervisor"
+                      placeholder="Contoh: General Manager atau Staff Site"
                       className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 font-semibold"
                     />
                   </div>
@@ -786,6 +796,7 @@ export default function SettingsView({
               <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                    {activeTab === "divisi" && "Katalog Divisi Pengguna / Karyawan"}
                     {activeTab === "milestoneStatuses" && "Status Milestone Project"}
                     {activeTab === "taskTypes" && "Katalog Tipe Tugas (Task Type)"}
                     {activeTab === "catProgresses" && "Katalog Kategori Progress"}

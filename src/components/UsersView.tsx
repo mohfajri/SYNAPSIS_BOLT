@@ -23,6 +23,7 @@ interface UsersViewProps {
   onUpdateUser: (id: string, data: Partial<User>) => Promise<void>;
   rolesList?: { roleName: string; active: boolean }[];
   clientsList?: Client[];
+  divisiList?: { value: string; active: boolean }[];
 }
 
 export default function UsersView({
@@ -32,7 +33,8 @@ export default function UsersView({
   onDeleteUser,
   onUpdateUser,
   rolesList = [],
-  clientsList = []
+  clientsList = [],
+  divisiList = []
 }: UsersViewProps) {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -43,6 +45,7 @@ export default function UsersView({
   const [role, setRole] = useState<string>("Technical Support");
   const [siteTugas, setSiteTugas] = useState("");
   const [statusAktif, setStatusAktif] = useState(true);
+  const [divisi, setDivisi] = useState("");
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
   const [errorText, setErrorText] = useState("");
 
@@ -53,6 +56,7 @@ export default function UsersView({
   const [editRole, setEditRole] = useState<string>("Technical Support");
   const [editSiteTugas, setEditSiteTugas] = useState("");
   const [editStatusAktif, setEditStatusAktif] = useState(true);
+  const [editDivisi, setEditDivisi] = useState("");
   
   // Password Reset State
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
@@ -82,7 +86,8 @@ export default function UsersView({
       nickname: nickname.trim(),
       role,
       siteTugas,
-      statusAktif
+      statusAktif,
+      divisi
     });
 
     // Reset Form
@@ -93,6 +98,7 @@ export default function UsersView({
     setRole("Technical Support");
     setSiteTugas("");
     setStatusAktif(true);
+    setDivisi("");
     setIsFormOpen(false);
   }
 
@@ -108,7 +114,8 @@ export default function UsersView({
       nickname: editNickname.trim(),
       role: editRole,
       siteTugas: editSiteTugas,
-      statusAktif: editStatusAktif
+      statusAktif: editStatusAktif,
+      divisi: editDivisi
     });
     setEditUser(null);
   }
@@ -200,6 +207,7 @@ export default function UsersView({
                 <th className="p-4">Nama Lengkap</th>
                 <th className="p-4">Nama Panggilan</th>
                 <th className="p-4">Hak Akses / Role</th>
+                <th className="p-4">Divisi</th>
                 <th className="p-4">Site Tugas</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 font-mono">Kata Sandi</th>
@@ -238,6 +246,9 @@ export default function UsersView({
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getRoleStyleClass(u.role)}`}>
                         {u.role}
                       </span>
+                    </td>
+                    <td className="p-4 font-semibold text-slate-700 dark:text-slate-300">
+                      {u.divisi || <span className="text-slate-400 italic font-normal">—</span>}
                     </td>
                     <td className="p-4 text-slate-700 dark:text-slate-300 font-medium">
                       {u.siteTugas ? (
@@ -282,6 +293,7 @@ export default function UsersView({
                             setEditRole(u.role);
                             setEditSiteTugas(u.siteTugas || "");
                             setEditStatusAktif(u.statusAktif !== false);
+                            setEditDivisi(u.divisi || "");
                           }}
                           className="p-1 px-1.5 border border-slate-100 hover:border-blue-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 dark:border-slate-800 dark:hover:bg-blue-950/20 rounded transition-all"
                           title="Edit Pengguna (Nama & Role)"
@@ -432,6 +444,22 @@ export default function UsersView({
                 </div>
 
                 <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Divisi Pengguna</label>
+                  <select
+                    value={divisi}
+                    onChange={(e) => setDivisi(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-250 font-medium cursor-pointer"
+                  >
+                    <option value="">-- Pilih Divisi (Opsional) --</option>
+                    {divisiList.filter(d => d.active).map(d => (
+                      <option key={d.value} value={d.value}>
+                        🏢 {d.value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Site Tugas / Lokasi RS</label>
                   <select
                     value={siteTugas}
@@ -542,6 +570,22 @@ export default function UsersView({
                     {rolesList.filter(r => r.active || r.roleName === editRole).map(r => (
                       <option key={r.roleName} value={r.roleName}>
                         {r.roleName === "Administrator" ? "👑 " : "👤 "} {r.roleName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Divisi Pengguna</label>
+                  <select
+                    value={editDivisi}
+                    onChange={(e) => setEditDivisi(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-250 font-medium cursor-pointer"
+                  >
+                    <option value="">-- Pilih Divisi (Opsional) --</option>
+                    {divisiList.filter(d => d.active || d.value === editDivisi).map(d => (
+                      <option key={d.value} value={d.value}>
+                        🏢 {d.value}
                       </option>
                     ))}
                   </select>

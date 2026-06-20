@@ -195,12 +195,11 @@ export default function BillingKSOView({
   const hasSiteRestriction = !isHQ && currentUser && currentUser.siteTugas && currentUser.siteTugas.trim() !== "";
   const userSite = currentUser?.siteTugas || "";
   
-  // Supervisors, Managers, and Admins can create and submit data
+  // Site Coordinators, Managers, and Admins can create and submit data
   const canCreate = currentUser?.role === "Administrator" || 
                     currentUser?.role === "Developer" || 
                     currentUser?.role === "Manager" ||
                     currentUser?.role === "Manager Keuangan" ||
-                    currentUser?.role === "Supervisor" || 
                     currentUser?.role === "Site Coordinator";
 
   // Managers and Admins can verify
@@ -220,9 +219,9 @@ export default function BillingKSOView({
     if (currentUser.role === "Administrator" || currentUser.role === "Developer") {
       return true;
     }
-    // Other users, including Managers, Supervisors, and Site Co’s,
+    // Other users, including Managers and Site Coordinators,
     // can ONLY edit billing entries they set up themselves.
-    const creator = bill.createdBy || "Supervisor";
+    const creator = bill.createdBy || "Site Coordinator";
     const userNickname = currentUser.nickname || "";
     const userUsername = currentUser.username || "";
     return creator === userNickname || creator === userUsername;
@@ -235,9 +234,9 @@ export default function BillingKSOView({
     if (currentUser.role === "Administrator" || currentUser.role === "Developer") {
       return true;
     }
-    // Other users, including Managers, Supervisors, and Site Co’s,
+    // Other users, including Managers and Site Coordinators,
     // can ONLY delete entries they set up themselves.
-    const creator = bill.createdBy || "Supervisor";
+    const creator = bill.createdBy || "Site Coordinator";
     const userNickname = currentUser.nickname || "";
     const userUsername = currentUser.username || "";
     return creator === userNickname || creator === userUsername;
@@ -563,7 +562,7 @@ export default function BillingKSOView({
 
     // Lock modification if status is not Draft and user is site level
     if (bill.status !== "Draft" && !isHQ) {
-      alert("⚠️ Tagihan ini telah diajukan/diverifikasi dan tidak dapat dimodifikasi oleh Supervisor.");
+      alert("⚠️ Tagihan ini telah diajukan/diverifikasi dan tidak dapat dimodifikasi oleh Site Coordinator.");
       return;
     }
 
@@ -751,8 +750,8 @@ export default function BillingKSOView({
         attachmentBeritaAcaraName,
         attachmentRekapTagihan,
         attachmentRekapTagihanName,
-        createdBy: isEditing && selectedBill ? (selectedBill.createdBy || currentUser?.nickname || "Admin") : (currentUser?.nickname || "Supervisor"),
-        submittedBy: finalStatus === "Submitted" ? (currentUser?.nickname || currentUser?.username || "Supervisor") : undefined,
+        createdBy: isEditing && selectedBill ? (selectedBill.createdBy || currentUser?.nickname || "Admin") : (currentUser?.nickname || "Site Coordinator"),
+        submittedBy: finalStatus === "Submitted" ? (currentUser?.nickname || currentUser?.username || "Site Coordinator") : undefined,
         submittedAt: finalStatus === "Submitted" ? new Date().toISOString() : undefined,
         revisionNotes: finalStatus === "Submitted" ? "" : (isEditing && selectedBill ? selectedBill.revisionNotes : "")
       };
@@ -829,7 +828,7 @@ export default function BillingKSOView({
     }
 
     if (target.status !== "Draft" && !isHQ) {
-      alert("⚠️ Hanya tagihan berstatus 'Draft' yang dapat dihapus oleh Supervisor.");
+      alert("⚠️ Hanya tagihan berstatus 'Draft' yang dapat dihapus oleh Site Coordinator.");
       return;
     }
 
@@ -853,7 +852,7 @@ export default function BillingKSOView({
         const payload: Partial<BillingKSO> = {
           status: "Submitted",
           submittedAt: new Date().toISOString(),
-          submittedBy: currentUser?.nickname || currentUser?.username || "Supervisor",
+          submittedBy: currentUser?.nickname || currentUser?.username || "Site Coordinator",
           revisionNotes: ""
         };
         await onUpdateBilling(bill.id, payload);
@@ -1243,7 +1242,7 @@ export default function BillingKSOView({
                             </span>
                             <div className="h-16 flex items-end justify-center">
                               <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
-                                {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
+                                {printBill.namaSiteCoordinator || printBill.createdBy || "Site Coordinator"}
                               </span>
                             </div>
                             <span className="text-[10px] text-slate-450 block mt-1">
@@ -1503,7 +1502,7 @@ export default function BillingKSOView({
                           <p className="text-[11px] text-indigo-500 italic mb-2">Pihak Kedua ({printBill.namaPerusahaanSite || "PT. Medika KSO Indonesia"})</p>
                           <div className="h-20" />
                           <p className="font-black border-b border-slate-350 pb-0.5 text-slate-900 mx-auto max-w-xs inline-block">
-                            {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
+                            {printBill.namaSiteCoordinator || printBill.createdBy || "Site Coordinator"}
                           </p>
                           <p className="text-[10px] text-slate-450 mt-1">
                             {printBill.namaPerusahaanSite || "PT. Medika KSO Indonesia"}
@@ -1832,11 +1831,11 @@ export default function BillingKSOView({
                     </span>
                     <div className="h-16 flex items-end justify-center">
                       <span className="font-extrabold border-b border-slate-400 pb-0.5 text-slate-800">
-                        {printBill.namaSiteCoordinator || printBill.createdBy || "Supervisor Site"}
+                        {printBill.namaSiteCoordinator || printBill.createdBy || "Site Coordinator"}
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-450 block mt-1">
-                      {printBill.namaPerusahaanSite || "Supervisor RS / Site"}
+                      {printBill.namaPerusahaanSite || "Site Coordinator"}
                     </span>
                   </div>
 
@@ -1899,7 +1898,7 @@ export default function BillingKSOView({
           </div>
         </div>
 
-        {/* Action Controls for supervisor creation */}
+        {/* Action Controls for site coordinator creation */}
         <div className="flex items-center gap-2">
           {canCreate && (
             <button
@@ -2050,7 +2049,7 @@ export default function BillingKSOView({
             <div className="flex flex-wrap gap-3 items-center text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-850">
               <span className="font-semibold">Filter Lanjutan:</span>
               
-              {/* Site Dropdown (Locked for supervisors) */}
+              {/* Site Dropdown (Locked for Site Coordinators) */}
               {!hasSiteRestriction && (
                 <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-200/50 dark:border-slate-850">
                   <Building2 className="w-3 h-3 text-slate-400" />
@@ -2077,7 +2076,7 @@ export default function BillingKSOView({
                     className="bg-transparent border-none text-[11px] font-bold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
                   >
                     <option value="All">Semua Status</option>
-                    <option value="Draft">Draft (Supervisor)</option>
+                    <option value="Draft">Draft (Site Co.)</option>
                     <option value="Submitted">Pengajuan ke Manager (Submitted)</option>
                     <option value="Verified">Disetujui (Verified)</option>
                     <option value="Paid">Lunas (Paid)</option>
@@ -2172,7 +2171,7 @@ export default function BillingKSOView({
                             {bill.clientRS}
                           </div>
                           <div className="text-[10px] text-slate-400 font-medium">
-                            Created by: {bill.createdBy || "Supervisor"}
+                            Created by: {bill.createdBy || "Site Coordinator"}
                           </div>
                         </td>
 
@@ -3229,7 +3228,7 @@ export default function BillingKSOView({
                     />
                   </div>
 
-                  {/* Form Status selection (If Admin/HQ, they can choose directly; Supervisors see read-only badge to prevent dropdown lockups) */}
+                  {/* Form Status selection (If Admin/HQ, they can choose directly; Site Coordinators see read-only badge to prevent dropdown lockups) */}
                   <div>
                     <label className="block text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-1">Status Penagihan</label>
                     {isHQ ? (
@@ -3306,7 +3305,7 @@ export default function BillingKSOView({
                       </button>
                     </div>
 
-                    {/* Quick submit trigger for Supervisor */}
+                    {/* Quick submit trigger for Site Coordinator */}
                     {!isHQ && (isAddNew || (isEditing && status === "Draft")) && (
                       <button
                         type="button"
@@ -3377,7 +3376,7 @@ export default function BillingKSOView({
                       <p className="mt-1 leading-relaxed">
                         Data ini masih berstatus <strong>Draft</strong>. 
                         {currentUser?.role === "Manager" || currentUser?.role === "Administrator" ? (
-                          <span> Sebagai <strong>Manager/Admin</strong>, Anda dapat mengeklik tombol <strong>Edit Catatan</strong> di bawah untuk langsung mengubah statusnya, atau minta Supervisor mengajukannya agar masuk ke antrean verifikasi Anda.</span>
+                          <span> Sebagai <strong>Manager/Admin</strong>, Anda dapat mengeklik tombol <strong>Edit Catatan</strong> di bawah untuk langsung mengubah statusnya, atau minta Site Coordinator mengajukannya agar masuk ke antrean verifikasi Anda.</span>
                         ) : (
                           <span> Silakan cek data lalu klik tombol <strong>🚀 Ajukan ke Manager untuk Verifikasi</strong> di bawah agar dapat diverifikasi oleh Manager Kantor Pusat.</span>
                         )}
@@ -3475,7 +3474,7 @@ export default function BillingKSOView({
                       }`} />
                       <div>
                         <p className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 leading-none">Draft Penagihan</p>
-                        <p className="text-[9px] text-slate-450 mt-0.5">Dibuat oleh {selectedBill.createdBy || "Supervisor"} • {new Date(selectedBill.createdAt).toLocaleDateString("id-ID")}</p>
+                        <p className="text-[9px] text-slate-450 mt-0.5">Dibuat oleh {selectedBill.createdBy || "Site Coordinator"} • {new Date(selectedBill.createdAt).toLocaleDateString("id-ID")}</p>
                       </div>
                     </div>
 
@@ -3974,7 +3973,7 @@ export default function BillingKSOView({
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-810 flex items-center justify-between text-[10px] text-slate-400 font-bold">
                     <span>Invoice ID: #{selectedBill.id}</span>
-                    <span>Input: {selectedBill.createdBy || "Supervisor"}</span>
+                    <span>Input: {selectedBill.createdBy || "Site Coordinator"}</span>
                   </div>
                 </div>
 
@@ -3983,7 +3982,7 @@ export default function BillingKSOView({
                 */}
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   
-                  {/* Supervisor: Draft -> Submit (Diajukan) Action */}
+                  {/* Site Coordinator: Draft -> Submit (Diajukan) Action */}
                   {selectedBill.status === "Draft" && canCreate && (
                     <button
                       type="button"

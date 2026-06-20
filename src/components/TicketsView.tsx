@@ -36,7 +36,13 @@ import {
   ChevronDown,
   ChevronUp,
   CheckSquare,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Flag,
+  Filter,
+  MessageSquare,
+  MoreHorizontal,
+  Grid,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -144,6 +150,10 @@ export default function TicketsView({
 
   // Table row expand-collapse state manager
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [activeStatusTab, setActiveStatusTab] = useState("All");
+  const [activeStatusDropdownId, setActiveStatusDropdownId] = useState<string | null>(null);
+  const [activeAssigneeDropdownId, setActiveAssigneeDropdownId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const toggleExpand = (id: string) => {
     setExpandedTicketId(prev => prev === id ? null : id);
@@ -1235,11 +1245,16 @@ export default function TicketsView({
 
   // Metric Calculation helper
   const total = tickets.length;
-  const openCount = tickets.filter(t => t.status === "Open").length;
-  const progressCount = tickets.filter(t => t.status === "In Progress").length;
-  const solvedCount = tickets.filter(t => t.status === "Resolved" || t.status === "Solved").length;
+  const openCount = tickets.filter(t => t.status === "Open" || t.status === "To Do" || t.status === "To do" || !t.status).length;
+  const progressCount = tickets.filter(t => t.status === "In Progress" || t.status === "Doing").length;
+  const solvedCount = tickets.filter(t => t.status === "Resolved" || t.status === "Solved" || t.status === "Closed" || t.status === "Completed").length;
   const incidentCount = tickets.filter(t => t.reportType === "Incident").length;
   const requestCount = tickets.filter(t => t.reportType === "Request").length;
+
+  const metricLowPriority = tickets.filter(t => t.priority === "Low" || !t.priority).length;
+  const metricMediumPriority = tickets.filter(t => t.priority === "Medium").length;
+  const metricHighPriority = tickets.filter(t => t.priority === "High" || t.priority === "Urgent").length;
+  const metricOverdue = tickets.filter(t => t.status === "Overdue" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "Completed" && t.status !== "Solved" && t.status !== "Resolved" && t.status !== "Closed")).length;
 
   const siteList = clients.map(c => c.namaRS);
   const allRefs = Array.from(new Set([...siteList, "Global / Umum"]));
@@ -1251,8 +1266,8 @@ export default function TicketsView({
     ])
   ).filter(Boolean).sort();
 
-  // Global search filters
-  const filteredTickets = tickets.filter(t => {
+  // Counts for each Tab pill based on other filters (excluding activeStatusTab and filterStatus filters)
+  const unfilteredForStatusTickets = tickets.filter(t => {
     const matchesSearch = 
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1263,14 +1278,35 @@ export default function TicketsView({
 
     const matchesProject = !filterProject || t.projectName === filterProject;
     const matchesType = !filterType || t.reportType === filterType;
-    const matchesStatus = !filterStatus || 
-      t.status === filterStatus || 
-      (filterStatus === "Solved" && t.status === "Resolved") ||
-      (filterStatus === "Resolved" && t.status === "Solved");
     const matchesCategory = !filterCategory || t.category === filterCategory;
     const matchesPicTugas = !filterPicTugas || (t.picTugas && t.picTugas.toLowerCase().trim() === filterPicTugas.toLowerCase().trim());
 
-    return matchesSearch && matchesProject && matchesType && matchesStatus && matchesCategory && matchesPicTugas;
+    return matchesSearch && matchesProject && matchesType && matchesCategory && matchesPicTugas;
+  });
+
+  const tabCountAll = unfilteredForStatusTickets.length;
+  const tabCountTodo = unfilteredForStatusTickets.filter(t => t.status === "Open" || t.status === "To Do" || t.status === "To do" || !t.status).length;
+  const tabCountInprogress = unfilteredForStatusTickets.filter(t => t.status === "In Progress" || t.status === "Doing").length;
+  const tabCountCompleted = unfilteredForStatusTickets.filter(t => t.status === "Resolved" || t.status === "Solved" || t.status === "Closed" || t.status === "Completed").length;
+  const tabCountOverdue = unfilteredForStatusTickets.filter(t => t.status === "Overdue" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "Completed" && t.status !== "Solved" && t.status !== "Resolved" && t.status !== "Closed")).length;
+
+  // Global search filters
+  const filteredTickets = unfilteredForStatusTickets.filter(t => {
+    const matchesStatus = !filterStatus || 
+      t.status === filterStatus || 
+      (filterStatus === "Solved" && t.status === "Resolved") ||
+      (filterStatus === "Resolved" && t.status === "Solved") ||
+      (filterStatus === "Open" && (t.status === "To Do" || t.status === "To do" || !t.status)) ||
+      (filterStatus === "In Progress" && t.status === "Doing");
+
+    const matchesStatusTab =
+      activeStatusTab === "All" ||
+      (activeStatusTab === "To Do" && (t.status === "Open" || t.status === "To Do" || t.status === "To do" || !t.status)) ||
+      (activeStatusTab === "Inprogress" && (t.status === "In Progress" || t.status === "Doing")) ||
+      (activeStatusTab === "Completed" && (t.status === "Solved" || t.status === "Resolved" || t.status === "Closed" || t.status === "Completed")) ||
+      (activeStatusTab === "Overdue" && (t.status === "Overdue" || (t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "Completed" && t.status !== "Solved" && t.status !== "Resolved" && t.status !== "Closed")));
+
+    return matchesStatus && matchesStatusTab;
   });
 
   const totalItems = filteredTickets.length;
@@ -1279,6 +1315,1123 @@ export default function TicketsView({
   const startIndex = (activePage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
+
+  const getUserInitials = (name: string) => {
+    if (!name) return "U";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const getUserColorBg = (name: string) => {
+    if (!name) return "bg-slate-400";
+    const colors = [
+      "bg-teal-500",
+      "bg-rose-550",
+      "bg-amber-500",
+      "bg-emerald-500",
+      "bg-sky-500",
+      "bg-indigo-500",
+      "bg-purple-500",
+      "bg-cyan-500",
+      "bg-orange-500"
+    ];
+    let sum = 0;
+    for (let i = 0; i < name.length; i++) {
+      sum += name.charCodeAt(i);
+    }
+    return colors[sum % colors.length];
+  };
+
+  const formatDueDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${d.getDate()} ${months[d.getMonth()]}, ${d.getFullYear()}`;
+    } catch (_) {
+      return dateStr;
+    }
+  };
+
+  const getTicketDueDate = (tk: Ticket) => {
+    if (tk.dueDate) return formatDueDate(tk.dueDate);
+    const baseDate = new Date(tk.createdAt);
+    baseDate.setDate(baseDate.getDate() + 4);
+    return formatDueDate(baseDate.toISOString());
+  };
+
+  // State to manage general checkbox selections
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Record<string, boolean>>({});
+  const [activeRowMenuId, setActiveRowMenuId] = useState<string | null>(null);
+
+  const toggleSelectAll = () => {
+    const allSelected = paginatedTickets.every(tk => selectedTaskIds[tk.id]);
+    const nextState: Record<string, boolean> = { ...selectedTaskIds };
+    paginatedTickets.forEach(tk => {
+      nextState[tk.id] = !allSelected;
+    });
+    setSelectedTaskIds(nextState);
+  };
+
+  const renderWorkspaceDashboard = () => {
+    return (
+      <div className="space-y-6">
+        {/* Search and Profile Top Navigation Row */}
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-805 rounded-2xl p-4.5 gap-4 shadow-xs">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 dark:text-violet-400">
+              <LifeBuoy className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-slate-850 dark:text-slate-100 tracking-tight">Helpdesk Tasks & Troubleshoot</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Workspace Management</p>
+            </div>
+          </div>
+
+          {/* Global Search Bar */}
+          <div className="relative w-full sm:w-72 max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search tasks, tickets, categories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9.5 pr-4 py-2 w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-violet-500/25 transition-all shadow-inner"
+            />
+          </div>
+
+          {/* Action Widgets - Upgrade, Notifications & Profile Avatar */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => alert("Enterprise Workspace enabled.")}
+              className="px-3 py-1.5 bg-gradient-to-r from-amber-400 via-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white text-[10.5px] font-black rounded-lg flex items-center gap-1.5 shadow-xs hover:shadow active:scale-95 transition-all cursor-pointer"
+            >
+              <span className="text-xs">⭐</span>
+              <span>Upgrade</span>
+            </button>
+
+            {/* Bell Icon */}
+            <div className="relative">
+              <button className="p-2 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl text-slate-450 hover:text-slate-705 dark:hover:text-amber-400 cursor-pointer relative transition-colors">
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Profile Circle Initial 'V' */}
+            <div className="w-8 h-8 rounded-full bg-violet-600 text-white font-extrabold flex items-center justify-center text-xs shadow-md border-2 border-white dark:border-slate-850 cursor-pointer hover:opacity-90 active:scale-95 transition-all" title={currentUser?.name || "User Profile"}>
+              {currentUser?.name ? getUserInitials(currentUser.name) : "V"}
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Controls Panel */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-2xl p-5 shadow-xs space-y-4">
+          {/* Row 1: SearchView, Layout toggles and Status pills tabs list */}
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <div className="flex items-center gap-3.5 w-full xl:w-auto">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Filter in view..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8.5 pr-4 py-1.5 w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              {/* Grid & List switchers */}
+              <div className="flex items-center border border-slate-150 dark:border-slate-850 rounded-xl p-1 bg-slate-50 dark:bg-slate-950/20 shrink-0 select-none">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                    viewMode === "list"
+                      ? "bg-white dark:bg-slate-850 text-slate-850 dark:text-white shadow-xs border border-slate-200/50 dark:border-slate-750"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-350"
+                  }`}
+                  title="List View"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                    viewMode === "grid"
+                      ? "bg-white dark:bg-slate-850 text-slate-855 dark:text-white shadow-xs border border-slate-200/50 dark:border-slate-750"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-350"
+                  }`}
+                  title="Grid/Kanban View"
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Status pills tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0 select-none">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStatusTab("To Do");
+                  setFilterStatus("");
+                }}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all text-[11px] cursor-pointer ${
+                  activeStatusTab === "To Do"
+                    ? "bg-slate-850 dark:bg-slate-100 text-white dark:text-slate-950 font-black"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                <span>To Do</span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                  activeStatusTab === "To Do" ? "bg-violet-605 text-white bg-violet-600" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}>
+                  {tabCountTodo}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStatusTab("Inprogress");
+                  setFilterStatus("");
+                }}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all text-[11px] cursor-pointer ${
+                  activeStatusTab === "Inprogress"
+                    ? "bg-slate-850 dark:bg-slate-100 text-white dark:text-slate-950 font-black"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                <span>Inprogress</span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                  activeStatusTab === "Inprogress" ? "bg-violet-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}>
+                  {tabCountInprogress}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStatusTab("Overdue");
+                  setFilterStatus("");
+                }}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all text-[11px] cursor-pointer ${
+                  activeStatusTab === "Overdue"
+                    ? "bg-slate-850 dark:bg-slate-100 text-white dark:text-slate-950 font-black"
+                    : "text-slate-500 hover:text-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                <span>Overdue</span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                  activeStatusTab === "Overdue" ? "bg-rose-500 text-white" : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                }`}>
+                  {tabCountOverdue}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStatusTab("Completed");
+                  setFilterStatus("");
+                }}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all text-[11px] cursor-pointer ${
+                  activeStatusTab === "Completed"
+                    ? "bg-slate-850 dark:bg-slate-100 text-white dark:text-slate-950 font-black"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                <span>Completed</span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                  activeStatusTab === "Completed" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}>
+                  {tabCountCompleted}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveStatusTab("All");
+                  setFilterStatus("");
+                }}
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all text-[11px] cursor-pointer ${
+                  activeStatusTab === "All"
+                    ? "bg-slate-850 dark:bg-slate-100 text-white dark:text-slate-950 font-black"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                <span>All</span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                  activeStatusTab === "All" ? "bg-amber-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                }`}>
+                  {tabCountAll}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Secondary selectors & Filters dropdown trigger and create task trigger */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {/* Site selector */}
+              {isUserScoped ? (
+                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1 opacity-90 select-none">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Site:</span>
+                  <span>{userSite}</span>
+                </div>
+              ) : (
+                <select
+                  value={filterProject}
+                  onChange={(e) => setFilterProject(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                >
+                  <option value="">All Locations / Site</option>
+                  {allRefs.map(ref => <option key={ref} value={ref}>{ref}</option>)}
+                </select>
+              )}
+
+              {/* Assignee selector */}
+              <select
+                value={filterPicTugas}
+                onChange={(e) => setFilterPicTugas(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <option value="">Assignee</option>
+                {uniquePicTugasList.map((pic) => (
+                  <option key={pic} value={pic}>{pic}</option>
+                ))}
+              </select>
+
+              {/* Category / Priority Selector */}
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <option value="">Category / Priority</option>
+                {ticketCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              {/* Report Type selector */}
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-200 font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <option value="">All Types</option>
+                {reportTypes.map((t: string) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+
+              {/* Reset filter */}
+              {(searchTerm || filterProject || filterType || filterStatus || filterCategory || filterPicTugas || activeStatusTab !== "All") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setFilterProject(isUserScoped ? userSite : "");
+                    setFilterType("");
+                    setFilterStatus("");
+                    setFilterCategory("");
+                    setFilterPicTugas("");
+                    setActiveStatusTab("All");
+                  }}
+                  className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                  title="Reset filters"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+
+              {/* Export Button */}
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(true)}
+                className="px-3 py-1.5 border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 hover:text-slate-850 dark:hover:text-white rounded-lg transition-all flex items-center gap-1.5 font-bold cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Export</span>
+              </button>
+            </div>
+
+            {/* + Create Task button exactly matching screenshot */}
+            {currentUser?.role !== "Client" && (
+              <button
+                type="button"
+                onClick={handleOpenNew}
+                className="px-3.5 py-2 bg-gradient-to-r from-violet-605 to-indigo-600 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black rounded-lg flex items-center gap-1 select-none shadow-xs hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Task</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* High-Level Metrics Badges Horizontal Panel */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 select-none">
+          {/* Low Priority */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 flex items-center justify-center shrink-0">
+              <Flag className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Low Priority</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{metricLowPriority}</p>
+            </div>
+          </div>
+
+          {/* Medium Priority */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-500 flex items-center justify-center shrink-0">
+              <Flag className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Medium Priority</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{metricMediumPriority}</p>
+            </div>
+          </div>
+
+          {/* High Priority */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-500 flex items-center justify-center shrink-0">
+              <Flag className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">High Priority</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{metricHighPriority}</p>
+            </div>
+          </div>
+
+          {/* Total Task */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-500 flex items-center justify-center shrink-0">
+              <CheckSquare className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Total Task</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{total}</p>
+            </div>
+          </div>
+
+          {/* Total Task Done */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Task Done</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{solvedCount}</p>
+            </div>
+          </div>
+
+          {/* Overdue */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-9 h-9 rounded-full bg-rose-50 dark:bg-rose-950/25 text-rose-600 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Overdue</p>
+              <p className="text-lg font-black text-slate-850 dark:text-white leading-none mt-1">{metricOverdue}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content displays (Grid View vs List Table View) */}
+        {viewMode === "grid" ? (
+          /* ==================== GRID KANBAN LAYOUT ==================== */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fadeIn">
+            {filteredTickets.length === 0 ? (
+              <div className="col-span-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-850 p-16 text-center text-slate-400">
+                <LifeBuoy className="w-10 h-10 text-slate-350 mx-auto mb-3" />
+                <h3 className="font-extrabold text-slate-700 dark:text-slate-300">No tasks found in grid</h3>
+                <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau bersihkan filter.</p>
+              </div>
+            ) : (
+              paginatedTickets.map(tk => {
+                const isClosed = tk.status === "Closed";
+                const isSolved = tk.status === "Solved" || tk.status === "Resolved" || tk.status === "Completed";
+                return (
+                  <div 
+                    key={tk.id}
+                    className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-850 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-250 flex flex-col gap-4 relative overflow-hidden group cursor-pointer"
+                    onClick={() => toggleExpand(tk.id)}
+                  >
+                    {/* Top priority line */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${
+                      tk.priority === "Urgent" || tk.priority === "High" ? "bg-rose-500" :
+                      tk.priority === "Medium" ? "bg-amber-500" :
+                      "bg-emerald-500"
+                    }`} />
+
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-[9px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-100/40">
+                        {tk.ticketNumber || "TICKET"}
+                      </span>
+                      
+                      {/* Grid card status changer */}
+                      <div onClick={(e) => e.stopPropagation()} className="relative">
+                        <button
+                          onClick={() => setActiveStatusDropdownId(activeStatusDropdownId === tk.id ? null : tk.id)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold rounded-full border cursor-pointer ${
+                            tk.status === "Overdue" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-450 dark:border-rose-900" :
+                            isSolved ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-450 dark:border-emerald-950" :
+                            (tk.status === "In Progress" || tk.status === "Doing") ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-450 dark:border-blue-955" :
+                            "bg-slate-50 text-slate-650 border-slate-150"
+                          }`}
+                        >
+                          <span>{tk.status === "Resolved" ? "Solved" : (tk.status || "To Do")}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 select-text">
+                      <h4 className="text-[12.5px] font-extrabold text-slate-850 dark:text-slate-100 group-hover:text-violet-650 tracking-tight transition-colors line-clamp-2">
+                        {tk.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-450 dark:text-slate-400 font-semibold line-clamp-2">
+                        {getInitialDescription(tk.description) || "No description provided."}
+                      </p>
+                    </div>
+
+                    {/* Site tags metadata */}
+                    <div className="flex flex-wrap gap-1 text-[9.5px] select-none font-bold">
+                      <span className="bg-slate-50 dark:bg-slate-950 text-slate-550 dark:text-slate-400 px-2.5 py-0.5 rounded border border-slate-150">
+                        📍 {tk.projectName}
+                      </span>
+                      {tk.unit && (
+                        <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-450 px-2 py-0.5 rounded">
+                          🏢 {tk.unit}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Footer elements */}
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-850 pt-3 mt-1 select-none">
+                      <div onClick={(e) => e.stopPropagation()} className="relative">
+                        <button
+                          onClick={() => setActiveAssigneeDropdownId(activeAssigneeDropdownId === tk.id ? null : tk.id)}
+                          className="flex items-center gap-2 text-left cursor-pointer"
+                        >
+                          <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 ${getUserColorBg(tk.picTugas || "")}`}>
+                            {getUserInitials(tk.picTugas || "")}
+                          </div>
+                          <span className="text-[10.5px] font-extrabold text-slate-700 max-w-[90px] truncate">
+                            {tk.picTugas || "Unassigned"}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="text-[10.5px] font-semibold text-slate-450 font-mono inline-flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{getTicketDueDate(tk)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          /* ==================== PREMIUM TASK LIST TABLE LAYOUT ==================== */
+          <div className="overflow-hidden rounded-2xl border border-slate-150 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-xs animate-fadeIn">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs text-slate-705 dark:text-slate-300">
+                <thead className="bg-[#FAFBFD] dark:bg-slate-950 font-black border-b border-slate-150 dark:border-slate-850 text-slate-400 dark:text-slate-500 uppercase tracking-widest select-none text-[9.5px]">
+                  <tr>
+                    <th scope="col" className="px-5 py-4 w-12 text-center">
+                      <input
+                        type="checkbox"
+                        checked={paginatedTickets.every(tk => selectedTaskIds[tk.id]) && paginatedTickets.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-slate-300 text-violet-650 focus:ring-violet-500/35 cursor-pointer"
+                      />
+                    </th>
+                    <th scope="col" className="px-5 py-4">Task</th>
+                    <th scope="col" className="px-5 py-4">Assigned to</th>
+                    <th scope="col" className="px-5 py-4">Priority</th>
+                    <th scope="col" className="px-5 py-4">Status</th>
+                    <th scope="col" className="px-5 py-4">Due Date</th>
+                    <th scope="col" className="px-5 py-4 w-12 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-150 dark:divide-slate-850 font-medium">
+                  {filteredTickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-20 text-slate-400 bg-white dark:bg-slate-900">
+                        <LifeBuoy className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-sm font-black text-slate-750">Tidak ada tugas / kasus ditemukan</p>
+                        <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">Coba bersihkan filter pencarian di atas.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedTickets.map(tk => {
+                      const isExpanded = expandedTicketId === tk.id;
+                      const isClosed = tk.status === "Closed";
+                      const isSolved = tk.status === "Solved" || tk.status === "Resolved" || tk.status === "Completed";
+                      const canModify = (!tk.createdBy || tk.createdBy === currentUser?.username || currentUser?.role === "Administrator" || currentUser?.role === "Koordinator") && !isClosed;
+                      const isTaskSelected = !!selectedTaskIds[tk.id];
+
+                      return (
+                        <React.Fragment key={tk.id}>
+                          {/* Main Row */}
+                          <tr
+                            onClick={() => toggleExpand(tk.id)}
+                            className={`hover:bg-[#F9FAFC] dark:hover:bg-slate-850/40 transition-colors cursor-pointer select-none ${
+                              isExpanded ? "bg-[#F7F8FC] dark:bg-slate-850/30" : ""
+                            } ${isTaskSelected ? "bg-violet-50/10 dark:bg-violet-950/15" : ""}`}
+                          >
+                            <td className="px-5 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isTaskSelected}
+                                onChange={() => {
+                                  setSelectedTaskIds(prev => ({
+                                    ...prev,
+                                    [tk.id]: !prev[tk.id]
+                                  }));
+                                }}
+                                className="w-4 h-4 rounded border-slate-300 text-violet-605 focus:ring-violet-500/35 cursor-pointer"
+                              />
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex flex-col gap-1 max-w-[320px] md:max-w-[400px]">
+                                  <span className={`text-[12.5px] font-semibold leading-snug tracking-tight text-slate-850 dark:text-slate-100 ${
+                                    isSolved ? "line-through text-slate-400 dark:text-slate-500" : ""
+                                  }`}>
+                                    {tk.title}
+                                  </span>
+                                  
+                                  <div className="flex items-center gap-2 mt-1 select-none">
+                                    <span className="font-mono text-[9px] text-slate-400 font-extrabold">
+                                      {tk.ticketNumber || ""}
+                                    </span>
+                                    
+                                    <span className="text-[9px] text-emerald-600 dark:text-emerald-450 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded font-black">
+                                      📍 {tk.projectName}
+                                    </span>
+
+                                    <span className="text-[9px] text-slate-400 font-bold inline-flex items-center gap-0.5">
+                                      <MessageSquare className="w-3 h-3" />
+                                      <span>{tk.followUpLog ? tk.followUpLog.split("\n\n").length : 1}</span>
+                                    </span>
+
+                                    {tk.fileUrl && (
+                                      <span className="text-[9px] text-indigo-500 font-bold inline-flex items-center gap-0.5" title="Ada Lampiran File">
+                                        <Paperclip className="w-3 h-3 text-indigo-500" />
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Assigned To with selection dropdown */}
+                            <td className="px-5 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveAssigneeDropdownId(activeAssigneeDropdownId === tk.id ? null : tk.id)}
+                                  className="inline-flex items-center gap-2 px-2 py-1.5 border border-slate-100 hover:border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 rounded-lg transition-all font-bold text-slate-850 dark:text-slate-200 text-[11px] cursor-pointer shadow-xs focus:outline-none"
+                                >
+                                  <div className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-xs ${getUserColorBg(tk.picTugas || "")}`}>
+                                    {getUserInitials(tk.picTugas || "")}
+                                  </div>
+                                  <span className="truncate max-w-[85px]">{tk.picTugas || "Unassigned"}</span>
+                                  <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+                                </button>
+
+                                {activeAssigneeDropdownId === tk.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setActiveAssigneeDropdownId(null)} />
+                                    <div className="absolute left-0 mt-1.5 w-44 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1.5 z-20 max-h-52 overflow-y-auto text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                      <div className="px-3 py-1 border-b border-slate-100 dark:border-slate-850 text-[9px] text-slate-400 uppercase tracking-wider">Tugaskan PIC</div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateTicket(tk.id, { picTugas: "" });
+                                          setActiveAssigneeDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 text-slate-400 cursor-pointer"
+                                      >
+                                        <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[8px] font-black">?</div>
+                                        Kosongkan PIC
+                                      </button>
+                                      {uniquePicTugasList.map(pic => (
+                                        <button
+                                          key={pic}
+                                          type="button"
+                                          onClick={() => {
+                                            onUpdateTicket(tk.id, { picTugas: pic });
+                                            setActiveAssigneeDropdownId(null);
+                                          }}
+                                          className="w-full text-left px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300"
+                                        >
+                                          <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white shrink-0 ${getUserColorBg(pic)}`}>
+                                            {getUserInitials(pic)}
+                                          </div>
+                                          <span className="truncate">{pic}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Priority Row */}
+                            <td className="px-5 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                {tk.priority === "Urgent" || tk.priority === "High" ? (
+                                  <span className="bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-lg border border-rose-100 dark:border-rose-900 inline-flex items-center gap-1.5 text-[10px] font-extrabold font-mono uppercase tracking-tight">
+                                    <Flag className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                    <span>High</span>
+                                  </span>
+                                ) : tk.priority === "Medium" ? (
+                                  <span className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-450 px-2.5 py-1 rounded-lg border border-amber-100 dark:border-amber-900 inline-flex items-center gap-1.5 text-[10px] font-extrabold font-mono uppercase tracking-tight">
+                                    <Flag className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                    <span>Medium</span>
+                                  </span>
+                                ) : (
+                                  <span className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-450 px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-900 inline-flex items-center gap-1.5 text-[10px] font-extrabold font-mono uppercase tracking-tight">
+                                    <Flag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                    <span>Low</span>
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Status with on fly updater */}
+                            <td className="px-5 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveStatusDropdownId(activeStatusDropdownId === tk.id ? null : tk.id)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black rounded-full border transition-all cursor-pointer focus:outline-none ${
+                                    tk.status === "Overdue" ? "bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/25 dark:text-rose-400 dark:border-rose-900/40" :
+                                    isSolved ? "bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/25 dark:text-emerald-400 dark:border-emerald-900/40" :
+                                    (tk.status === "In Progress" || tk.status === "Doing") ? "bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/25 dark:text-blue-400 dark:border-blue-900/40" :
+                                    "bg-slate-100 text-slate-700 border-slate-200/60 dark:bg-slate-800/60 dark:text-slate-350 dark:border-slate-700"
+                                  }`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    tk.status === "Overdue" ? "bg-rose-500 animate-pulse" :
+                                    isSolved ? "bg-emerald-500" :
+                                    (tk.status === "In Progress" || tk.status === "Doing") ? "bg-blue-500 animate-pulse" :
+                                    "bg-slate-400"
+                                  }`} />
+                                  <span>{tk.status === "Resolved" ? "Solved" : (tk.status || "To Do")}</span>
+                                  <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5 shrink-0" />
+                                </button>
+
+                                {activeStatusDropdownId === tk.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setActiveStatusDropdownId(null)} />
+                                    <div className="absolute left-0 mt-1.5 w-36 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1.5 z-20 text-[11px] font-bold text-slate-750 dark:text-slate-300">
+                                      <div className="px-3 py-1 border-b border-slate-150 dark:border-slate-850 text-[9px] text-slate-450 uppercase tracking-widest">Pilih Status</div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateTicket(tk.id, { status: "To Do" });
+                                          setActiveStatusDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-450" />
+                                        To Do
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateTicket(tk.id, { status: "Doing" });
+                                          setActiveStatusDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                        Doing
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateTicket(tk.id, { status: "Overdue" });
+                                          setActiveStatusDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                        Overdue
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateTicket(tk.id, { status: "Completed" });
+                                          setActiveStatusDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        Completed
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400 font-bold font-mono">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>{getTicketDueDate(tk)}</span>
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="relative inline-block">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveRowMenuId(activeRowMenuId === tk.id ? null : tk.id)}
+                                  className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer border border-slate-100 dark:border-slate-800"
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </button>
+
+                                {activeRowMenuId === tk.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setActiveRowMenuId(null)} />
+                                    <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1.5 z-20 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          toggleExpand(tk.id);
+                                          setActiveRowMenuId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                        Lihat Detail Logs
+                                      </button>
+                                      
+                                      {currentUser?.role !== "Client" && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleOpenFollowUp(tk);
+                                              setActiveRowMenuId(null);
+                                            }}
+                                            disabled={isClosed || isSolved}
+                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                                          >
+                                            <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+                                            Tindakan Solusi
+                                          </button>
+                                          
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleOpenEdit(tk);
+                                              setActiveRowMenuId(null);
+                                            }}
+                                            disabled={!canModify}
+                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                                          >
+                                            <Edit className="w-3.5 h-3.5 text-indigo-550" />
+                                            Edit Rincian
+                                          </button>
+                                          
+                                          <div className="border-t border-slate-100 dark:border-slate-850 my-1" />
+                                          
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              setActiveRowMenuId(null);
+                                              if (confirm(`Hapus tiket Troubleshoot "${tk.title}" (${tk.ticketNumber || ""})?`)) {
+                                                await onDeleteTicket(tk.id);
+                                              }
+                                            }}
+                                            disabled={!canModify}
+                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center gap-2 cursor-pointer text-rose-600 disabled:opacity-35 disabled:cursor-not-allowed"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                            Hapus Tiket
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded section */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <tr className="bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-200/60 dark:border-slate-850">
+                                <td colSpan={7} className="p-5 md:p-7 text-slate-800 dark:text-slate-200">
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-text"
+                                  >
+                                    <div className="lg:col-span-8 space-y-4">
+                                      <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
+                                        <FileText className="w-4 h-4 text-indigo-500" />
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Detail Rincian Deskripsi Masalah</span>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <h4 className="text-sm font-black text-slate-850 dark:text-slate-100 leading-snug">
+                                          {tk.title}
+                                        </h4>
+                                        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-850 shadow-xs min-h-[125px] font-semibold leading-relaxed text-xs text-slate-705 dark:text-slate-350 prose dark:prose-invert max-w-full overflow-x-auto">
+                                          {getInitialDescription(tk.description) ? (
+                                            <div
+                                              dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(getInitialDescription(tk.description)) }}
+                                              className="space-y-1.5 break-words outline-none"
+                                            />
+                                          ) : (
+                                            <p className="text-slate-400 italic font-medium">Tidak ada deskripsi detail tambahan.</p>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Solusi logs */}
+                                      <div className="space-y-2 pt-2">
+                                        <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
+                                          <Activity className="w-4 h-4 text-emerald-500" />
+                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan & Log Tindakan Follow-Up</span>
+                                        </div>
+                                        <div className="bg-emerald-50/10 dark:bg-emerald-950/5 p-5 rounded-2xl border border-emerald-100/50 dark:border-emerald-950 shadow-xs min-h-[85px] font-semibold leading-relaxed text-xs text-slate-705 dark:text-slate-350 prose dark:prose-invert max-w-full overflow-x-auto">
+                                          {getCombinedFollowUpText(tk) ? (
+                                            <div
+                                              dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(getCombinedFollowUpText(tk)) }}
+                                              className="space-y-1.5 break-words outline-none"
+                                            />
+                                          ) : (
+                                            <p className="text-slate-400 italic font-medium">Belum ada catatan atau tindakan follow-up pada tiket ini.</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Right Area: Attachment */}
+                                    <div className="lg:col-span-4 space-y-4">
+                                      <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-850 pb-2">
+                                        <Paperclip className="w-4 h-4 text-emerald-500" />
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bukti Screenshot / Lampiran File</span>
+                                      </div>
+
+                                      {tk.fileUrl ? (
+                                        <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-850 shadow-xs">
+                                          {tk.fileUrl.startsWith("data:image/") ? (
+                                            <div className="space-y-2.5">
+                                              <div className="rounded-xl overflow-hidden border border-slate-150 dark:border-slate-850 bg-slate-50 dark:bg-slate-900">
+                                                <img 
+                                                  src={tk.fileUrl} 
+                                                  alt={tk.fileName || "Screenshot Lampiran"} 
+                                                  className="max-h-44 w-full object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                                                  onClick={() => {
+                                                    const windowOpen = window.open("");
+                                                    if (windowOpen) windowOpen.document.write(`<img src="${tk.fileUrl}" style="max-width:100%; border-radius:8px;" />`);
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
+                                                <span className="truncate max-w-[150px] font-mono">{tk.fileName || "attachment.png"}</span>
+                                                <a 
+                                                  href={tk.fileUrl} 
+                                                  download={tk.fileName || "attachment.png"} 
+                                                  className="text-indigo-650 dark:text-indigo-400 hover:underline inline-flex items-center"
+                                                >
+                                                  Download File
+                                                </a>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-150 dark:border-slate-800 text-xs">
+                                              <div className="flex items-center gap-2 truncate">
+                                                <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                                                <span className="text-slate-700 dark:text-slate-300 truncate font-semibold">{tk.fileName || "dokumen_bukti.pdf"}</span>
+                                              </div>
+                                              <a 
+                                                href={tk.fileUrl} 
+                                                download={tk.fileName || "dokumen_bukti.pdf"} 
+                                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] rounded-lg font-black transition-colors whitespace-nowrap shadow-xs"
+                                              >
+                                                Unduh
+                                              </a>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-850 text-center text-slate-400 text-[11px] italic font-semibold">
+                                          Tidak ada file bukti terlampir.
+                                        </div>
+                                      )}
+
+                                      {/* Submitter & Admin info */}
+                                      <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 text-[11px] space-y-2.5 font-semibold text-slate-500 dark:text-slate-400 shadow-xs">
+                                        <div className="flex items-center justify-between">
+                                          <span>Status Pengerjaan:</span>
+                                          <span className="text-slate-850 dark:text-slate-200 font-bold">{tk.status}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between font-bold">
+                                          <span>PIC Tugas:</span>
+                                          <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{tk.picTugas || "Belum Ditugaskan"}</span>
+                                        </div>
+                                        {currentUser?.role !== "Client" && (
+                                          <div className="space-y-2 mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">
+                                            {!isClosed && !isSolved && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenFollowUp(tk)}
+                                                className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10.5px] font-black rounded-lg transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                                              >
+                                                <CheckSquare className="w-3.5 h-3.5" />
+                                                Tulis Follow Up / Penyelesaian
+                                              </button>
+                                            )}
+
+                                            {isSolved && !isClosed && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleTransitionStatus(tk, "Closed")}
+                                                className="w-full py-2 px-3 bg-red-650 hover:bg-red-750 text-white text-[10.5px] font-black rounded-lg transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer font-mono uppercase tracking-tight"
+                                              >
+                                                Close Ticket
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                </td>
+                              </tr>
+                            )}
+                          </AnimatePresence>
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination block */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-slate-100 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-950/10 rounded-b-2xl select-none">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  Menampilkan <span className="font-extrabold text-slate-800 dark:text-slate-200">{startIndex + 1}</span> - <span className="font-extrabold text-slate-800 dark:text-slate-300">{Math.min(endIndex, totalItems)}</span> dari <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{totalItems}</span> tiket
+                </span>
+                
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={activePage === 1}
+                    onClick={() => setCurrentPage(1)}
+                    className="px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    First
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={activePage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    Prev
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }).map((_, idx) => {
+                      const pageNum = idx + 1;
+                      const shouldShow = totalPages <= 5 || Math.abs(pageNum - activePage) <= 2 || pageNum === 1 || pageNum === totalPages;
+                      
+                      if (!shouldShow) {
+                        if (pageNum === 2 || pageNum === totalPages - 1) {
+                          return <span key={pageNum} className="text-slate-400 px-1 text-[11px]">...</span>;
+                        }
+                        return null;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10.5px] font-black transition-all cursor-pointer ${
+                            activePage === pageNum
+                              ? "bg-indigo-600 text-white shadow-xs"
+                              : "border border-slate-100 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={activePage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    Next
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={activePage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    className="px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Floating purple button */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            type="button"
+            onClick={handleOpenNew}
+            className="w-13 h-13 rounded-full bg-violet-650 bg-violet-600 hover:bg-violet-700 text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 duration-150 transition-all cursor-pointer border-3 border-white dark:border-slate-850 group relative"
+          >
+            <MessageSquare className="w-5.5 h-5.5 text-white group-hover:rotate-6 transition-transform" />
+            <div className="absolute right-15 bottom-2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md font-bold select-none">
+              💬 Buka Tiket Troubleshoot
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-10" id="tickets-view-container">

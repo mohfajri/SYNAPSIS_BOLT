@@ -213,9 +213,8 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                   <option value="Administrator">Administrator (Main Control)</option>
                   <option value="Direktur">Direktur (Managerial Utama)</option>
                   <option value="Manager">Manager (Supervisory Hub)</option>
-                  <option value="Supervisor">Supervisor (tim Teknis Lapangan)</option>
+                  <option value="Site Coordinator">Site Coordinator (tim Teknis Lapangan)</option>
                   <option value="Staff">Staff (Pelaksana Teknis)</option>
-                  <option value="Site Coordinator">Site Coordinator</option>
                   <option value="System Support">System Support</option>
                   <option value="Technical Support">Technical Support</option>
                   <option value="Assistant Technical Support">Assistant Technical Support</option>

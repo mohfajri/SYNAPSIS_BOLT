@@ -652,7 +652,7 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
 
       const sigY = currentY + 15;
       doc.text("Petugas Pelaksana SIMRS,", 60, sigY);
-      doc.text("Supervisor / Site Coordinator,", 380, sigY);
+      doc.text("Site Coordinator,", 380, sigY);
 
       const certUrl = `${window.location.origin}/?verify=${sub.id}`;
       const certHash = generateDocHash(sub.id, sub.tanggal);
@@ -685,7 +685,7 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
       doc.setTextColor(34, 139, 34);
       doc.text("● VERIFIED DIGITAL", 108, sigY + 68);
 
-      // Supervisor Box
+      // Site Coordinator Box
       if (sub.isApproved) {
         doc.setFillColor(245, 248, 252);
         doc.roundedRect(370, sigY + 10, 195, 75, 5, 5, "F");
@@ -697,15 +697,16 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
         }
 
         doc.setFont("helvetica", "bold");
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
         doc.setTextColor(16, 110, 190);
-        doc.text("SUPERVISOR E-SIGN", 428, sigY + 24);
+        doc.text("SITE CO. E-SIGN", 428, sigY + 24);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
         doc.setTextColor(80, 90, 100);
         doc.text("Status: APPROVED", 428, sigY + 34);
-        doc.text(`Oleh: ${sub.approvedBy || "Supervisor"}`, 428, sigY + 44);
+        doc.text(`Oleh: ${sub.approvedBy || "Site Coordinator"}`, 428, sigY + 44);
         doc.text(`Tgl: ${sub.approvedAt ? sub.approvedAt.split('T')[0] : sub.tanggal}`, 428, sigY + 54);
 
         doc.setFont("helvetica", "bold");
@@ -742,7 +743,7 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
         doc.setTextColor(120, 130, 140);
         doc.text("Butuh konfirmasi kroscek", 428, sigY + 36);
         doc.text("oleh Site Coordinator", 428, sigY + 46);
-        doc.text("atau Supervisor di site.", 428, sigY + 56);
+        doc.text("di masing-masing site.", 428, sigY + 56);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
@@ -848,7 +849,7 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
                     ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" 
                     : "bg-amber-500/15 border-amber-500/30 text-amber-400 animate-pulse"
                 }`}>
-                  {submission.isApproved ? "SECURED & SIGNED BY SYNAPSIS" : "PENDING SUPERVISOR CROSSCHECK"}
+                  {submission.isApproved ? "SECURED & SIGNED BY SYNAPSIS" : "PENDING COORDINATOR CROSSCHECK"}
                 </span>
                 <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">
                   {submission.isApproved ? "KSO-TRUST-V2" : "DRAFT-STATUS"}
@@ -859,8 +860,8 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
               </h1>
               <p className="text-xs text-slate-400 font-medium">
                 {submission.isApproved 
-                  ? "Sertifikat terverifikasi aman melalui tanda tangan kriptografis supervisor resmi." 
-                  : "Dokumen ini terdaftar di ledger, namun tanda tangan e-sign supervisor belum diterbitkan."}
+                  ? "Sertifikat terverifikasi aman melalui tanda tangan kriptografis Site Coordinator resmi." 
+                  : "Dokumen ini terdaftar di ledger, namun tanda tangan e-sign Site Coordinator belum diterbitkan."}
               </p>
             </div>
           </div>
@@ -1306,11 +1307,11 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
                       </div>
                     </div>
 
-                    {/* Right Signature block (Supervisor Verification) */}
+                    {/* Right Signature block (Site Coordinator Verification) */}
                     {submission.isApproved ? (
                       <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl flex flex-col justify-between min-h-[145px]">
                         <div>
-                          <div className="text-[9px] font-black text-indigo-505 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                          <div className="text-[9px] font-black text-indigo-505 uppercase tracking-wider font-sans">Site Coordinator E-Sign</div>
                           <div className="text-[10px] font-black text-slate-800 mt-0.5">Status: APPROVED</div>
                           <div className="text-[8px] text-slate-500">Oleh: {submission.approvedBy}</div>
                         </div>
@@ -1343,12 +1344,12 @@ export default function PublicChecklistVerificationView({ verifyId, onBack }: Pu
                     ) : (
                       <div className="p-3 bg-red-50/50 border border-red-200 rounded-xl flex flex-col justify-between min-h-[145px]">
                         <div>
-                          <div className="text-[9px] font-black text-red-505 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                          <div className="text-[9px] font-black text-red-505 uppercase tracking-wider font-sans">Site Coordinator E-Sign</div>
                           <div className="text-[10px] font-black text-red-700 mt-0.5 uppercase">Belum Disetujui</div>
                         </div>
 
                         <div className="p-2 bg-red-100/40 border border-red-150 text-red-700 text-[8.5px] font-medium leading-normal rounded-lg">
-                          Butuh tanda tangan supervisor untuk menerbitkan e-sign.
+                          Butuh tanda tangan Site Coordinator untuk menerbitkan e-sign.
                         </div>
 
                         <div className="mt-1.5 text-[9px] font-bold text-slate-450 italic">

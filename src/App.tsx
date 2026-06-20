@@ -188,9 +188,8 @@ export default function App() {
       { roleName: "Direktur", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
       { roleName: "Manager", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
       { roleName: "Manager Keuangan", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "clients", "users", "monev", "billing", "kassite"], active: true },
-      { roleName: "Supervisor", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
       { roleName: "Staff", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "tickets", "monev", "billing", "kassite"], active: true },
-      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
+      { roleName: "Site Coordinator", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite", "checklist", "atk"], active: true },
       { roleName: "System Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
       { roleName: "Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
       { roleName: "Assistant Technical Support", allowedViews: ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "sitemodules", "assets", "monev", "billing", "kassite"], active: true },
@@ -2061,6 +2060,7 @@ export default function App() {
               onUpdateUser={handleUpdateUser}
               rolesList={settings.roles || []}
               clientsList={clients}
+              divisiList={settings.divisi || []}
             />
           )}
 

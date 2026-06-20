@@ -34,7 +34,8 @@
       "email": "nanda@taskhub.com",
       "createdAt": "2026-05-21T00:00:00Z",
       "statusAktif": true,
-      "siteTugas": ""
+      "siteTugas": "",
+      "divisi": "Infrastruktur"
     },
     {
       "id": "u-fnbk3xt",
@@ -42,11 +43,12 @@
       "name": "mohfajri",
       "nickname": "Fajri",
       "password": "123456",
-      "role": "Supervisor",
+      "role": "Site Coordinator",
       "email": "fajri@taskhub.com",
       "siteTugas": "RS TPT",
       "statusAktif": true,
-      "createdAt": "2026-05-22T11:13:04.487Z"
+      "createdAt": "2026-05-22T11:13:04.487Z",
+      "divisi": "Site Management"
     },
     {
       "id": "u-0yrno2h",
@@ -58,7 +60,8 @@
       "email": "tari@taskhub.com",
       "siteTugas": "",
       "statusAktif": true,
-      "createdAt": "2026-05-27T14:24:03.981Z"
+      "createdAt": "2026-05-27T14:24:03.981Z",
+      "divisi": "Site Management"
     }
   ],
   "projects": [
@@ -312,7 +315,8 @@
       "date": "2026-05-18",
       "participants": "Fajar Pratama (Lead) -> Manajemen RS Mataram",
       "summary": "Persetujuan Dokumen UAT Modul Front Office",
-      "detail": "Penyampaian link formulir persetujuan dan hasil pengujian sirkuit kasir. Pihak RS membalas ok dengan catatan kecil tentang tombol print struk."
+      "detail": "Penyampaian link formulir persetujuan dan hasil pengujian sirkuit kasir. Pihak RS membalas ok dengan catatan kecil tentang tombol print struk.",
+      "noID": "KRD-002"
     },
     {
       "id": "c-02",
@@ -321,7 +325,8 @@
       "date": "2026-05-20",
       "participants": "Nanda Wardhana <-> BPKAD NTB",
       "summary": "Diskusi Desain Skema Pajak Daerah",
-      "detail": "Mengklarifikasi formula pemotongan retribusi terintegrasi. Menyeimbangkan parameter input sesuai surat instruksi gubernur terbaru."
+      "detail": "Mengklarifikasi formula pemotongan retribusi terintegrasi. Menyeimbangkan parameter input sesuai surat instruksi gubernur terbaru.",
+      "noID": "KRD-001"
     }
   ],
   "meetingLogs": [
@@ -333,7 +338,8 @@
       "attendees": "Fajar Pratama, Nanda Wardhana, Tim IT RS Mataram, Dokter Spesialis RS",
       "agenda": "1. Demo status UAT Front Office.\n2. Hambatan konektivitas web service BPJS local.",
       "decisions": "1. Jalur Kasir dinyatakan selesai dan disetujui.\n2. Untuk sinkronisasi BPJS, RS berkomitmen membuka port VPN mulai 22 Mei.\n3. Pertemuan teknis lanjutan direncanakan pada 25 Mei.",
-      "actions": "1. Fajar: Selesaikan draf manual book admin (Target 21 Mei).\n2. Nanda: Hubungkan mock endpoints dengan rute VPN baru."
+      "actions": "1. Fajar: Selesaikan draf manual book admin (Target 21 Mei).\n2. Nanda: Hubungkan mock endpoints dengan rute VPN baru.",
+      "noID": "MOM-001"
     }
   ],
   "docs": [
@@ -344,7 +350,8 @@
       "title": "Panduan Integrasi BPJS Health API V2.1",
       "url": "https://example.com/bpjs-api-docs",
       "desc": "Detail payload JSON untuk pendaftaran rujukan balik online, sinkronisasi antrean RS, dan pencetakan SEP.",
-      "date": "2026-05-01"
+      "date": "2026-05-01",
+      "noID": "DOC-002"
     },
     {
       "id": "d-02",
@@ -353,7 +360,8 @@
       "title": "Figma Hospital Suite UI/UX Design Baseline",
       "url": "https://figma.com/file/hospital-specs",
       "desc": "Skema warna lengkap, ikon kustomisasi, layout dashboard rawat inap, rawat jalan, serta mobile layout.",
-      "date": "2026-04-12"
+      "date": "2026-04-12",
+      "noID": "DOC-001"
     }
   ],
   "logs": [
@@ -389,14 +397,25 @@
           "clients",
           "tickets",
           "appmodules",
+          "sitemodules",
           "assets",
           "monev",
-          "billing"
+          "billing",
+          "kassite",
+          "projects",
+          "tasks",
+          "calendar",
+          "collab",
+          "gantt",
+          "kanban",
+          "dashboard",
+          "atk",
+          "checklist"
         ],
         "active": true
       },
       {
-        "roleName": "Site Coordinator",
+        "roleName": "Direktur",
         "allowedViews": [
           "dashboard",
           "projects",
@@ -407,108 +426,14 @@
           "collab",
           "tickets",
           "appmodules",
+          "sitemodules",
           "assets",
+          "clients",
+          "users",
           "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "System Support",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "kanban",
-          "gantt",
-          "calendar",
-          "collab",
-          "tickets",
-          "appmodules",
-          "assets",
-          "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "Technical Support",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "kanban",
-          "gantt",
-          "calendar",
-          "collab",
-          "tickets",
-          "appmodules",
-          "assets",
-          "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "Assistant Technical Support",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "kanban",
-          "gantt",
-          "calendar",
-          "collab",
-          "tickets",
-          "appmodules",
-          "assets",
-          "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "Client",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "Project Lead",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "kanban",
-          "gantt",
-          "calendar",
-          "collab",
-          "tickets",
-          "appmodules",
-          "assets",
-          "monev",
-          "billing"
-        ],
-        "active": true
-      },
-      {
-        "roleName": "Developer",
-        "allowedViews": [
-          "dashboard",
-          "projects",
-          "tasks",
-          "kanban",
-          "gantt",
-          "tickets",
-          "appmodules",
-          "assets",
-          "monev",
-          "billing"
+          "billing",
+          "kassite",
+          "checklist"
         ],
         "active": true
       },
@@ -527,8 +452,12 @@
           "sitemodules",
           "assets",
           "clients",
+          "users",
           "monev",
-          "billing"
+          "billing",
+          "kassite",
+          "checklist",
+          "atk"
         ],
         "active": true
       },
@@ -547,27 +476,193 @@
           "sitemodules",
           "assets",
           "clients",
+          "users",
           "monev",
-          "billing"
+          "billing",
+          "kassite",
+          "checklist",
+          "atk"
         ],
         "active": true
       },
       {
-        "roleName": "Supervisor",
+        "roleName": "Staff",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "tickets",
+          "monev",
+          "billing",
+          "kassite",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Site Coordinator",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist",
+          "atk"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "System Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Technical Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Assistant Technical Support",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Client",
         "allowedViews": [
           "dashboard",
           "projects",
           "tasks",
           "tickets",
-          "collab",
-          "calendar",
+          "monev",
+          "billing",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Project Lead",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
           "gantt",
+          "calendar",
+          "collab",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Developer",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "tickets",
+          "appmodules",
+          "sitemodules",
+          "assets",
+          "monev",
+          "billing",
+          "kassite",
+          "checklist"
+        ],
+        "active": true
+      },
+      {
+        "roleName": "Logistik Kantor Pusat",
+        "allowedViews": [
+          "dashboard",
+          "projects",
+          "tasks",
+          "kanban",
+          "gantt",
+          "calendar",
+          "collab",
+          "tickets",
           "appmodules",
           "sitemodules",
           "assets",
           "clients",
+          "users",
           "monev",
-          "billing"
+          "billing",
+          "atk",
+          "kassite",
+          "checklist"
         ],
         "active": true
       }
@@ -591,10 +686,6 @@
       },
       {
         "value": "Cancelled",
-        "active": true
-      },
-      {
-        "value": "To Do",
         "active": true
       }
     ],
@@ -688,10 +779,6 @@
       {
         "value": "Backlog",
         "active": true
-      },
-      {
-        "value": "To Do",
-        "active": true
       }
     ],
     "tipeMedika": [
@@ -752,7 +839,7 @@
         "active": true
       },
       {
-        "value": "BA Training /... Sosialisasi",
+        "value": "BA Training / Sosialisasi",
         "active": true
       },
       {
@@ -766,19 +853,15 @@
     ],
     "jenisModul": [
       {
-        "value": "Modul Utama",
+        "value": "Front Office",
         "active": true
       },
       {
-        "value": "Modul Integrasi",
+        "value": "Back Office",
         "active": true
       },
       {
-        "value": "Modul Penunjang",
-        "active": true
-      },
-      {
-        "value": "Modul Pelaporan / Dashboard",
+        "value": "Bridging",
         "active": true
       }
     ],
@@ -887,6 +970,196 @@
       },
       {
         "value": "Dalam Pengembangan",
+        "active": true
+      }
+    ],
+    "jenisLaporan": [
+      {
+        "value": "Incident",
+        "active": true
+      },
+      {
+        "value": "Request",
+        "active": true
+      }
+    ],
+    "kategoriLaporan": [
+      {
+        "value": "Software/SIMRS",
+        "active": true
+      },
+      {
+        "value": "Hardware/PC",
+        "active": true
+      },
+      {
+        "value": "Network/Internet",
+        "active": true
+      },
+      {
+        "value": "Peripheral/Printer",
+        "active": true
+      },
+      {
+        "value": "Access/Account",
+        "active": true
+      }
+    ],
+    "subKategori": [
+      {
+        "value": "Software/SIMRS: EMR",
+        "active": true
+      },
+      {
+        "value": "Software/SIMRS: Pendaftaran",
+        "active": true
+      },
+      {
+        "value": "Software/SIMRS: Poli",
+        "active": true
+      },
+      {
+        "value": "Software/SIMRS: Apotek",
+        "active": true
+      },
+      {
+        "value": "Software/SIMRS: Laboratorium",
+        "active": true
+      },
+      {
+        "value": "Software/SIMRS: Kasir",
+        "active": true
+      },
+      {
+        "value": "Hardware/PC: PC Desktop",
+        "active": true
+      },
+      {
+        "value": "Hardware/PC: Laptop",
+        "active": true
+      },
+      {
+        "value": "Hardware/PC: Monitor",
+        "active": true
+      },
+      {
+        "value": "Hardware/PC: RAM/Harddisk",
+        "active": true
+      },
+      {
+        "value": "Network/Internet: Koneksi Wifi",
+        "active": true
+      },
+      {
+        "value": "Network/Internet: LAN Cable",
+        "active": true
+      },
+      {
+        "value": "Network/Internet: Switch/Hub",
+        "active": true
+      },
+      {
+        "value": "Network/Internet: Mikrotik Router",
+        "active": true
+      },
+      {
+        "value": "Peripheral/Printer: Printer Thermal",
+        "active": true
+      },
+      {
+        "value": "Peripheral/Printer: Printer Inkjet",
+        "active": true
+      },
+      {
+        "value": "Peripheral/Printer: Barcode Scanner",
+        "active": true
+      },
+      {
+        "value": "Access/Account: Akun SIMRS",
+        "active": true
+      },
+      {
+        "value": "Access/Account: Email RS",
+        "active": true
+      },
+      {
+        "value": "Access/Account: Hak Akses Menu",
+        "active": true
+      }
+    ],
+    "jenisMasalah": [
+      {
+        "value": "EMR: Buka Berkas Pasien",
+        "active": true
+      },
+      {
+        "value": "EMR: Input Diagnosa Gagal",
+        "active": true
+      },
+      {
+        "value": "EMR: Cari Berkas Pasien",
+        "active": true
+      },
+      {
+        "value": "EMR: Resep EMR tidak tampil",
+        "active": true
+      },
+      {
+        "value": "Pendaftaran: Gagal Cetak Tracer",
+        "active": true
+      },
+      {
+        "value": "Pendaftaran: No RM Ganda",
+        "active": true
+      },
+      {
+        "value": "Pendaftaran: Pasien BPJS tidak valid",
+        "active": true
+      },
+      {
+        "value": "Apotek: Stok Obat Minus",
+        "active": true
+      },
+      {
+        "value": "Apotek: Resep Elektronik pending",
+        "active": true
+      },
+      {
+        "value": "Printer Thermal: Kertas printer macet",
+        "active": true
+      },
+      {
+        "value": "Printer Thermal: Cetak struk pudar / tidak jelas",
+        "active": true
+      }
+    ],
+    "divisi": [
+      {
+        "value": "Site Management",
+        "active": true
+      },
+      {
+        "value": "Quality Control",
+        "active": true
+      },
+      {
+        "value": "Development",
+        "active": true
+      },
+      {
+        "value": "HRD",
+        "active": true
+      },
+      {
+        "value": "Keuangan",
+        "active": true
+      },
+      {
+        "value": "Infrastruktur",
+        "active": true
+      },
+      {
+        "value": "General Affair",
         "active": true
       }
     ]
@@ -1025,5 +1298,620 @@
       "submittedBy": "Fajri",
       "submittedAt": "2026-05-27T14:22:45.172Z"
     }
-  ]
+  ],
+  "atkItems": [
+    {
+      "id": "atk-item-1",
+      "name": "Kertas HVS A4 80gr",
+      "unit": "Rim",
+      "price": 55000,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    },
+    {
+      "id": "atk-item-2",
+      "name": "Pulpen Kantor Standard Pen",
+      "unit": "Box",
+      "price": 24000,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    },
+    {
+      "id": "atk-item-3",
+      "name": "Buku Log Penyerahan Dinas",
+      "unit": "Pcs",
+      "price": 15000,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    },
+    {
+      "id": "atk-item-4",
+      "name": "Spidol Boardmarker Hitam Snowman",
+      "unit": "Pcs",
+      "price": 8500,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    },
+    {
+      "id": "atk-item-5",
+      "name": "Staples No. 10 Max",
+      "unit": "Box",
+      "price": 12000,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    },
+    {
+      "id": "atk-item-6",
+      "name": "Klip Kertas Paper Clip Besar No.50",
+      "unit": "Box",
+      "price": 6000,
+      "createdAt": "2026-06-20T07:18:07.088Z",
+      "createdBy": "system"
+    }
+  ],
+  "atkOrders": [],
+  "kasSiteTransactions": [],
+  "kasLocks": [],
+  "kasUnlockRequests": [],
+  "checklistItemsSetting": [
+    {
+      "id": "cl-item-1",
+      "category": "NETWORKING",
+      "name": "A. The Dude",
+      "okLabel": "Reply",
+      "notOkLabel": "RTO",
+      "active": true,
+      "order": 1
+    },
+    {
+      "id": "cl-item-2",
+      "category": "NETWORKING",
+      "name": "B. Link Internet - 1. Test Email",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 2
+    },
+    {
+      "id": "cl-item-3",
+      "category": "NETWORKING",
+      "name": "B. Link Internet - 2. Link Gitlab",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 3
+    },
+    {
+      "id": "cl-item-4",
+      "category": "NETWORKING",
+      "name": "B. Link Internet - 3. Link Mantis",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 4
+    },
+    {
+      "id": "cl-item-5",
+      "category": "ANTRIAN PENDAFTARAN MANDIRI",
+      "name": "1. KiosK",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 5
+    },
+    {
+      "id": "cl-item-6",
+      "category": "ANTRIAN PENDAFTARAN MANDIRI",
+      "name": "2. APM 1",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 6
+    },
+    {
+      "id": "cl-item-7",
+      "category": "ANTRIAN PENDAFTARAN MANDIRI",
+      "name": "3. APM 2",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 7
+    },
+    {
+      "id": "cl-item-8",
+      "category": "ANTRIAN PENDAFTARAN MANDIRI",
+      "name": "4. APM 3",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 8
+    },
+    {
+      "id": "cl-item-9",
+      "category": "ANTRIAN PENDAFTARAN MANDIRI",
+      "name": "5. Cetak Antrian",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 9
+    },
+    {
+      "id": "cl-item-10",
+      "category": "LOKET PENDAFTARAN",
+      "name": "1. www.admission.healthcare/daftar-pasien",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 10
+    },
+    {
+      "id": "cl-item-11",
+      "category": "LOKET PENDAFTARAN",
+      "name": "2. Suara",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 11
+    },
+    {
+      "id": "cl-item-12",
+      "category": "LOKET PENDAFTARAN",
+      "name": "3. Cetak Antrian",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 12
+    },
+    {
+      "id": "cl-item-13",
+      "category": "LOKET PENDAFTARAN",
+      "name": "4. Display Antrian Loket TV 42 Inc .1",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 13
+    },
+    {
+      "id": "cl-item-14",
+      "category": "LOKET PENDAFTARAN",
+      "name": "5. Loket 1 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 14
+    },
+    {
+      "id": "cl-item-15",
+      "category": "LOKET PENDAFTARAN",
+      "name": "6. Loket 2 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 15
+    },
+    {
+      "id": "cl-item-16",
+      "category": "LOKET PENDAFTARAN",
+      "name": "7. Loket 3 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 16
+    },
+    {
+      "id": "cl-item-17",
+      "category": "LOKET PENDAFTARAN",
+      "name": "8. Loket 4 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 17
+    },
+    {
+      "id": "cl-item-18",
+      "category": "LOKET PENDAFTARAN",
+      "name": "9. Loket 5 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 18
+    },
+    {
+      "id": "cl-item-19",
+      "category": "LOKET PENDAFTARAN",
+      "name": "10. Loket 6 : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 19
+    },
+    {
+      "id": "cl-item-20",
+      "category": "FARMASI",
+      "name": "1. Suara",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 20
+    },
+    {
+      "id": "cl-item-21",
+      "category": "FARMASI",
+      "name": "2. www.farmasi.healthcare/daftar-pasien",
+      "okLabel": "Reply",
+      "notOkLabel": "RTO",
+      "active": true,
+      "order": 21
+    },
+    {
+      "id": "cl-item-22",
+      "category": "FARMASI",
+      "name": "3. Printer Antrian",
+      "okLabel": "ON",
+      "notOkLabel": "Tidak",
+      "active": true,
+      "order": 22
+    },
+    {
+      "id": "cl-item-23",
+      "category": "FARMASI",
+      "name": "4. Nomer Antrian",
+      "okLabel": "ON",
+      "notOkLabel": "Tidak",
+      "active": true,
+      "order": 23
+    },
+    {
+      "id": "cl-item-24",
+      "category": "FARMASI",
+      "name": "5. Display Antrian Farmasi BPJS TV 42 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 24
+    },
+    {
+      "id": "cl-item-25",
+      "category": "FARMASI",
+      "name": "6. Display Antrian Farmasi Umum TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 25
+    },
+    {
+      "id": "cl-item-26",
+      "category": "FARMASI",
+      "name": "7. Antrian Farmasi",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 26
+    },
+    {
+      "id": "cl-item-27",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 1. Display Antrian Pelayanan Poli TV 42 Inc .1",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 27
+    },
+    {
+      "id": "cl-item-28",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 2. Display Antrian Pelayanan Poli TV 42 Inc .2",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 28
+    },
+    {
+      "id": "cl-item-29",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 3. Display Antrian Pelayanan Poli TV 42 Inc .3",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 29
+    },
+    {
+      "id": "cl-item-30",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 4. Display Antrian Pelayanan Rehab TV 42 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 30
+    },
+    {
+      "id": "cl-item-31",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 5. Poli Paru : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 31
+    },
+    {
+      "id": "cl-item-32",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 6. Poli Penyakit Dalam : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 32
+    },
+    {
+      "id": "cl-item-33",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 7. Poli Gigi : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 33
+    },
+    {
+      "id": "cl-item-34",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 8. Poli THT : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 34
+    },
+    {
+      "id": "cl-item-35",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 9. Poli Kandungan : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 35
+    },
+    {
+      "id": "cl-item-36",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 10. Poli Psikiatri : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 36
+    },
+    {
+      "id": "cl-item-37",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 11. Poli Psikologi : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 37
+    },
+    {
+      "id": "cl-item-38",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 12. Poli Bedah : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 38
+    },
+    {
+      "id": "cl-item-39",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 13. Poli Kulit Kelamin : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 39
+    },
+    {
+      "id": "cl-item-40",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 14. Poli Anak : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 40
+    },
+    {
+      "id": "cl-item-41",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 15. Poli Mata : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 41
+    },
+    {
+      "id": "cl-item-42",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 16. Poli Bedah Saraf/Urologi : Display TV 22 Inc Ind",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 42
+    },
+    {
+      "id": "cl-item-43",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 17. Poli Saraf : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 43
+    },
+    {
+      "id": "cl-item-44",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 18. Poli Jantung : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 44
+    },
+    {
+      "id": "cl-item-45",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 19. Poli Penyakit Dalam : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 45
+    },
+    {
+      "id": "cl-item-46",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 20. Poli Geriatri : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 46
+    },
+    {
+      "id": "cl-item-47",
+      "category": "PELAYANAN",
+      "name": "A. ANTRIAN PELAYANAN - 21. Poli Bedah Tulang : Display TV 22 Inc",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 47
+    },
+    {
+      "id": "cl-item-48",
+      "category": "PELAYANAN",
+      "name": "B. EMR PELAYANAN - 1. https://ww.pelayanan.healthcare/#/home",
+      "okLabel": "Reply",
+      "notOkLabel": "RTO",
+      "active": true,
+      "order": 48
+    },
+    {
+      "id": "cl-item-49",
+      "category": "BED MONITORING & JADWAL OPERASI",
+      "name": "1. Display Bed Monitoring",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 49
+    },
+    {
+      "id": "cl-item-50",
+      "category": "BED MONITORING & JADWAL OPERASI",
+      "name": "2. Jadwal Operasi",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 50
+    },
+    {
+      "id": "cl-item-51",
+      "category": "BI DIREKSI",
+      "name": "1. Display BI DIREKSI",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 51
+    },
+    {
+      "id": "cl-item-52",
+      "category": "BRIDGING",
+      "name": "1. Server Antrian RS",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 52
+    },
+    {
+      "id": "cl-item-53",
+      "category": "BRIDGING",
+      "name": "2. Server APM",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 53
+    },
+    {
+      "id": "cl-item-54",
+      "category": "BRIDGING",
+      "name": "3. Server VClaim V2",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 54
+    },
+    {
+      "id": "cl-item-55",
+      "category": "BRIDGING",
+      "name": "4. Server Antrian Online",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 55
+    },
+    {
+      "id": "cl-item-56",
+      "category": "BRIDGING",
+      "name": "5. Server PDF",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 56
+    },
+    {
+      "id": "cl-item-57",
+      "category": "BRIDGING",
+      "name": "6. Vclaim",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 57
+    },
+    {
+      "id": "cl-item-58",
+      "category": "BRIDGING",
+      "name": "7. Aplicares",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 58
+    },
+    {
+      "id": "cl-item-59",
+      "category": "BRIDGING",
+      "name": "8. Siranap",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 59
+    },
+    {
+      "id": "cl-item-60",
+      "category": "BRIDGING",
+      "name": "9. Reparasi Database Eklaim",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 60
+    },
+    {
+      "id": "cl-item-61",
+      "category": "BRIDGING",
+      "name": "10. Apotek Online",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 61
+    },
+    {
+      "id": "cl-item-62",
+      "category": "BRIDGING",
+      "name": "11. SISRUTE",
+      "okLabel": "ON",
+      "notOkLabel": "OFF",
+      "active": true,
+      "order": 62
+    }
+  ],
+  "checklists": []
 }

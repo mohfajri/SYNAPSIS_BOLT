@@ -357,8 +357,8 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
     // Admin & Direktur can always approve
     if (currentUser.role === "Administrator" || currentUser.role === "Direktur") return true;
     
-    // Check if role is Supervisor or Site Coordinator
-    const isApprovalRole = currentUser.role === "Supervisor" || currentUser.role === "Site Coordinator";
+    // Check if role is Site Coordinator
+    const isApprovalRole = currentUser.role === "Site Coordinator";
     if (!isApprovalRole) return false;
     
     // Check if site of checklist matches task site (if set)
@@ -378,9 +378,9 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
       
       const updatedPayload = {
         isApproved: true,
-        approvedBy: currentUser?.name || currentUser?.username || "Supervisor",
+        approvedBy: currentUser?.name || currentUser?.username || "Site Coordinator",
         approvedAt: new Date().toISOString(),
-        approvedRole: currentUser?.role || "Supervisor/SPV"
+        approvedRole: currentUser?.role || "Site Coordinator"
       };
 
       const updated = await api.updateChecklistSubmission(submissionId, updatedPayload);
@@ -879,7 +879,7 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
 
       const sigY = currentY + 15;
       doc.text("Petugas Pelaksana SIMRS,", 60, sigY);
-      doc.text("Supervisor / Site Coordinator,", 350, sigY);
+      doc.text("Site Coordinator,", 350, sigY);
 
       // Fetch QR Code and Generate Hash
       const certUrl = `${window.location.origin}/?verify=${sub.id}`;
@@ -921,7 +921,7 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
       doc.setTextColor(34, 139, 34); // Forest green
       doc.text("● VERIFIED DIGITAL", 108, sigY + 68);
 
-      // --- Draw Box Supervisor ---
+      // --- Draw Box Site Coordinator ---
       if (sub.isApproved) {
         doc.setFillColor(245, 248, 252);
         doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "F");
@@ -943,13 +943,13 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
         doc.setTextColor(16, 110, 190);
-        doc.text("SUPERVISOR E-SIGN", 398, sigY + 24);
+        doc.text("SITE CO. E-SIGN", 398, sigY + 24);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
         doc.setTextColor(80, 90, 100);
         doc.text("Status: APPROVED", 398, sigY + 34);
-        doc.text(`Oleh: ${sub.approvedBy || "Supervisor"}`, 398, sigY + 44);
+        doc.text(`Oleh: ${sub.approvedBy || "Site Coordinator"}`, 398, sigY + 44);
         doc.text(`Tgl: ${sub.approvedAt ? sub.approvedAt.split('T')[0] : sub.tanggal}`, 398, sigY + 54);
 
         doc.setFont("helvetica", "bold");
@@ -961,7 +961,7 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
         doc.setFontSize(9);
         doc.setTextColor(50, 60, 75);
         doc.text(`( ${getCreatorFullName(sub)} )`, 50, sigY + 102);
-        doc.text(`( ${sub.approvedBy || "Supervisor/SPV"} )`, 340, sigY + 102);
+        doc.text(`( ${sub.approvedBy || "Site Coordinator"} )`, 340, sigY + 102);
       } else {
         doc.setFillColor(254, 242, 242);
         doc.roundedRect(340, sigY + 10, 195, 75, 5, 5, "F");
@@ -986,7 +986,7 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
         doc.setTextColor(120, 130, 140);
         doc.text("Butuh konfirmasi kroscek", 398, sigY + 36);
         doc.text("oleh Site Coordinator", 398, sigY + 46);
-        doc.text("atau Supervisor di site.", 398, sigY + 56);
+        doc.text("di masing-masing site.", 398, sigY + 56);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
@@ -1920,7 +1920,7 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
                             </p>
                           ) : (
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium leading-relaxed">
-                              Laporan draf pemeliharaan harian ini diajukan oleh <strong className="text-slate-705 dark:text-slate-300">{getCreatorFullName(selectedSubmission)}</strong>. Butuh kroscek dan persetujuan dari Supervisor untuk memvalidasi e-sign resmi.
+                              Laporan draf pemeliharaan harian ini diajukan oleh <strong className="text-slate-705 dark:text-slate-300">{getCreatorFullName(selectedSubmission)}</strong>. Butuh kroscek dan persetujuan dari Site Coordinator untuk memvalidasi e-sign resmi.
                             </p>
                           )}
                         </div>
@@ -2711,11 +2711,11 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
                               </div>
                             </div>
 
-                            {/* Right Signature block (Supervisor Verification) */}
+                            {/* Right Signature block (Site Coordinator Verification) */}
                             {previewSubmission.isApproved ? (
                               <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-xl flex flex-col justify-between min-h-[145px]">
                                 <div>
-                                  <div className="text-[9px] font-black text-indigo-505 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                                  <div className="text-[9px] font-black text-indigo-505 uppercase tracking-wider font-sans">Site Coordinator E-Sign</div>
                                   <div className="text-[10px] font-black text-slate-800 mt-0.5">Status: APPROVED</div>
                                   <div className="text-[8px] text-slate-500">Oleh: {previewSubmission.approvedBy}</div>
                                 </div>
@@ -2748,12 +2748,12 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
                             ) : (
                               <div className="p-3 bg-red-50/50 border border-red-200 rounded-xl flex flex-col justify-between min-h-[145px]">
                                 <div>
-                                  <div className="text-[9px] font-black text-red-500 uppercase tracking-wider font-sans">Supervisor E-Sign</div>
+                                  <div className="text-[9px] font-black text-red-500 uppercase tracking-wider font-sans">Site Coordinator E-Sign</div>
                                   <div className="text-[10px] font-black text-red-700 mt-0.5 uppercase">Belum Disetujui</div>
                                 </div>
 
                                 <div className="p-2 bg-red-100/40 border border-red-150 text-red-700 text-[8.5px] font-medium leading-normal rounded-lg">
-                                  Butuh tanda tangan supervisor untuk menerbitkan e-sign.
+                                  Butuh tanda tangan Site Coordinator untuk menerbitkan e-sign.
                                 </div>
 
                                 <div className="mt-1.5 text-[9px] font-bold text-slate-450 italic">

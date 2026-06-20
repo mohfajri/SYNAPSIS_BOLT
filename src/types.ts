@@ -8,6 +8,7 @@ export interface User {
   email: string;
   siteTugas?: string; // name of Client RS
   statusAktif?: boolean; // active status (default: true)
+  divisi?: string; // department / division
   createdAt: string;
 }
 
@@ -214,6 +215,7 @@ export interface Ticket {
   picTugas?: string;
   closedAt?: string;
   followUpLog?: string;
+  dueDate?: string;
 }
 
 export interface SubModule {
