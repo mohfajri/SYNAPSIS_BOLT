@@ -33,36 +33,37 @@ try {
   console.error("Critical: Failed to initialize Supabase client:", err.message);
 }
 
-// ── DATABASE INTERACTION LAYER (HYBRID INTEGRATION FOR VERCEL) ───────────────
-let dbCache: any = null;
-
 async function readDB(): Promise<any> {
+  if (dbCache) return dbCache; // Gunakan memori cache jika sudah ada data
+
   if (supabase) {
     try {
-      const { data, error } = await supabase.from("simrs_config").select("data").eq("id", "app_state").single();
-      if (!error && data?.data) { dbCache = data.data; return data.data; }
-    } catch (err) { console.error("Supabase read error:", err); }
+      const { data, error } = await supabase
+        .from("simrs_config")
+        .select("data")
+        .eq("id", "app_state")
+        .single();
+
+      if (!error && data?.data) {
+        dbCache = data.data; // Simpan ke cache
+        return data.data;    // Kembalikan data dari Supabase
+      }
+    } catch (err) {
+      console.error("Supabase read error:", err);
+    }
   }
+
+  // Fallback: Jika Supabase mati/gagal/kosong, baca dari file lokal db.json
   try {
     const fileData = await fs.readFile(DB_FILE, "utf-8");
     dbCache = JSON.parse(fileData);
     return dbCache;
   } catch (err) {
-    return { users: [], projects: [], tasks: [], settings: { roles: [] } };
+    // Jika file belum ada, buat struktur objek default agar tidak crash
+    dbCache = { users: [], projects: [], tasks: [], settings: DEFAULT_SETTINGS };
+    return dbCache;
   }
 }
-
-async function writeDB(data: any): Promise<void> {
-  dbCache = data;
-  if (supabase) {
-    const { error } = await supabase.from("simrs_config").update({ data: data, updated_at: new Date() }).eq("id", "app_state");
-    if (!error) return;
-  }
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
-}
-
-// Jalankan pemanasan koneksi pertama saat boot
-if (supabase) { console.log("Supabase active. Integration ready."); readDB(); }
 
 const DEFAULT_SETTINGS = {
   roles: [
@@ -110,64 +111,57 @@ async function checkAndMigrateSchema(db: any): Promise<boolean> {
   return changed;
 }
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-let memoryDB: any = null;
-
-// Initial seeding helper
+// Initial seeding helper safely refactored for Serverless
 async function initializeDB() {
   try {
-    await fs.access(DB_FILE);
-  } catch {
-    const initialData = {
-      users: [
-        {
-          id: "u-admin",
-          username: "admin",
-          name: "Administrator Utama",
-          nickname: "Admin",
-          password: "admin123",
-          role: "Administrator",
-          email: "admin@taskhub.com",
-          createdAt: new Date().toISOString(),
-          statusAktif: true,
-          siteTugas: "",
-        },
-      ],
-      projects: [],
-      tasks: [],
-      commLogs: [],
-      meetingLogs: [],
-      docs: [],
-      logs: [],
-      settings: DEFAULT_SETTINGS,
-      clients: [],
-      siteImplementations: [],
-      tickets: [],
-      appModules: [],
-      assets: [],
-      monev: [],
-      billing: [],
-      atkItems: [],
-      atkOrders: [],
-      kasSiteTransactions: [],
-      kasLocks: [],
-      kasUnlockRequests: [],
-      checklistItemsSetting: [],
-      checklists: [],
-    };
-    await writeDB(initialData);
-  }
-
-  const current = await readDB();
-  const migrated = await checkAndMigrateSchema(current);
-  if (migrated) {
-    await writeDB(current);
-    console.log("Database schema successfully verified and auto-migrated.");
-  }
-}
-initializeDB().catch(console.error);
+    let current = await readDB();
+    
+    // Jika database kosong, terputus, atau user admin belum terbuat, injeksi akun default
+    if (!current || !current.users || current.users.length === 0) {
+      current = {
+        users: [
+          {
+            id: "u-admin",
+            username: "admin",
+            name: "Administrator Utama",
+            nickname: "Admin",
+            password: "admin123",
+            role: "Administrator",
+            email: "admin@taskhub.com",
+            createdAt: new Date().toISOString(),
+            statusAktif: true,
+            siteTugas: "",
+          },
+        ],
+        projects: [],
+        tasks: [],
+        commLogs: [],
+        meetingLogs: [],
+        docs: [],
+        logs: [],
+        settings: DEFAULT_SETTINGS,
+        clients: [],
+        siteImplementations: [],
+        tickets: [],
+        appModules: [],
+        assets: [],
+        monev: [],
+        billing: [],
+        atkItems: [],
+        atkOrders: [],
+        kasSiteTransactions: [],
+        kasLocks: [],
+        kasUnlockRequests: [],
+        checklistItemsSetting: [],
+        checklists: [],
+      };
+      await writeDB(current);
+      console.log("Database initialized with default administrator account.");
+    } else {
+      // Jika data sudah ada, lakukan validasi kelengkapan struktur tabel (skema)
+      const migrated = await checkAndMigrateSchema(current);
+      if (migrated) {
+        await writeDB(current);
 
 // ─── AUTHENTICATION ENDPOINTS ────────────────────────────────────────────────
 app.post("/api/auth/login", async (req, res) => {
