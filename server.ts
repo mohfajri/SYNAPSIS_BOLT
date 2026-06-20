@@ -1303,6 +1303,7 @@ app.put("/api/checklists/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+} // <-- KURUNG KUNCI: Menutup paksa blok endpoint/fungsi di atas yang sempat menggantung
 
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────
 async function startServer() {
