@@ -953,7 +953,7 @@ const DEFAULT_CHECKLIST_ITEMS = [
     await writeDB(db);
   }
   return db;
-}
+
 
 // ── AUTHENTICATION API ──────────────────────────────────────────────────
 
