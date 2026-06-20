@@ -32,12 +32,36 @@ try {
 } catch (err: any) {
   console.error("Critical: Failed to initialize Supabase client:", err.message || err);
 }
+// --- SINKRONISASI DATABASE UNTUK SERVERLESS VERCEL ---
+let dbCache: any = null;
 
-if (supabase) {
-  console.log("Supabase active. Database synchronization configured.");
-} else {
-  console.log("Supabase not configured. Using local JSON file store (db.json).");
+async function readDB(): Promise<any> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from("simrs_config").select("data").eq("id", "app_state").single();
+      if (!error && data?.data) { dbCache = data.data; return data.data; }
+    } catch (err) { console.error("Supabase read error:", err); }
+  }
+  try {
+    const fileData = await fs.readFile(DB_FILE, "utf-8");
+    dbCache = JSON.parse(fileData);
+    return dbCache;
+  } catch (err) {
+    return { users: [], projects: [], tasks: [], settings: { roles: [] } };
+  }
 }
+
+async function writeDB(data: any): Promise<void> {
+  dbCache = data;
+  if (supabase) {
+    const { error } = await supabase.from("simrs_config").update({ data: data, updated_at: new Date() }).eq("id", "app_state");
+    if (!error) return;
+  }
+  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// Jalankan pemanasan koneksi pertama saat boot
+if (supabase) { console.log("Supabase active. Integration ready."); readDB(); }
 
 const DEFAULT_SETTINGS = {
   roles: [
