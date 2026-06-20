@@ -13,12 +13,14 @@ const DB_FILE = path.join(process.cwd(), "db.json");
 function cleanEnvVar(val: string): string {
   if (!val) return "";
   let cleaned = val.trim();
-  if ((cleaned.startsWith('\"') && cleaned.endsWith('\"')) || (cleaned.startsWith(\"'\") && cleaned.endsWith(\"'\"))) {
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
     cleaned = cleaned.slice(1, -1).trim();
   }
   return cleaned;
 }
 
+// Configure Supabase client if environment variables are provided
+const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
 // Configure Supabase client if environment variables are provided
 const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL || "");
 const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY || "");
