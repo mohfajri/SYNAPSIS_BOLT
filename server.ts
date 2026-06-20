@@ -242,10 +242,6 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 let memoryDB: any = null;
 
-// Helper to write database
-async function writeDB(data: any) {
-  memoryDB = data; // Keep in-memory store updated!
-
   if (supabase) {
     try {
       const { error } = await supabase
@@ -688,12 +684,6 @@ const DEFAULT_CHECKLIST_ITEMS = [
   { id: "cl-item-61", category: "BRIDGING", name: "10. Apotek Online", okLabel: "ON", notOkLabel: "OFF", active: true, order: 61 },
   { id: "cl-item-62", category: "BRIDGING", name: "11. SISRUTE", okLabel: "ON", notOkLabel: "OFF", active: true, order: 62 }
 ];
-
-// DB Access helper
-async function readDB() {
-  await initializeDB();
-  
-  let db: any = null;
 
   if (supabase) {
     try {
