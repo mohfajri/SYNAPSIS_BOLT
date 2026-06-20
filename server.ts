@@ -240,36 +240,6 @@ const DEFAULT_SETTINGS = {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-let memoryDB: any = null;
-
-  if (supabase) {
-    try {
-      const { error } = await supabase
-        .from("simrs_config")
-        .upsert({ id: "app_state", data, updated_at: new Date().toISOString() });
-      if (error) {
-        console.error("Error writing to Supabase:", error.message);
-      } else {
-        console.log("Database state successfully synchronized with Supabase.");
-      }
-    } catch (e: any) {
-      console.error("Exception writing to Supabase:", e.message || e);
-    }
-  }
-
-  try {
-    await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch (fsErr: any) {
-    // Graceful handling for read-only environments like Vercel Serverless
-    console.warn("Local db.json write skipped or failed (read-only environment like Vercel). Status has been updated in-memory.");
-    if (supabase) {
-      console.log("State has been safely synchronized via Supabase.");
-    } else {
-      console.warn("WARNING: Supabase is not configured! Changes will be lost when the serverless function cold-starts. Please configure SUPABASE_URL and SUPABASE_ANON_KEY on Vercel for persistence.");
-    }
-  }
-}
-
 // Initial seeding helper
 async function initializeDB() {
   try {
