@@ -1584,14 +1584,14 @@ export default function App() {
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className={`w-full flex items-center gap-2.5 rounded-lg text-xs font-bold transition-all transition-colors cursor-pointer ${
+                            className={`w-full flex items-center gap-2.5 rounded-lg text-xs font-bold transition-all transition-colors cursor-pointer border ${
                               isSidebarMini 
                                 ? "px-3 py-1.5 md:px-0 md:py-2 md:justify-center" 
                                 : "px-3 py-1.5"
                             } ${
                               isActive 
-                                ? "bg-slate-300/60 dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border border-slate-300/40 dark:border-slate-700/50" 
-                                : "text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                                ? "bg-slate-300/60 dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border-slate-300/40 dark:border-slate-700/50" 
+                                : "border-transparent text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
                             <Icon className="w-4 h-4 opacity-90 shrink-0" />
