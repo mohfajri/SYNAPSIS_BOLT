@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs/promises";
-import { createServer as createViteServer } from "vite";
+// import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
@@ -2520,8 +2520,14 @@ app.put("/api/kassite/unlock-requests/:id", async (req, res) => {
 
 
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────
+
+// 1. HAPUS baris import 'vite' dari bagian paling atas file
+
+// 2. Ubah fungsi startServer menjadi seperti ini:
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    // Gunakan DYNAMIC IMPORT agar Vite hanya dimuat di komputer lokal
+    const { createServer: createViteServer } = await import("vite"); 
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -2530,13 +2536,15 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
+    
+    // Fallback untuk SPA (Single Page Application)
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[SYS] Server running perfectly on port ${PORT}`);
+  
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
