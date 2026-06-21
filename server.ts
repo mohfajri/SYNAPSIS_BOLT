@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs/promises";
-// import { createServer as createViteServer } from "vite";
+import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
@@ -231,6 +231,10 @@ async function writeDB(data: any) {
         console.error("Error writing to Supabase:", error.message);
       } else {
         console.log("Database state successfully synchronized with Supabase.");
+        // Fire and forget collection synchronization in background
+        syncCollectionsToSupabase(data).catch((e) => {
+          console.error("Relational background synchronization error:", e.message || e);
+        });
       }
     } catch (e: any) {
       console.error("Exception writing to Supabase:", e.message || e);
@@ -248,6 +252,199 @@ async function writeDB(data: any) {
       console.warn("WARNING: Supabase is not configured! Changes will be lost when the serverless function cold-starts. Please configure SUPABASE_URL and SUPABASE_ANON_KEY on Vercel for persistence.");
     }
   }
+}
+
+// Background Relational Sync Engine for Supabase
+async function syncCollectionsToSupabase(data: any) {
+  if (!supabase || !data) return;
+
+  const syncTable = async (tableName: string, rows: any[]) => {
+    if (!rows || rows.length === 0) return;
+    try {
+      const { error } = await supabase.from(tableName).upsert(rows);
+      if (error) {
+        console.warn(`[Supabase Sync] Table "${tableName}" failed to sync (Does the table exist in Supabase? Run supabase-schema.sql to build it):`, error.message);
+      } else {
+        console.log(`[Supabase Sync] Table "${tableName}" synced successfully with ${rows.length} rows.`);
+      }
+    } catch (err: any) {
+      console.warn(`[Supabase Sync] Exception during sync of Table "${tableName}":`, err.message || err);
+    }
+  };
+
+  const syncTasks = [
+    syncTable("users", (data.users || []).map((u: any) => ({
+      id: u.id,
+      username: u.username || "",
+      name: u.name || "",
+      nickname: u.nickname || "",
+      password: u.password || "",
+      role: u.role || "",
+      email: u.email || "",
+      status_aktif: u.statusAktif !== false,
+      site_tugas: u.siteTugas || "",
+      divisi: u.divisi || "",
+      created_at: u.createdAt || new Date().toISOString()
+    }))),
+    
+    syncTable("projects", (data.projects || []).map((p: any) => ({
+      id: p.id,
+      kode: p.kode || "",
+      nama: p.nama || "",
+      modul: p.modul || "",
+      pic: p.pic || "",
+      client: p.client || "",
+      asal: p.asal || "",
+      status: p.status || "",
+      start_date: p.startDate || "",
+      end_date: p.endDate || "",
+      completion_date: p.completionDate || "",
+      prasyarat: p.prasyarat || "",
+      notes: p.notes || "",
+      url: p.url || "",
+      created_at: p.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("clients", (data.clients || []).map((c: any) => ({
+      id: c.id,
+      code: c.code || "",
+      name: c.name || "",
+      pic: c.pic || "",
+      status: c.status || "",
+      created_at: c.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("tasks", (data.tasks || []).map((t: any) => ({
+      id: t.id,
+      project: t.project || "",
+      modul: t.modul || "",
+      task: t.task || "",
+      task_type: t.taskType || "",
+      category_progress: t.categoryProgress || "",
+      pic: t.pic || "",
+      priority: t.priority || "",
+      status: t.status || "",
+      start_date: t.startDate || "",
+      due_date: t.dueDate || "",
+      progress: typeof t.progress === 'number' ? t.progress : 0,
+      notes: t.notes || "",
+      created_at: t.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("tickets", (data.tickets || []).map((t: any) => ({
+      id: t.id,
+      ticket_no: t.ticketNo || "",
+      client: t.client || "",
+      modul: t.modul || "",
+      issue: t.issue || "",
+      reported_by: t.reportedBy || "",
+      priority: t.priority || "",
+      status: t.status || "",
+      assigned_to: t.assignedTo || "",
+      solution: t.solution || "",
+      created_at: t.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("commlogs", (data.commlogs || []).map((l: any) => ({
+      id: l.id,
+      project: l.project || "",
+      client: l.client || "",
+      speaker: l.speaker || "",
+      media: l.media || "",
+      topic: l.topic || "",
+      notes: l.notes || "",
+      date: l.date || "",
+      created_at: l.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("meetinglogs", (data.meetinglogs || []).map((l: any) => ({
+      id: l.id,
+      project: l.project || "",
+      client: l.client || "",
+      topic: l.topic || "",
+      host: l.host || "",
+      notes: l.notes || "",
+      date: l.date || "",
+      created_at: l.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("checklists", (data.checklists || []).map((c: any) => ({
+      id: c.id,
+      site: c.site || "",
+      verified_by: c.verifiedBy || "",
+      notes: c.notes || "",
+      score: typeof c.score === 'number' ? c.score : 0,
+      created_at: c.createdAt || new Date().toISOString(),
+      items: c.items || []
+    }))),
+
+    syncTable("assets", (data.assets || []).map((a: any) => ({
+      id: a.id,
+      name: a.name || "",
+      code: a.code || "",
+      category: a.category || "",
+      status: a.status || "",
+      location: a.location || "",
+      owner: a.owner || "",
+      created_at: a.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("monev", (data.monev || []).map((m: any) => ({
+      id: m.id,
+      site: m.site || "",
+      indicator: m.indicator || "",
+      target: typeof m.target === 'number' ? m.target : 0,
+      actual: typeof m.actual === 'number' ? m.actual : 0,
+      status: m.status || "",
+      notes: m.notes || "",
+      period: m.period || "",
+      created_at: m.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("billing", (data.billing || []).map((b: any) => ({
+      id: b.id,
+      invoice_no: b.invoiceNo || "",
+      client: b.client || "",
+      amount: typeof b.amount === 'number' ? b.amount : 0,
+      due_date: b.dueDate || "",
+      status: b.status || "",
+      notes: b.notes || "",
+      created_at: b.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("atk_items", (data.atkItems || []).map((i: any) => ({
+      id: i.id,
+      name: i.name || "",
+      unit: i.unit || "",
+      price: typeof i.price === 'number' ? i.price : 0,
+      created_at: i.createdAt || new Date().toISOString(),
+      created_by: i.createdBy || ""
+    }))),
+
+    syncTable("atk_orders", (data.atkOrders || []).map((o: any) => ({
+      id: o.id,
+      item_id: o.itemId || "",
+      item_name: o.itemName || "",
+      quantity: typeof o.quantity === 'number' ? o.quantity : 1,
+      requested_by: o.requestedBy || "",
+      status: o.status || "",
+      notes: o.notes || "",
+      created_at: o.createdAt || new Date().toISOString()
+    }))),
+
+    syncTable("kas_site_transactions", (data.kasSiteTransactions || []).map((t: any) => ({
+      id: t.id,
+      site: t.site || "",
+      type: t.type || "",
+      amount: typeof t.amount === 'number' ? t.amount : 0,
+      description: t.description || "",
+      reported_by: t.reportedBy || "",
+      date: t.date || "",
+      created_at: t.createdAt || new Date().toISOString()
+    })))
+  ];
+
+  await Promise.allSettled(syncTasks);
 }
 
 // Initial seeding helper
@@ -683,6 +880,10 @@ async function readDB() {
         console.warn("Could not retrieve state from Supabase, error or row absent:", error.message);
       } else if (data && data.data) {
         db = data.data;
+        // Trigger background sync to individual tables so they are always in sync with 'app_state'
+        syncCollectionsToSupabase(db).catch((e) => {
+          console.error("Relational boot background sync error:", e.message || e);
+        });
       }
     } catch (e: any) {
       console.error("Exception fetching database from Supabase:", e.message || e);
@@ -711,6 +912,10 @@ async function readDB() {
           .from("simrs_config")
           .upsert({ id: "app_state", data: db, updated_at: new Date().toISOString() });
         console.log("Migration successful!");
+        // Sync collections too in background
+        syncCollectionsToSupabase(db).catch((e) => {
+          console.error("Relational migration background sync error:", e.message || e);
+        });
       } catch (migErr: any) {
         console.error("Failed to migrate initial data to Supabase:", migErr.message || migErr);
       }
@@ -2520,14 +2725,8 @@ app.put("/api/kassite/unlock-requests/:id", async (req, res) => {
 
 
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────
-
-// 1. HAPUS baris import 'vite' dari bagian paling atas file
-
-// 2. Ubah fungsi startServer menjadi seperti ini:
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    // Gunakan DYNAMIC IMPORT agar Vite hanya dimuat di komputer lokal
-    const { createServer: createViteServer } = await import("vite"); 
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -2536,15 +2735,13 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    
-    // Fallback untuk SPA (Single Page Application)
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-  
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[SYS] Server running perfectly on port ${PORT}`);
   });
 }
 
