@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Columns,
   Sidebar,
-  CheckCircle2
+  CheckCircle2,
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1295,6 +1296,12 @@ export default function TasksView({
   };
 
   // --- RENDERING MAIN LOGIC ---
+  const activeNonDeletedTasks = tasks.filter(t => !t.isDeleted);
+  const countInProgress = activeNonDeletedTasks.filter(t => t.status === "In Progress" || t.status === "Sedang Berjalan").length;
+  const countNotStarted = activeNonDeletedTasks.filter(t => t.status === "Not Started" || t.status === "Belum Dimulai").length;
+  const countPending = activeNonDeletedTasks.filter(t => t.status === "Pending" || t.status === "Tertunda").length;
+  const countDone = activeNonDeletedTasks.filter(t => t.status === "Done" || t.status === "Selesai").length;
+  const inProgressTasks = activeNonDeletedTasks.filter(t => t.status === "In Progress" || t.status === "Sedang Berjalan");
 
   // RENDER METHOD 1: TASK CREATION & EDITING FORM (FULL VIEW INSTEAD OF POPUP MODAL)
   if (isFormOpen) {
@@ -2022,157 +2029,292 @@ export default function TasksView({
   return (
     <div className="space-y-6 fade-in font-sans pb-10">
       
-      {/* Interactive Filters Grid & Visual togglers */}
-      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
-        
-        {/* Keyword filter input */}
-        <div className="relative flex-1 min-w-[150px]">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari judul..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 pl-9 pr-4 text-xs text-slate-800 dark:text-slate-100"
-          />
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 duration-200 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+        <div>
+          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-wider mb-1">
+            <CheckSquare className="w-4 h-4" />
+            <span>Task Management & Progression Hub</span>
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+            Tugas & Progress Kerja
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+            Kelola, saring, pantau seluruh aktivitas pengerjaan modul, request klien, pemeliharaan sistem, serta delegasikan tugas antarsistem secara efisien.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-800 rounded-xl px-4 py-3 shrink-0">
+          <div className="text-left">
+            <span className="text-[10px] uppercase font-mono font-bold text-slate-400 dark:text-slate-500 block">Total Tugas</span>
+            <span className="text-lg font-black text-slate-800 dark:text-white leading-none">
+              {activeNonDeletedTasks.length} <span className="text-xs font-normal text-slate-400">Tugas</span>
+            </span>
+          </div>
+          <div className="w-px h-8 bg-slate-200 dark:bg-slate-800" />
+          <div className="text-left">
+            <span className="text-[10px] uppercase font-mono font-bold text-slate-400 dark:text-slate-500 block">Penyelesaian</span>
+            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none">
+              {activeNonDeletedTasks.length > 0 ? Math.round((countDone / activeNonDeletedTasks.length) * 100) : 0}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* PANEL STATUS (Wider responsive grid columns spanning full container width) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* In Progress Card */}
+        <div className="bg-gradient-to-br from-blue-50/70 to-blue-50/20 dark:from-blue-955/10 dark:to-transparent border border-blue-200/80 dark:border-blue-900/40 rounded-2xl p-5 flex items-center justify-between shadow-xs transition-transform hover:scale-[1.01]">
+          <div className="space-y-1.5 text-left">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Sedang Berjalan</span>
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+            </div>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{countInProgress}</h3>
+            <span className="text-[10.5px] font-bold text-slate-450 dark:text-slate-500 block">Dalam pengerjaan tim</span>
+          </div>
+          <div className="p-3.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl">
+            <Clock className="w-6 h-6 animate-spin-slow" />
+          </div>
         </div>
 
-        {/* Filters Select boxes mapping */}
-        <select
-          value={filterProject}
-          onChange={(e) => setFilterProject(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua Project</option>
-          {projects.map(p => <option key={p.kode} value={p.kode}>{p.nama}</option>)}
-        </select>
-
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua Status</option>
-          {progressStatusesList.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua Prioritas</option>
-          {prioritiesList.map(p => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-
-        <select
-          value={filterPic}
-          onChange={(e) => setFilterPic(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua PIC</option>
-          {picsList.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
-        <select
-          value={filterTaskType}
-          onChange={(e) => setFilterTaskType(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua Tipe Tugas</option>
-          {tasktypesList.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-
-        <select
-          value={filterCatProgress}
-          onChange={(e) => setFilterCatProgress(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/25"
-        >
-          <option value="">Semua Kategori Progress</option>
-          {catProgsList.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-
-        {/* View togglers & action button */}
-        <div className="flex bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('ticket')}
-            className={`p-1.5 rounded-md transition-all ${viewMode === 'ticket' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-450 dark:text-slate-500'} cursor-pointer`}
-            title="Tampilan Kartu"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-450 dark:text-slate-500'} cursor-pointer`}
-            title="Tampilan Tabel"
-          >
-            <ListOrdered className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('delegation')}
-            className={`p-1.5 rounded-md transition-all ${viewMode === 'delegation' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-450 dark:text-slate-500'} cursor-pointer`}
-            title="Peta Pohon Delegasi"
-          >
-            <Layers className="w-4 h-4" />
-          </button>
+        {/* Not Started Card */}
+        <div className="bg-gradient-to-br from-slate-50/70 to-slate-50/20 dark:from-slate-900/40 dark:to-transparent border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex items-center justify-between shadow-xs transition-transform hover:scale-[1.01]">
+          <div className="space-y-1.5 text-left">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">Belum Dimulai</span>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{countNotStarted}</h3>
+            <span className="text-[10.5px] font-bold text-slate-450 dark:text-slate-500 block">Tugas daftar antrean</span>
+          </div>
+          <div className="p-3.5 bg-slate-500/10 text-slate-500 dark:text-slate-400 rounded-2xl">
+            <Calendar className="w-6 h-6" />
+          </div>
         </div>
 
-        {/* Detail Layout Toggle */}
-        <div className="flex bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1 items-center gap-0.5">
-          <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 dark:text-slate-500 px-1 select-none font-mono">Modul Detail:</span>
-          <button
-            onClick={() => setDetailLayout('drawer')}
-            className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[11px] font-bold ${detailLayout === 'drawer' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-450 dark:text-slate-500'} cursor-pointer`}
-            title="Tampilan Laci Samping (Spacious & Elegant - Direkomendasikan)"
-          >
-            <Sidebar className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Laci Lebar</span>
-          </button>
-          <button
-            onClick={() => setDetailLayout('split')}
-            className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[11px] font-bold ${detailLayout === 'split' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-450 dark:text-slate-500'} cursor-pointer`}
-            title="Tampilan Pisah Samping (Sempit)"
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Pisah Kolom</span>
-          </button>
+        {/* Pending Card */}
+        <div className="bg-gradient-to-br from-amber-50/60 to-amber-50/15 dark:from-amber-955/8 dark:to-transparent border border-amber-200/60 dark:border-amber-900/30 rounded-2xl p-5 flex items-center justify-between shadow-xs transition-transform hover:scale-[1.01]">
+          <div className="space-y-1.5 text-left">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-amber-400">Tertunda</span>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{countPending}</h3>
+            <span className="text-[10.5px] font-bold text-slate-450 dark:text-slate-500 block">Menunggu konfirmasi / feedback</span>
+          </div>
+          <div className="p-3.5 bg-amber-500/10 text-amber-600 dark:text-amber-450 rounded-2xl">
+            <AlertCircle className="w-6 h-6" />
+          </div>
         </div>
 
-        <button
-          onClick={() => setShowTrashOnly(!showTrashOnly)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
-            showTrashOnly
-              ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60"
-              : "border-slate-250 text-slate-550 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-850"
-          }`}
-          title={showTrashOnly ? "Kembali ke Tugas Aktif" : "Lihat Tong Sampah (Recycle Bin)"}
-        >
-          <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
-          <span className="hidden sm:inline">
-            {showTrashOnly ? "Lihat Tugas Aktif" : `Tong Sampah (${tasks.filter(t => t.isDeleted).length})`}
-          </span>
-        </button>
+        {/* Done Card */}
+        <div className="bg-gradient-to-br from-emerald-50/60 to-emerald-50/15 dark:from-emerald-955/8 dark:to-transparent border border-emerald-200/55 dark:border-emerald-900/30 rounded-2xl p-5 flex items-center justify-between shadow-xs transition-transform hover:scale-[1.01]">
+          <div className="space-y-1.5 text-left">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Selesai / Done</span>
+            <h3 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{countDone}</h3>
+            <span className="text-[10.5px] font-bold text-slate-450 dark:text-slate-500 block">Telah berhasil diselesaikan</span>
+          </div>
+          <div className="p-3.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 rounded-2xl">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
 
-        <button
-          onClick={handleExportCSV}
-          className="p-1.5 border border-slate-250 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-850 rounded-lg text-slate-500 dark:text-slate-400 transition-colors"
-          title="Export CSV"
-        >
-          <Download className="w-4 h-4" />
-        </button>
+      {/* MINIMALIST & FLUID FILTER PANEL */}
+      <div className="bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl p-4.5 space-y-4">
+        {/* Top bar with quick buttons & trash */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-3 bg-blue-600 dark:bg-blue-500 rounded-full" />
+            <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Saring & Kelola Tugas
+            </h3>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
+            <button
+              onClick={() => setShowTrashOnly(!showTrashOnly)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                showTrashOnly
+                  ? "bg-red-500/10 text-red-600 border-red-200/40 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/40"
+                  : "border-slate-200/85 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700 text-slate-600 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:bg-slate-800/40"
+              }`}
+              title={showTrashOnly ? "Kembali ke Tugas Aktif" : "Lihat Tong Sampah"}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <span>
+                {showTrashOnly ? "Tugas Aktif" : `Tong Sampah (${tasks.filter(t => t.isDeleted).length})`}
+              </span>
+            </button>
 
-        {currentUser?.role !== "Client" && (
-          <button
-            onClick={openCreate}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Tambah Task
-          </button>
-        )}
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200/85 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:bg-slate-800/40 transition-all cursor-pointer"
+              title="Export CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Minimal filters dropdown grid (Standard Tailwind classes only!) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+          {/* Keyword Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari judul..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-1.5 pl-8.5 pr-3 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 outline-none transition-all font-medium"
+            />
+          </div>
+
+          {/* Project Selector */}
+          <div className="relative">
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua Project</option>
+              {projects.map(p => <option key={p.kode} value={p.kode}>{p.nama}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          {/* Status Selector */}
+          <div className="relative">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua Status</option>
+              {progressStatusesList.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          {/* Priority Selector */}
+          <div className="relative">
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua Prioritas</option>
+              {prioritiesList.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          {/* PIC Selector */}
+          <div className="relative">
+            <select
+              value={filterPic}
+              onChange={(e) => setFilterPic(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua PIC</option>
+              {picsList.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          {/* Task Type Selector */}
+          <div className="relative">
+            <select
+              value={filterTaskType}
+              onChange={(e) => setFilterTaskType(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua Tipe Tugas</option>
+              {tasktypesList.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+
+          {/* Kategori Progress Selector */}
+          <div className="relative">
+            <select
+              value={filterCatProgress}
+              onChange={(e) => setFilterCatProgress(e.target.value)}
+              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+            >
+              <option value="">Semua Kategori Progress</option>
+              {catProgsList.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Toolbar Footer for layout mode preferences */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-3 border-t border-slate-200/50 dark:border-slate-800/40">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* View layout modes */}
+            <div className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200/60 dark:bg-slate-950 dark:hover:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-0.5 rounded-xl transition-colors">
+              <button
+                onClick={() => setViewMode('ticket')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${viewMode === 'ticket' ? 'bg-white dark:bg-slate-805 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'} cursor-pointer`}
+                title="Tampilan Kartu"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Kartu</span>
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-805 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'} cursor-pointer`}
+                title="Tampilan Tabel Berkelanjutan"
+              >
+                <ListOrdered className="w-3.5 h-3.5" />
+                <span>Tabel</span>
+              </button>
+              <button
+                onClick={() => setViewMode('delegation')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${viewMode === 'delegation' ? 'bg-white dark:bg-slate-805 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'} cursor-pointer`}
+                title="Peta Pohon Delegasi"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Delegasi</span>
+              </button>
+            </div>
+
+            {/* Split preference layout */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 p-0.5 rounded-xl">
+              <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 dark:text-slate-500 px-2 select-none font-mono">Modul Detail:</span>
+              <button
+                onClick={() => setDetailLayout('drawer')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all ${detailLayout === 'drawer' ? 'bg-white dark:bg-slate-805 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'} cursor-pointer`}
+                title="Laci Tab Samping"
+              >
+                <Sidebar className="w-3.5 h-3.5 text-current" />
+                <span>Laci</span>
+              </button>
+              <button
+                onClick={() => setDetailLayout('split')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all ${detailLayout === 'split' ? 'bg-white dark:bg-slate-805 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'} cursor-pointer`}
+                title="Kolom Terbagi"
+              >
+                <Columns className="w-3.5 h-3.5 text-current" />
+                <span>Pisah</span>
+              </button>
+            </div>
+          </div>
+
+          {currentUser?.role !== "Client" && (
+            <button
+              onClick={openCreate}
+              className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md active:scale-97 transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-white" />
+              <span>Tambah Tugas</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Dual Column Workspace layout (strictly no popup models!) */}
@@ -2220,38 +2362,38 @@ export default function TasksView({
               const childCount = tasks.filter(x => x.parentTaskId === t.id).length;
 
               // Left accent strip or clean custom coloring theme
-              let categoryCardStyles = "border-t-blue-500 hover:border-t-blue-600";
+              let categoryCardStyles = "border-l-blue-500";
               if (t.taskCategoryType === "Mandiri") {
-                categoryCardStyles = "border-t-amber-500 hover:border-t-amber-650";
+                categoryCardStyles = "border-l-amber-550 dark:border-l-amber-500";
               } else if (t.taskCategoryType === "Incident") {
-                categoryCardStyles = "border-t-rose-500 hover:border-t-rose-650";
+                categoryCardStyles = "border-l-rose-500";
               } else if (t.taskCategoryType === "Request") {
-                categoryCardStyles = "border-t-sky-500 hover:border-t-sky-600";
+                categoryCardStyles = "border-l-sky-500";
               }
 
               return (
                 <div 
                   key={t.id}
                   onClick={() => setSelectedTask(t)}
-                  className={`bg-white dark:bg-slate-900 border-t-[3.5px] border-x border-b border-x-slate-205 border-b-slate-205 dark:border-x-slate-800/80 dark:border-b-slate-800/80 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)] hover:-translate-y-1 hover:border-blue-500/20 dark:hover:border-blue-500/35 transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 group relative ${categoryCardStyles} ${selectedTask?.id === t.id ? "ring-2 ring-blue-500/30 dark:ring-blue-500/40 border-slate-300 dark:border-slate-700" : ""}`}
+                  className={`bg-white dark:bg-slate-900/70 border-y border-r border-l-3 border-slate-100 dark:border-slate-800/85 rounded-xl p-4.5 shadow-[0_1.5px_6px_rgba(0,0,0,0.015)] hover:shadow-[0_10px_25px_rgba(0,0,0,0.035)] dark:hover:shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 hover:border-slate-200 dark:hover:border-slate-700 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3.5 group relative ${categoryCardStyles} ${selectedTask?.id === t.id ? "ring-2 ring-blue-500/15 dark:ring-blue-500/35 border-slate-200 dark:border-slate-700 bg-slate-50/15" : ""}`}
                 >
-                  {/* Glassmorphic accent inside container cards */}
-                  <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-slate-50/40 dark:from-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none rounded-t-2xl" />
+                  {/* Subtle hover gradient light glow */}
+                  <div className="absolute top-0 inset-l-0 w-8 h-full bg-gradient-to-r from-slate-50/20 dark:from-slate-950/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none rounded-l-xl" />
 
-                  <div className="space-y-3 relative z-10 select-none">
+                  <div className="space-y-2.5 relative z-10 select-none">
                     <div className="flex justify-between items-center text-[10px] font-mono">
-                      <span className="text-slate-400 dark:text-slate-500 font-extrabold bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-850/30">
+                      <span className="text-slate-400 dark:text-slate-500 font-extrabold bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-800/40">
                         TKT-{String(tasks.indexOf(t) + 1).padStart(4, "0")}
                       </span>
                       <span className={`${getPriorityStyle(t.priority)} scale-90 origin-right`} />
                     </div>
                     
                     <div className="space-y-1">
-                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug line-clamp-2" title={t.task}>
+                      <h4 className="text-xs font-extrabold text-slate-850 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug line-clamp-2" title={t.task}>
                         {t.task}
                       </h4>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-450 font-bold truncate flex items-center gap-1 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-705 inline-block" />
+                      <p className="text-[10.5px] text-slate-400 dark:text-slate-450 font-semibold truncate flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 inline-block" />
                         {projects.find(p => p.kode === t.project)?.nama || t.project || "Umum / Non-Proyek"}
                       </p>
                     </div>
@@ -2264,26 +2406,26 @@ export default function TasksView({
                       {t.taskCategoryType && (
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-wide select-none uppercase shrink-0 ${
                           t.taskCategoryType === "Mandiri"
-                            ? "bg-amber-50 text-amber-700 dark:bg-amber-955/20 dark:text-amber-400 border border-amber-205/10"
+                            ? "bg-amber-50 text-amber-705 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200/10"
                             : t.taskCategoryType === "Incident"
-                            ? "bg-rose-50 text-rose-700 dark:bg-rose-955/20 dark:text-rose-450 border border-rose-205/10"
+                            ? "bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400 border border-rose-200/10"
                             : t.taskCategoryType === "Request"
-                            ? "bg-sky-50 text-sky-750 dark:bg-sky-955/10 dark:text-sky-450 border border-sky-205/10"
-                            : "bg-blue-50 text-blue-800 dark:bg-blue-955/20 dark:text-blue-400 border border-blue-205/10"
+                            ? "bg-sky-50 text-sky-750 dark:bg-sky-900/15 dark:text-sky-450 border border-sky-200/10"
+                            : "bg-blue-50 text-blue-800 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200/10"
                         }`}>
                           🏷️ {t.taskCategoryType}
                         </span>
                       )}
 
                       {t.categoryProgress && (
-                        <span className="bg-slate-50 dark:bg-slate-950 border border-slate-105 dark:border-slate-850/55 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
+                        <span className="bg-slate-50 dark:bg-slate-950 border border-slate-200/45 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">
                           {t.categoryProgress}
                         </span>
                       )}
 
                       {subTotal > 0 && (
                         <span className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 select-none">
-                          <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-555" />
+                          <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-500" />
                           <span>Check {subDone}/{subTotal}</span>
                         </span>
                       )}
@@ -2373,7 +2515,7 @@ export default function TasksView({
                             e.stopPropagation();
                             initiateDeleteTask(t);
                           }}
-                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/15 text-red-650 dark:text-red-405 font-black text-[9px] rounded-lg cursor-pointer text-center uppercase tracking-wider border border-red-500/10 transition-all select-none"
+                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/15 text-red-600 dark:text-red-400 font-black text-[9px] rounded-lg cursor-pointer text-center uppercase tracking-wider border border-red-500/10 transition-all select-none"
                           title="Hapus Permanen Selamanya"
                         >
                           🔥 Hapus Permanen

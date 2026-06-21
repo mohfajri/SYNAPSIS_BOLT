@@ -9,6 +9,7 @@ export interface User {
   siteTugas?: string; // name of Client RS
   statusAktif?: boolean; // active status (default: true)
   divisi?: string; // department / division
+  photoUrl?: string; // profile picture base64/url (max 500kb, square)
   createdAt: string;
 }
 

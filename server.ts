@@ -1253,7 +1253,7 @@ app.get("/api/users", async (req, res) => {
 
 app.post("/api/users", async (req, res) => {
   try {
-    const { username, name, nickname, password, email, role, siteTugas, statusAktif, divisi } = req.body;
+    const { username, name, nickname, password, email, role, siteTugas, statusAktif, divisi, photoUrl } = req.body;
     if (!username || !name || !nickname || !password || !email || !role) {
       return res.status(400).json({ error: "Seluruh data user wajib diisi!" });
     }
@@ -1274,6 +1274,7 @@ app.post("/api/users", async (req, res) => {
       siteTugas: siteTugas || "",
       statusAktif: statusAktif !== undefined ? Boolean(statusAktif) : true,
       divisi: divisi || "",
+      photoUrl: photoUrl || "",
       createdAt: new Date().toISOString()
     };
 
@@ -1290,7 +1291,7 @@ app.post("/api/users", async (req, res) => {
 app.put("/api/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, nickname, email, role, password, siteTugas, statusAktif, divisi } = req.body;
+    const { name, nickname, email, role, password, siteTugas, statusAktif, divisi, photoUrl } = req.body;
     const db = await readDB();
     const idx = db.users.findIndex((u: any) => u.id === id);
     if (idx === -1) {
@@ -1309,6 +1310,9 @@ app.put("/api/users/:id", async (req, res) => {
     }
     if (divisi !== undefined) {
       db.users[idx].divisi = divisi;
+    }
+    if (photoUrl !== undefined) {
+      db.users[idx].photoUrl = photoUrl;
     }
     if (password) {
       db.users[idx].password = password;

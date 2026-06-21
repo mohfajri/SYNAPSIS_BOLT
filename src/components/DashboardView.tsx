@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import { Project, Task } from "../types";
 import { 
-  BarChart3, 
-  Layers, 
-  CheckCircle2, 
+  LayoutDashboard, 
+  Briefcase, 
+  CheckSquare, 
   Clock, 
   AlertTriangle, 
-  FolderLock, 
-  Sparkles, 
-  ArrowUpRight,
+  ChevronRight, 
+  ArrowRight, 
+  Search,
+  Building2,
   TrendingUp,
-  Award,
-  Search
+  User,
+  Calendar,
+  CheckCircle2
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -24,375 +26,352 @@ interface DashboardViewProps {
 }
 
 export default function DashboardView({
-  projects,
-  tasks,
+  projects = [],
+  tasks = [],
   onNavigateToView,
   onViewTaskDetail,
   picThemeColors
 }: DashboardViewProps) {
-  const [projSearch, setProjSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Statistics calculation
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(p => p.status !== "Completed" && p.status !== "Cancelled").length;
   
-  // Greeting based on time of day
-  const hour = new Date().getHours();
-  const greeting = hour < 11 ? "Selamat Pagi 🌅" : hour < 15 ? "Selamat Siang ☀️" : hour < 18 ? "Selamat Sore 🌇" : "Selamat Malam 🌙";
-
-  // Calculate high-level statistics
   const totalTasks = tasks.length;
-  const doneTasks = tasks.filter((t) => t.status === "Done").length;
-  const inProgressTasks = tasks.filter((t) => t.status === "In Progress").length;
-  const pendingTasks = tasks.filter((t) => t.status === "Pending").length;
-  const backlogTasks = tasks.filter((t) => t.status === "Backlog").length;
-  const cancelledTasks = tasks.filter((t) => t.status === "Cancelled").length;
-  const notStartedTasks = tasks.filter((t) => t.status === "Not Started").length;
+  const doneTasks = tasks.filter(t => t.status === "Done").length;
+  const activeTasks = tasks.filter(t => t.status !== "Done" && t.status !== "Cancelled").length;
+  
+  const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-  // Determine current date string
-  const formattedDate = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  }).format(new Date());
-
-  // Overdue calculation
+  // Overdue status check
   const todayStr = new Date().toISOString().slice(0, 10);
-  const overdueTasks = tasks.filter((t) => {
+  const overdueTasks = tasks.filter(t => {
+    return t.status !== "Done" && t.status !== "Cancelled" && t.dueDate && t.dueDate < todayStr;
+  });
+
+  // Filtered projects for the progress table
+  const filteredProjects = projects.filter(p => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
     return (
-      t.status !== "Done" &&
-      t.status !== "Cancelled" &&
-      t.dueDate &&
-      t.dueDate < todayStr
+      p.nama.toLowerCase().includes(q) ||
+      p.kode.toLowerCase().includes(q) ||
+      (p.client && p.client.toLowerCase().includes(q)) ||
+      (p.pic && p.pic.toLowerCase().includes(q))
     );
   });
 
-  // Calculate project completion rates
-  const projectSummaries = projects.map((p) => {
-    const projTasks = tasks.filter((t) => t.project === p.kode);
-    const completed = projTasks.filter((t) => t.status === "Done").length;
-    const progressPercent = projTasks.length === 0 ? 0 : Math.round((completed / projTasks.length) * 100);
-    return {
-      ...p,
-      progressPercent,
-      taskCount: projTasks.length,
-      doneCount: completed
-    };
-  });
+  // Critical task list (Urgent or Overdue, limit to 6)
+  const criticalTasks = tasks
+    .filter(t => {
+      const isUrgent = t.priority === "Urgent" || t.priority === "High";
+      const isOverdue = t.status !== "Done" && t.status !== "Cancelled" && t.dueDate && t.dueDate < todayStr;
+      const isPending = t.status !== "Done" && t.status !== "Cancelled";
+      return isPending && (isUrgent || isOverdue);
+    })
+    .sort((a, b) => {
+      // Sort by due date ascending
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    })
+    .slice(0, 6);
 
-  const filteredProjectSummaries = projectSummaries.filter(p => {
-    const q = projSearch.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      (p.nama && p.nama.toLowerCase().includes(q)) || 
-      (p.kode && p.kode.toLowerCase().includes(q)) || 
-      (p.pic && p.pic.toLowerCase().includes(q)) ||
-      (p.client && p.client.toLowerCase().includes(q))
-    );
-  });
-
-  // Category summary calculations for display
-  const priorities = ["Urgent", "High", "Medium", "Low", "Very Low"] as const;
-  const maxPriorityCount = Math.max(
-    ...priorities.map(p => tasks.filter(t => t.priority === p).length),
-    1
-  );
+  // Dynamic greetings based on current local hours
+  const currentHour = new Date().getHours();
+  let greetingText = "Selamat Pagi";
+  if (currentHour >= 11 && currentHour < 15) {
+    greetingText = "Selamat Siang";
+  } else if (currentHour >= 15 && currentHour < 18) {
+    greetingText = "Selamat Sore";
+  } else if (currentHour >= 18 || currentHour < 4) {
+    greetingText = "Selamat Malam";
+  }
 
   return (
-    <div className="space-y-6 fade-in font-sans">
-      
-      {/* Top Greeting Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+    <div className="space-y-6">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 duration-200 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
         <div>
-          <h2 className="text-2xl font-bold font-sans text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            {greeting}
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            Hari ini adalah {formattedDate} &bull; Selamat bekerja di SYNAPSIS.
+          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-wider mb-1">
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Enterprise Command Center</span>
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+            {greetingText}, Tim Synapsis
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+            Selamat datang kembali di portal Synapsis. Seluruh data projek, ATK, pemeliharaan, serta monitoring kinerja kso tersaji terpusat dan sinkron secara realtime.
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 rounded-xl px-4 py-3">
-          <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <div className="text-xs">
-            <span className="font-bold text-slate-800 dark:text-slate-200 block">Status PostgreSQL Terkoneksi</span>
-            <span className="text-slate-500 dark:text-slate-400">Arsitektur Spring & Node Aktif</span>
+        <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 rounded-xl px-4 py-2.5">
+          <div className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </div>
+          <div className="text-[11px] leading-tight text-left">
+            <span className="font-extrabold text-slate-800 dark:text-slate-200 block">Sistem Aktif</span>
+            <span className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Sinkronisasi Real-Time</span>
           </div>
         </div>
       </div>
 
-      {/* Stats Matrix */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm text-center">
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-widest">Total Tugas</p>
-          <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">{totalTasks}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs text-center border-l-4 border-l-emerald-500">
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold tracking-widest">Selesai</p>
-          <p className="text-3xl font-extrabold text-emerald-500 dark:text-emerald-400 mt-1">{doneTasks}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm text-center border-l-4 border-l-amber-500">
-          <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-widest">Sedang Jalan</p>
-          <p className="text-3xl font-extrabold text-amber-500 mt-1">{inProgressTasks}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm text-center border-l-4 border-l-purple-500">
-          <p className="text-[10px] text-purple-600 dark:text-purple-400 uppercase font-bold tracking-widest">Pending</p>
-          <p className="text-3xl font-extrabold text-purple-500 mt-1">{pendingTasks}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm text-center border-l-4 border-l-red-500">
-          <p className="text-[10px] text-red-600 dark:text-red-400 uppercase font-bold tracking-widest">Terlambat</p>
-          <p className="text-3xl font-extrabold text-red-500 mt-1">{overdueTasks.length}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm text-center">
-          <p className="text-[10px] text-cyan-600 dark:text-cyan-400 uppercase font-bold tracking-widest">Backlog</p>
-          <p className="text-3xl font-extrabold text-cyan-500 mt-1">{backlogTasks}</p>
-        </div>
-      </div>
-
-      {/* Two and Three Column Breakdown Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left: Priority Progress Indicators */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm lg:col-span-4">
-          <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-slate-400" /> Beban Berdasarkan Prioritas
-          </h3>
-          <div className="space-y-4">
-            {priorities.map((p) => {
-              const count = tasks.filter((t) => t.priority === p).length;
-              const pct = maxPriorityCount === 0 ? 0 : (count / maxPriorityCount) * 100;
-              const priorityColors: Record<string, string> = {
-                Urgent: "bg-red-500",
-                High: "bg-orange-500",
-                Medium: "bg-amber-500",
-                Low: "bg-emerald-500",
-                "Very Low": "bg-slate-400"
-              };
-
-              return (
-                <div key={p} className="space-y-1">
-                  <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
-                    <span className="flex items-center gap-1.5 font-semibold">
-                      <span className={`w-2 h-2 rounded-full ${priorityColors[p]}`} />
-                      {p}
-                    </span>
-                    <span className="font-mono font-bold">{count} tugas</span>
-                  </div>
-                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div className={`h-full ${priorityColors[p]}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Pie-chart / Status Flow List */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm lg:col-span-8 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Layers className="w-4 h-4 text-slate-400" /> Distribusi Alur Tugas status
-            </h3>
-            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded">
-              Grafik Status
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {[
-              { label: "Done", count: doneTasks, color: "bg-emerald-500", text: "text-emerald-600" },
-              { label: "In Progress", count: inProgressTasks, color: "bg-amber-500", text: "text-amber-600" },
-              { label: "Not Started", count: notStartedTasks, color: "bg-slate-400", text: "text-slate-500" },
-              { label: "Pending", count: pendingTasks, color: "bg-purple-500", text: "text-purple-600" },
-              { label: "Backlog", count: backlogTasks, color: "bg-cyan-500", text: "text-cyan-600" },
-              { label: "Cancelled", count: cancelledTasks, color: "bg-red-400", text: "text-red-500" }
-            ].map((st) => {
-              const pct = totalTasks === 0 ? 0 : Math.round((st.count / totalTasks) * 100);
-              return (
-                <div key={st.label} className="bg-slate-50 dark:bg-slate-950/40 border border-slate-250/20 dark:border-slate-800/60 p-4 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{st.label}</span>
-                    <span className={`w-2.5 h-2.5 rounded-full ${st.color}`} />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-800 dark:text-slate-200">{st.count}</span>
-                    <span className="text-xs font-mono font-bold text-slate-400">({pct}%)</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-      </div>
-
-      {/* Project Milestones and Completion Panel */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-            <FolderLock className="w-4 h-4 text-blue-500" /> Status Project Master (Database PostgreSQL)
-          </h3>
-          <div className="flex items-center gap-3">
-            <div className="relative font-sans text-xs shrink-0 max-w-[200px] w-full">
-              <input
-                type="text"
-                placeholder="Cari project..."
-                value={projSearch}
-                onChange={(e) => setProjSearch(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 dark:bg-slate-950 dark:border-slate-800 rounded-lg py-1.5 pl-8 pr-3 font-semibold text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-blue-500/30 text-xs"
-              />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            </div>
+      {/* QUICK STATS 4-CARD GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Projects Card */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-4 rounded-xl flex items-center justify-between shadow-xs">
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Projek Berjalan</span>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white">{activeProjects} <span className="text-xs text-slate-450 dark:text-slate-500 font-normal">/ {totalProjects} total</span></h3>
             <button 
-              onClick={() => onNavigateToView("projects")} 
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 transition-all shrink-0"
+              onClick={() => onNavigateToView("projects")}
+              className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-0.5 mt-2 cursor-pointer"
             >
-              Kelola <ArrowUpRight className="w-3.5 h-3.5" />
+              Lihat Projek <ChevronRight className="w-2.5 h-2.5" />
             </button>
           </div>
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
+            <Briefcase className="w-5 h-5" />
+          </div>
         </div>
 
-        {projectSummaries.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 italic">Belum ada project master terdaftar di database.</p>
-        ) : filteredProjectSummaries.length === 0 ? (
-          <p className="text-xs text-slate-450 dark:text-slate-500 italic">Tidak ada project yang cocok dengan pencarian "{projSearch}".</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {filteredProjectSummaries.map((p) => {
-              const statusColors: Record<string, string> = {
-                "On Track": "text-emerald-500",
-                "Completed": "text-emerald-600",
-                "Delayed": "text-red-500",
-                "On Hold": "text-amber-500",
-                "Cancelled": "text-slate-400"
-              };
-              const textPercentColor = p.progressPercent === 100 ? "text-emerald-500" : "text-blue-600 dark:text-blue-400";
-              const barPercentColor = p.progressPercent === 100 ? "bg-emerald-500" : "bg-blue-600";
-
-              return (
-                <div 
-                  key={p.id} 
-                  className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl p-5 hover:border-blue-500/40 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0">
-                        <span className="bg-slate-250 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold font-mono px-2 py-0.5 rounded">
-                          {p.kode}
-                        </span>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-2 truncate leading-tight" title={p.nama}>
-                          {p.nama}
-                        </h4>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className={`text-xl font-black font-mono ${textPercentColor}`}>
-                          {p.progressPercent}%
-                        </span>
-                        <p className={`text-[9px] font-bold uppercase tracking-wider ${statusColors[p.status] || "text-slate-500"} mt-1`}>
-                          {p.status || "Draft"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-4">
-                      <div className={`h-full ${barPercentColor}`} style={{ width: `${p.progressPercent}%` }} />
-                    </div>
-
-                    <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
-                      <span>{p.doneCount}/{p.taskCount} tugas selesai</span>
-                      <span>Target: {p.endDate || "No Deadline"}</span>
-                    </div>
-                  </div>
-
-                  {p.pic && (
-                    <div className="border-t border-slate-200/60 dark:border-slate-800/60 pt-3 mt-4 flex items-center gap-2">
-                      <span className={`w-5 h-5 rounded-full font-bold text-[9px] flex items-center justify-center ${picThemeColors(p.pic)} shrink-0`}>
-                        {p.pic.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                        PIC: {p.pic} &bull; {p.client || "No Client"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        {/* Total Tasks Card */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-4 rounded-xl flex items-center justify-between shadow-xs">
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Tugas Aktif</span>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white">{activeTasks} <span className="text-xs text-slate-450 dark:text-slate-500 font-normal">belum selesai</span></h3>
+            <button 
+              onClick={() => onNavigateToView("tasks")}
+              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold flex items-center gap-0.5 mt-2 cursor-pointer"
+            >
+              Lihat Tugas <ChevronRight className="w-2.5 h-2.5" />
+            </button>
           </div>
-        )}
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Completion Progress Card */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-4 rounded-xl flex items-center justify-between shadow-xs">
+          <div className="space-y-1.5 flex-1 pr-2">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Rasio Kerja</span>
+            <div className="flex items-baseline gap-1.5">
+              <h3 className="text-2xl font-black text-slate-800 dark:text-white">{completionRate}%</h3>
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">({doneTasks}/{totalTasks} Tugas)</span>
+            </div>
+            {/* Simple styling progress bar */}
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${completionRate}%` }} />
+            </div>
+          </div>
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+            <CheckSquare className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Overdue/Urgent Tasks card */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-4 rounded-xl flex items-center justify-between shadow-xs">
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Tugas Terlambat</span>
+            <h3 className={`text-2xl font-black ${overdueTasks.length > 0 ? "text-rose-600 dark:text-rose-450" : "text-amber-600 dark:text-amber-400"}`}>
+              {overdueTasks.length} <span className="text-xs text-slate-450 dark:text-slate-500 font-normal">tugas</span>
+            </h3>
+            <span className="text-[10px] text-slate-450 dark:text-slate-500 block mt-2">melewati batas waktu</span>
+          </div>
+          <div className={`p-3 rounded-xl ${overdueTasks.length > 0 ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400" : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"}`}>
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
-      {/* Critical and Overdue Actions Warning Banner */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-500" /> Tindakan Kritis Utama (Tugas Terlambat)
-            {overdueTasks.length > 0 && (
-              <span className="bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-100 dark:border-rose-900/30">
-                {overdueTasks.length} Terlambat
-              </span>
-            )}
-          </h3>
-          <button 
-            onClick={() => onNavigateToView("tasks")} 
-            className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline"
-          >
-            Lihat Semua Tugas &rarr;
-          </button>
-        </div>
+      {/* DETAILED DOUBLE-COLUMN LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* LEFT COLUMN: ACTIVE PROJECTS LIST WITH PROGRESS BAR (8 COLS) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs lg:col-span-8 flex flex-col">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+            <div>
+              <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Daftar & Progres Milestone Projek
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Progres pengerjaan tugas selesai per masing-masing modul rumah sakit / klien.
+              </p>
+            </div>
+            
+            {/* Search filter in Projects Section */}
+            <div className="relative w-full sm:w-60">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari kode, nama, pic atau client..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 rounded-lg py-1 pl-8 pr-3 text-[11px] outline-none focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 dark:text-slate-350"
+              />
+            </div>
+          </div>
 
-        {overdueTasks.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 italic">Selamat! Tidak ada tugas kritis maupun jatuh tempo yang terlambat.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-slate-450 dark:text-slate-550 border-b border-slate-200 dark:border-slate-800 font-bold">
-                  <th className="pb-2">Project</th>
-                  <th className="pb-2">Judul</th>
-                  <th className="pb-2">Eselon / PIC</th>
-                  <th className="pb-2 text-rose-500">Batas Waktu</th>
-                  <th className="pb-2">Progress</th>
-                  <th className="pb-2 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {overdueTasks.slice(0, 5).map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/20 transition-colors">
-                    <td className="py-2.5 font-bold text-blue-600 dark:text-blue-400">
-                      <span className="bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold mr-1.5 align-middle">
-                        {t.project}
-                      </span>
-                      {projects.find(p => p.kode === t.project)?.nama || t.project}
-                    </td>
-                    <td className="py-2.5 font-bold text-slate-800 dark:text-slate-200">{t.task}</td>
-                    <td className="py-2.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${picThemeColors(t.pic)}`}>
-                        {t.pic || "—"}
-                      </span>
-                    </td>
-                    <td className="py-2.5 font-mono text-red-500 font-bold">
-                      {t.dueDate ? new Date(t.dueDate).toLocaleDateString("id-ID") : "—"}
-                    </td>
-                    <td className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-slate-500 dark:text-slate-400">{t.progress}%</span>
-                        <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shrink-0">
-                          <div className="h-full bg-red-500" style={{ width: `${t.progress}%` }} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <button 
-                        onClick={() => onViewTaskDetail(t.id)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-500 font-bold transition-all text-xs"
-                      >
-                        Buka Detail
-                      </button>
-                    </td>
+          {/* Project List Table inside Column */}
+          <div className="overflow-x-auto flex-1">
+            {filteredProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Briefcase className="w-10 h-10 text-slate-300 dark:text-slate-700 mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-550 font-bold">Tidak ada projek ditemukan</p>
+                <p className="text-[10px] text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian Anda</p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    <th className="pb-3 pr-2">KSO</th>
+                    <th className="pb-3 pr-10">Rumah Sakit / Client</th>
+                    <th className="pb-3 pr-4">Total Tugas</th>
+                    <th className="pb-3 pr-4">Progres</th>
+                    <th className="pb-3 text-center">PIC</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-150/40 dark:divide-slate-800/50">
+                  {filteredProjects.map((p) => {
+                    const projectTasks = tasks.filter(t => t.project === p.kode);
+                    const completed = projectTasks.filter(t => t.status === "Done").length;
+                    const percent = projectTasks.length === 0 ? 0 : Math.round((completed / projectTasks.length) * 100);
 
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="py-3 px-1 font-mono font-bold text-blue-600 dark:text-blue-400 text-[10.5px]">
+                          {p.kode || "—"}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="font-extrabold text-slate-800 dark:text-white leading-snug">{p.nama}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-450 flex items-center gap-1.5 mt-0.5">
+                            <span className="font-medium">{p.client || "Client Lapangan"}</span>
+                            <span>&bull;</span>
+                            <span className="font-mono text-[9px] bg-slate-100 dark:bg-slate-800 px-1 rounded">{p.modul || "Modul Utama"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-2 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                          {projectTasks.length} <span className="text-[10px] text-slate-400 font-normal">tugas ({completed} Selesai)</span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="w-32">
+                            <div className="flex items-center justify-between text-[10px] mb-0.5">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{percent}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                              <div 
+                                className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all" 
+                                style={{ width: `${percent}%` }} 
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 text-center">
+                          <div className="inline-flex items-center justify-center">
+                            {p.pic ? (
+                              <div 
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 ${picThemeColors(p.pic)}`}
+                                title={p.pic}
+                              >
+                                {p.pic.substring(0, 2).toUpperCase()}
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                <User className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: CRITICAL / OVERDUE TASKS SPEED LIST (4 COLS) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs lg:col-span-4 flex flex-col">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+            <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5">
+              <AlertTriangle className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
+              Tugas Kritis & Mendesak
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Daftar tugas urgent yang belum tuntas atau mendekati tanggal jatuh tempo.
+            </p>
+          </div>
+
+          {/* Critical Task Container */}
+          <div className="space-y-3 flex-1 overflow-y-auto">
+            {criticalTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center h-full">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">Semua Aman & Terkontrol!</p>
+                <p className="text-[10px] text-slate-400 mt-1">Tidak ada tugas urgent yang terlambat saat ini.</p>
+              </div>
+            ) : (
+              criticalTasks.map((task) => {
+                const isOverdue = task.dueDate && task.dueDate < todayStr;
+                return (
+                  <div 
+                    key={task.id} 
+                    className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/30 hover:border-blue-400/50 dark:hover:border-slate-600 transition-colors flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start gap-2">
+                        {/* Task priority badge */}
+                        <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded uppercase ${
+                          task.priority === "Urgent" 
+                            ? "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-455" 
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-455"
+                        }`}>
+                          {task.priority || "Normal"}
+                        </span>
+                        
+                        {/* Due Date Indicator */}
+                        {task.dueDate && (
+                          <span className={`text-[9.5px] font-mono font-bold flex items-center gap-1 ${isOverdue ? "text-rose-600 dark:text-rose-400 animate-pulse" : "text-slate-500 dark:text-slate-400"}`}>
+                            <Calendar className="w-3 h-3" />
+                            {task.dueDate}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Task title */}
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-white mt-2 leading-snug">
+                        {task.task}
+                      </p>
+
+                      {/* Project info & PIC */}
+                      <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-450 mt-2 pt-2 border-t border-slate-150/50 dark:border-slate-700/20">
+                        <span className="font-mono font-bold text-slate-600 dark:text-slate-400">Projek: {task.project}</span>
+                        {task.pic && (
+                          <span className="font-semibold bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                            PIC: {task.pic}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => onViewTaskDetail(task.id)}
+                      className="mt-3 w-full bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-250 dark:border-slate-700 rounded-lg py-1 text-[11px] font-bold transition-all flex items-center justify-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
+                    >
+                      Buka Rincian <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

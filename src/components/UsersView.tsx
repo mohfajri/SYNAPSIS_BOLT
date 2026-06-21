@@ -223,9 +223,18 @@ export default function UsersView({
                   <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/15 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-full bg-blue-50 border border-blue-105/30 text-blue-600 font-bold text-xs flex items-center justify-center shrink-0">
-                          {getInitials(u.nickname || u.username)}
-                        </span>
+                        <div className="w-9 h-9 rounded-xl bg-blue-50/80 border border-slate-205 dark:bg-slate-950 dark:border-slate-800 text-blue-600 dark:text-blue-400 font-extrabold text-[11px] flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                          {u.photoUrl ? (
+                            <img 
+                              src={u.photoUrl} 
+                              alt="Avatar" 
+                              className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            getInitials(u.nickname || u.username)
+                          )}
+                        </div>
                         {isYou && (
                           <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[9px] font-black px-1.5 py-0.5 rounded">
                             Anda Aktif

@@ -1426,8 +1426,17 @@ export default function TicketsView({
             </div>
 
             {/* Profile Circle Initial 'V' */}
-            <div className="w-8 h-8 rounded-full bg-violet-600 text-white font-extrabold flex items-center justify-center text-xs shadow-md border-2 border-white dark:border-slate-850 cursor-pointer hover:opacity-90 active:scale-95 transition-all" title={currentUser?.name || "User Profile"}>
-              {currentUser?.name ? getUserInitials(currentUser.name) : "V"}
+            <div className="w-8 h-8 rounded-lg bg-violet-600 text-white font-extrabold flex items-center justify-center text-xs shadow-md border-2 border-white dark:border-slate-850 cursor-pointer hover:opacity-90 active:scale-95 transition-all overflow-hidden" title={currentUser?.name || "User Profile"}>
+              {currentUser?.photoUrl ? (
+                <img 
+                  src={currentUser.photoUrl} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                currentUser?.name ? getUserInitials(currentUser.name) : "V"
+              )}
             </div>
           </div>
         </div>

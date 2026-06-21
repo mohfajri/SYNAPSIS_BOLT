@@ -81,7 +81,9 @@ import {
   Receipt,
   Package,
   Wallet,
-  ClipboardCheck
+  ClipboardCheck,
+  Search,
+  HelpCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -163,6 +165,8 @@ export default function App() {
 
   // Real-time Indonesian clock
   const [currentTime, setCurrentTime] = useState<string>("");
+
+
 
   // DB States
   const [projects, setProjects] = useState<Project[]>([]);
@@ -407,6 +411,7 @@ export default function App() {
   const [profileNickname, setProfileNickname] = useState<string>("");
   const [profileEmail, setProfileEmail] = useState<string>("");
   const [profilePassword, setProfilePassword] = useState<string>("");
+  const [profilePhoto, setProfilePhoto] = useState<string>("");
   const [profileError, setProfileError] = useState<string>("");
   const [profileSuccess, setProfileSuccess] = useState<string>("");
 
@@ -415,6 +420,7 @@ export default function App() {
     setProfileName(currentUser.name || "");
     setProfileNickname(currentUser.nickname || "");
     setProfileEmail(currentUser.email || "");
+    setProfilePhoto(currentUser.photoUrl || "");
     setProfilePassword("");
     setProfileError("");
     setProfileSuccess("");
@@ -436,6 +442,7 @@ export default function App() {
       name: profileName.trim(),
       nickname: profileNickname.trim(),
       email: profileEmail.trim(),
+      photoUrl: profilePhoto,
     };
 
     if (profilePassword.trim()) {
@@ -1484,11 +1491,11 @@ export default function App() {
     .filter(category => category.items.length > 0);
 
   return (
-    <div className="h-screen w-screen overflow-hidden font-sans bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors flex">
+    <div className="h-screen w-screen overflow-hidden font-sans bg-[#f4f5f7] dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors flex md:p-3.5 md:gap-3.5">
       
       {/* SIDEBAR NAVIGATION COLUMN */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-4 flex flex-col justify-between transform transition-all duration-300 md:translate-x-0 md:static md:h-screen shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-2" : "w-64 px-4"}`}
+        className={`fixed inset-y-0 left-0 z-40 bg-[#ebedf0] dark:bg-slate-900 py-4 flex flex-col justify-between transform transition-all duration-300 md:translate-x-0 md:static md:h-full shrink-0 overflow-hidden md:rounded-2xl md:border md:border-slate-200/80 md:dark:border-slate-800/80 md:shadow-xs ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-2" : "w-64 px-4"}`}
       >
         {/* Brand header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -1499,10 +1506,11 @@ export default function App() {
             <Network className="w-6 h-6 text-blue-600 dark:text-blue-500 animate-pulse shrink-0" />
             <div className={isSidebarMini ? "md:hidden" : ""}>
               <h1 className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">SYNAPSIS</h1>
-              <p className="text-[10px] text-blue-600 dark:text-blue-450 font-bold tracking-widest">ENTERPRISE PORTAL</p>
+              <p className="text-[10px] text-blue-600 dark:text-blue-450 font-bold tracking-widest font-sans">ENTERPRISE PORTAL</p>
             </div>
           </div>
           <button 
+            type="button"
             onClick={() => setIsSidebarOpen(false)} 
             className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white md:hidden cursor-pointer"
           >
@@ -1511,7 +1519,7 @@ export default function App() {
         </div>
 
         {/* MIDDLE SCROLLABLE WRAPPER */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5 scrollbar-thin select-none">
+        <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5 custom-sidebar-scroll select-none">
           {/* Menus Map items */}
           <div className="space-y-4">
             {activeCategories.map((cat, catIdx) => {
@@ -1524,6 +1532,7 @@ export default function App() {
                     catIdx > 0 && <div className="border-t border-slate-100 dark:border-slate-800 my-2 hidden md:block" />
                   ) : (
                     <button
+                      type="button"
                       onClick={() => toggleCategory(cat.name)}
                       className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer"
                     >
@@ -1541,8 +1550,9 @@ export default function App() {
                   {/* Mobile header (always normal list on mobile) */}
                   {isSidebarMini && (
                     <button
+                      type="button"
                       onClick={() => toggleCategory(cat.name)}
-                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer md:hidden"
+                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer md:hidden relative"
                     >
                       <span>{cat.name}</span>
                       <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
@@ -1557,13 +1567,14 @@ export default function App() {
 
                   {/* Items List */}
                   {(!isCollapsed || isSidebarMini) && (
-                    <div className={`space-y-1 ${isSidebarMini ? "md:ml-0 md:pl-0 md:border-l-0" : "pl-1 border-l border-slate-100 dark:border-slate-800 ml-1"}`}>
+                    <div className="space-y-1 pl-1 border-l border-slate-100 dark:border-slate-800 ml-1">
                       {cat.items.map((item) => {
                         const Icon = item.icon;
                         const isActive = currentView === item.id;
                         
                         return (
                           <button
+                            type="button"
                             key={item.id}
                             title={item.label}
                             onClick={() => {
@@ -1579,8 +1590,8 @@ export default function App() {
                                 : "px-3 py-1.5"
                             } ${
                               isActive 
-                                ? "bg-blue-600 text-white shadow-xs" 
-                                : "text-slate-750 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                                ? "bg-slate-300/60 dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border border-slate-300/40 dark:border-slate-700/50" 
+                                : "text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
                             <Icon className="w-4 h-4 opacity-90 shrink-0" />
@@ -1609,22 +1620,23 @@ export default function App() {
             </div>
           </div>
 
-          <button
+          <button 
+            type="button"
             onClick={handleLogout}
             title="Log out Session"
-            className={`w-full flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-red-500/10 hover:border-red-500/20 text-red-655 dark:text-red-400 hover:text-red-700 text-xs font-bold rounded-lg transition-colors bg-white dark:bg-transparent cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0 md:py-1.5" : "justify-center"}`}
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-red-500/10 hover:border-red-500/20 text-red-600 dark:text-red-450 hover:text-red-700 text-xs font-bold rounded-lg transition-colors bg-white dark:bg-transparent cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0" : "justify-center"}`}
           >
             <LogOut className="w-3.5 h-3.5 shrink-0" /> 
-            <span className={isSidebarMini ? "md:hidden" : ""}>Log out Session</span>
+            <span className={isSidebarMini ? "md:hidden" : ""}>Log Out</span>
           </button>
         </div>
       </aside>
 
       {/* CORE CONTENT WORKSPACE FRAME */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP STATUS HEADER BAR */}
-        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-805 h-14 px-6 flex items-center justify-between shrink-0 shadow-xs">
+        <header className="bg-transparent h-14 px-6 flex items-center justify-between shrink-0">
           
           {/* Mobile hamburger menu toggle */}
           <div className="flex items-center gap-3">
@@ -1750,8 +1762,17 @@ export default function App() {
                 className="flex items-center gap-3 p-1.5 px-2.5 border border-slate-200 dark:border-slate-800 text-slate-755 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
                 title="Sistem Profile & Password"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0">
-                  {currentUser?.nickname?.slice(0, 2).toUpperCase() || currentUser?.username?.slice(0, 2).toUpperCase()}
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200/50 dark:border-slate-800">
+                  {currentUser?.photoUrl ? (
+                    <img 
+                      src={currentUser.photoUrl} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    currentUser?.nickname?.slice(0, 2).toUpperCase() || currentUser?.username?.slice(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div className="text-left hidden sm:flex flex-col select-none">
                   <span className="truncate max-w-[120px] text-[11px] font-black text-slate-800 dark:text-white leading-tight">
@@ -1797,7 +1818,7 @@ export default function App() {
         </header>
 
         {/* CONTAINER CONTENT WRAPPER WITH SCROLL-Y */}
-        <main className="flex-1 overflow-y-auto p-6 transition-all">
+        <main className="flex-1 overflow-y-auto p-6 transition-all workspace-container">
           
           {currentView === "dashboard" && (
             <DashboardView 
@@ -2087,7 +2108,7 @@ export default function App() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
@@ -2117,8 +2138,69 @@ export default function App() {
                 </div>
               )}
 
-              <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
+              <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
                 
+                {/* PROFILE PHOTO UPLOAD (MAX 500KB, BENTUK KOTAK) */}
+                <div className="flex flex-col items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="text-left w-full">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-1">Foto Profil</span>
+                  </div>
+                  <div className="relative group w-24 h-24 aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:shadow-xs transition-all duration-200">
+                    {profilePhoto ? (
+                      <>
+                        <img 
+                          src={profilePhoto} 
+                          alt="Foto Profil" 
+                          className="w-full h-full object-cover aspect-square" 
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-150">
+                          <span className="text-white text-[9px] font-black uppercase tracking-wider">Ubah Foto</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 select-none p-2 text-center">
+                        <span className="text-xl">📷</span>
+                        <span className="text-[9px] font-bold mt-1 uppercase tracking-wider text-slate-400">Upload Foto</span>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/png, image/jpeg, image/webp"
+                      className="absolute inset-0 opacity-0 cursor-pointer text-[0px]"
+                      title="Pilih Foto Profil (Maksimal 500KB, Bentuk Kotak)"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 500 * 1024) {
+                            setProfileError("Ukuran file foto maksimal 500KB!");
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const base64 = ev.target?.result as string;
+                            setProfilePhoto(base64);
+                            setProfileError("");
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mb-1">Format: JPG, PNG, WEBP (Max. 500KB, Proporsi Kotak 1:1)</p>
+                    {profilePhoto && (
+                      <button
+                        type="button"
+                        onClick={() => setProfilePhoto("")}
+                        className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 font-black text-[9px] rounded-md transition-all select-none uppercase tracking-wider cursor-pointer border border-rose-500/10"
+                      >
+                        🗑️ Hapus Foto
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Username Akun</label>
                   <input
