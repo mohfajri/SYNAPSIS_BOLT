@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs/promises";
-import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, MonevLog, BillingKSO, KasSiteTransaction } from "./src/types.js";
 
@@ -2727,6 +2726,7 @@ app.put("/api/kassite/unlock-requests/:id", async (req, res) => {
 // ── VITE INTERACTION LAYER ──────────────────────────────────────────────
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
