@@ -39,10 +39,4 @@
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   }
-  "dependencies": {
-  "express": "^4.19.2",
-  "vite": "^6.4.3",
-  "@supabase/supabase-js": "^2.43.4",
-  "@rollup/rollup-linux-x64-gnu": "^4.0.0"
-  }
 }
