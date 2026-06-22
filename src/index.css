@@ -80,8 +80,8 @@ html.dark ::-webkit-scrollbar-thumb {
 }
 
 /* Ensure dropdown overlays, interactive menus, dialogs, and popups remain highly legible on top */
-.workspace-container .absolute,
-.workspace-container [class*="z-50"],
+.workspace-container .absolute:not(.fixed):not(.inset-0):not(.pointer-events-none),
+.workspace-container [class*="z-50"]:not(.fixed):not(.inset-0),
 .workspace-container [class*="popover"],
 .workspace-container .modal-content,
 .workspace-container [role="dialog"],
@@ -92,8 +92,8 @@ html.dark ::-webkit-scrollbar-thumb {
 }
 
 /* Ensure absolute menus are not blended in dark mode either */
-html.dark .workspace-container .absolute,
-html.dark .workspace-container [class*="z-50"],
+html.dark .workspace-container .absolute:not(.fixed):not(.inset-0):not(.pointer-events-none),
+html.dark .workspace-container [class*="z-50"]:not(.fixed):not(.inset-0),
 html.dark .workspace-container [class*="popover"],
 html.dark .workspace-container .modal-content,
 html.dark .workspace-container [role="dialog"],

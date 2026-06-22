@@ -48,6 +48,7 @@ import AtkOrdersView from "./components/AtkOrdersView";
 import KasSiteView from "./components/KasSiteView";
 import ChecklistView from "./components/ChecklistView";
 import PublicChecklistVerificationView from "./components/PublicChecklistVerificationView";
+import CompanyProfileView from "./components/CompanyProfileView";
 
 // Icons
 import { 
@@ -83,7 +84,8 @@ import {
   Wallet,
   ClipboardCheck,
   Search,
-  HelpCircle
+  HelpCircle,
+  Briefcase
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1448,6 +1450,7 @@ export default function App() {
     {
       name: "Administration",
       items: [
+        { id: "company_profile", label: "Profil Perusahaan", icon: Briefcase },
         { id: "clients", label: "Profile Client / RS", icon: Building2 },
         { id: "users", label: "Penyusunan Akun (CRUD)", icon: Users },
         { id: "settings", label: "Setting Sistem", icon: Database }
@@ -1480,6 +1483,11 @@ export default function App() {
   // Grant 'kassite' view automatically for admin, direktur, manager keuangan, staff, or site coordinator
   if ((currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager Keuangan" || currentUser?.role === "Site Coordinator" || currentUser?.role === "Staff") && !allowedViewIds.includes("kassite")) {
     allowedViewIds = [...allowedViewIds, "kassite"];
+  }
+
+  // Grant 'company_profile' view automatically if user is authenticated
+  if (currentUser && !allowedViewIds.includes("company_profile")) {
+    allowedViewIds = [...allowedViewIds, "company_profile"];
   }
 
   // Filter allowed visible system sidebar objects, grouped by category
@@ -2092,13 +2100,17 @@ export default function App() {
             />
           )}
 
+          {currentView === "company_profile" && (
+            <CompanyProfileView currentUser={currentUser} />
+          )}
+
         </main>
       </div>
 
       {/* MODAL: EDIT MAIN CURRENT USER PROFILE & PASSWORD */}
       <AnimatePresence>
         {isProfileModalOpen && currentUser && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

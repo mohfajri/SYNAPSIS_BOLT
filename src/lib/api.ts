@@ -1,4 +1,4 @@
-import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder, KasSiteTransaction, KasSiteReplenishment, KasLock, KasUnlockRequest, ChecklistItemSetting, ChecklistSubmission } from "../types";
+import { User, Project, Task, CommLog, MeetingLog, Documentation, LogEntry, Client, BALog, Ticket, AppModule, Asset, SiteModuleImplementation, MonevLog, BillingKSO, AtkItem, AtkOrder, KasSiteTransaction, KasSiteReplenishment, KasLock, KasUnlockRequest, ChecklistItemSetting, ChecklistSubmission, CompanyProfile } from "../types";
 
 const API_BASE = "/api";
 
@@ -776,6 +776,21 @@ export const api = {
   async deleteChecklistSubmission(id: string): Promise<{ success: boolean }> {
     const res = await safeFetch(`${API_BASE}/checklists/${id}`, {
       method: "DELETE"
+    });
+    return handleResponse(res);
+  },
+
+  // Company Profile APIs
+  async getCompanyProfile(): Promise<CompanyProfile> {
+    const res = await safeFetch(`${API_BASE}/company-profile`);
+    return handleResponse(res);
+  },
+
+  async updateCompanyProfile(data: Partial<CompanyProfile>): Promise<CompanyProfile> {
+    const res = await safeFetch(`${API_BASE}/company-profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
     return handleResponse(res);
   }

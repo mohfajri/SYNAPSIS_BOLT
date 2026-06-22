@@ -2186,6 +2186,48 @@ app.put("/api/settings", async (req, res) => {
 });
 
 
+// ── COMPANY PROFILE CRUD ───────────────────────────────────────────────
+const DEFAULT_COMPANY_PROFILE = {
+  id: "default",
+  nama: "PT. Medika KSO Syanapsis",
+  alamat: "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 No. 13, Kuningan Timur, Jakarta Selatan 12950",
+  telepon: "021-5228585",
+  fax: "021-5228586",
+  web: "https://syanapsis.taskhub.co.id",
+  email: "info@syanapsis.taskhub.co.id",
+  logoUrl: "",
+  updatedAt: "2026-06-22T00:00:00.000Z"
+};
+
+app.get("/api/company-profile", async (req, res) => {
+  try {
+    const db = await readDB();
+    if (!db.companyProfile) {
+      db.companyProfile = { ...DEFAULT_COMPANY_PROFILE, updatedAt: new Date().toISOString() };
+      await writeDB(db);
+    }
+    return res.json(db.companyProfile);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/company-profile", async (req, res) => {
+  try {
+    const db = await readDB();
+    db.companyProfile = { 
+      ...(db.companyProfile || DEFAULT_COMPANY_PROFILE), 
+      ...req.body, 
+      updatedAt: new Date().toISOString() 
+    };
+    await writeDB(db);
+    return res.json(db.companyProfile);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ── MONITORING EVALUASI (MONEV) CRUD ─────────────────────────────────────
 app.get("/api/monev", async (req, res) => {
   try {

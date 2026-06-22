@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CommLog, MeetingLog, Documentation, Project, User, BALog } from "../types";
+import { api } from "../lib/api";
 import { 
   MessageSquare, 
   Users, 
@@ -80,6 +81,26 @@ export default function CollaborationViews({
     title: string;
   } | null>(null);
 
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    fetchCompany();
+    const handleCPUpdate = () => fetchCompany();
+    window.addEventListener("companyProfileUpdated", handleCPUpdate);
+    return () => {
+      window.removeEventListener("companyProfileUpdated", handleCPUpdate);
+    };
+  }, []);
+
+  const fetchCompany = async () => {
+    try {
+      const data = await api.getCompanyProfile();
+      if (data) setCompanyProfile(data);
+    } catch (err) {
+      console.error("Gagal mengambil data profil perusahaan:", err);
+    }
+  };
+
   const handlePrint = (item: any, type: 'comm' | 'mom' | 'ba' | 'docs') => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -87,18 +108,40 @@ export default function CollaborationViews({
       return;
     }
 
+    const hasLogo = companyProfile && companyProfile.logoUrl;
+    const logoHtml = hasLogo 
+      ? `<img src="${companyProfile.logoUrl}" style="max-height: 55px; max-width: 130px; object-fit: contain;" />` 
+      : `<span style="font-size: 32px;">📑</span>`;
+
+    const compName = companyProfile && companyProfile.nama ? companyProfile.nama : "PT. Medika KSO Syanapsis";
+    const compAlamat = companyProfile && companyProfile.alamat ? companyProfile.alamat : "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 No. 13, Kuningan Timur, Jakarta Selatan 12950";
+    const compTelf = companyProfile && companyProfile.telepon ? companyProfile.telepon : "021-5228585";
+    const compFax = companyProfile && companyProfile.fax ? companyProfile.fax : "021-5228586";
+    const compWeb = companyProfile && companyProfile.web ? companyProfile.web : "https://syanapsis.taskhub.co.id";
+    const compEmail = companyProfile && companyProfile.email ? companyProfile.email : "info@syanapsis.taskhub.co.id";
+
     let titleText = "";
     let contentHtml = "";
 
     if (type === 'comm') {
       titleText = `Log Koordinasi - ${item.summary}`;
       contentHtml = `
-        <div class="doc-header">
-          <div class="logo-space">📧</div>
-          <div class="meta-title">
-            <h2>LOG KOORDINASI RESMI & ARSIP KORESPONDENSI</h2>
-            <p>Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
+        <div class="doc-header" style="display: flex; align-items: center; border-bottom: 3px double #1e293b; padding-bottom: 12px; margin-bottom: 15px; font-family: 'Inter', system-ui, sans-serif;">
+          <div class="logo-space" style="shrink: 0; display: flex; align-items: center; justify-content: center;">${logoHtml}</div>
+          <div class="meta-title" style="flex: 1; margin-left: 15px;">
+            <h2 style="margin: 0; font-size: 15px; color: #0f172a; font-weight: 900; text-transform: uppercase;">${compName}</h2>
+            <p style="margin: 3px 0 0 0; font-size: 9px; color: #475569; line-height: 1.4; font-weight: 500;">${compAlamat}</p>
+            <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #64748b; font-weight: 400;">
+              ${compTelf ? `Tlp: ${compTelf}` : ""} 
+              ${compFax ? `&nbsp;|&nbsp; Fax: ${compFax}` : ""} 
+              ${compWeb ? `&nbsp;|&nbsp; Web: <a href="${compWeb}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compWeb.replace(/https?:\/\//, "")}</a>` : ""}
+              ${compEmail ? `&nbsp;|&nbsp; Email: <a href="mailto:${compEmail}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compEmail}</a>` : ""}
+            </p>
           </div>
+        </div>
+        <div class="meta-title" style="margin-top: 10px; font-family: sans-serif;">
+          <h2 style="font-size: 12px; font-weight: 800; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase;">LOG KOORDINASI RESMI & ARSIP KORESPONDENSI</h2>
+          <p style="font-size: 9px; color: #64748b; margin: 0;">Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
         </div>
 
         <div class="divider"></div>
@@ -158,12 +201,22 @@ export default function CollaborationViews({
     } else if (type === 'mom') {
       titleText = `Minutes of Meeting - ${item.title}`;
       contentHtml = `
-        <div class="doc-header">
-          <div class="logo-space">👥</div>
-          <div class="meta-title">
-            <h2>MINUTES OF MEETING (MoM) / NOTULA RAPAT RESMI</h2>
-            <p>Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
+        <div class="doc-header" style="display: flex; align-items: center; border-bottom: 3px double #1e293b; padding-bottom: 12px; margin-bottom: 15px; font-family: 'Inter', system-ui, sans-serif;">
+          <div class="logo-space" style="shrink: 0; display: flex; align-items: center; justify-content: center;">${logoHtml}</div>
+          <div class="meta-title" style="flex: 1; margin-left: 15px;">
+            <h2 style="margin: 0; font-size: 15px; color: #0f172a; font-weight: 900; text-transform: uppercase;">${compName}</h2>
+            <p style="margin: 3px 0 0 0; font-size: 9px; color: #475569; line-height: 1.4; font-weight: 500;">${compAlamat}</p>
+            <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #64748b; font-weight: 400;">
+              ${compTelf ? `Tlp: ${compTelf}` : ""} 
+              ${compFax ? `&nbsp;|&nbsp; Fax: ${compFax}` : ""} 
+              ${compWeb ? `&nbsp;|&nbsp; Web: <a href="${compWeb}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compWeb.replace(/https?:\/\//, "")}</a>` : ""}
+              ${compEmail ? `&nbsp;|&nbsp; Email: <a href="mailto:${compEmail}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compEmail}</a>` : ""}
+            </p>
           </div>
+        </div>
+        <div class="meta-title" style="margin-top: 10px; font-family: sans-serif;">
+          <h2 style="font-size: 12px; font-weight: 800; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase;">MINUTES OF MEETING (MoM) / NOTULA RAPAT RESMI</h2>
+          <p style="font-size: 9px; color: #64748b; margin: 0;">Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
         </div>
 
         <div class="divider"></div>
@@ -236,12 +289,22 @@ export default function CollaborationViews({
     } else if (type === 'ba') {
       titleText = `Berita Acara - ${item.title}`;
       contentHtml = `
-        <div class="doc-header">
-          <div class="logo-space">📃</div>
-          <div class="meta-title">
-            <h2>BERITA ACARA RESMI KELAYAKAN & SERAH TERIMA</h2>
-            <p>Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
+        <div class="doc-header" style="display: flex; align-items: center; border-bottom: 3px double #1e293b; padding-bottom: 12px; margin-bottom: 15px; font-family: 'Inter', system-ui, sans-serif;">
+          <div class="logo-space" style="shrink: 0; display: flex; align-items: center; justify-content: center;">${logoHtml}</div>
+          <div class="meta-title" style="flex: 1; margin-left: 15px;">
+            <h2 style="margin: 0; font-size: 15px; color: #0f172a; font-weight: 900; text-transform: uppercase;">${compName}</h2>
+            <p style="margin: 3px 0 0 0; font-size: 9px; color: #475569; line-height: 1.4; font-weight: 500;">${compAlamat}</p>
+            <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #64748b; font-weight: 400;">
+              ${compTelf ? `Tlp: ${compTelf}` : ""} 
+              ${compFax ? `&nbsp;|&nbsp; Fax: ${compFax}` : ""} 
+              ${compWeb ? `&nbsp;|&nbsp; Web: <a href="${compWeb}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compWeb.replace(/https?:\/\//, "")}</a>` : ""}
+              ${compEmail ? `&nbsp;|&nbsp; Email: <a href="mailto:${compEmail}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compEmail}</a>` : ""}
+            </p>
           </div>
+        </div>
+        <div class="meta-title" style="margin-top: 10px; font-family: sans-serif;">
+          <h2 style="font-size: 12px; font-weight: 850; color: #1e3a8a; margin: 0 0 5px 0; text-transform: uppercase;">BERITA ACARA RESMI KELAYAKAN & SERAH TERIMA</h2>
+          <p style="font-size: 9px; color: #64748b; margin: 0;">Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
         </div>
 
         <div class="divider"></div>
@@ -296,10 +359,10 @@ export default function CollaborationViews({
               </td>
               <td style="width: 50%; text-align: center; border: none;">
                 <p><strong>PIHAK KEDUA (PELAKSANA)</strong></p>
-                <p>Staff Pelaksana / Support SIMRS</p>
+                <p>Staff Pelaksana & Support SIMRS</p>
                 <div style="height: 70px;"></div>
                 <p><strong>( ${item.signatorySupport || "____________________"} )</strong></p>
-                <p style="font-size: 10px; color: #64748b;">Implementator / Vendor IT</p>
+                <p style="font-size: 10px; color: #64748b;">Implementator / ${compName}</p>
               </td>
             </tr>
           </table>
@@ -308,12 +371,22 @@ export default function CollaborationViews({
     } else if (type === 'docs') {
       titleText = `Dokumen Arsitektur - ${item.title}`;
       contentHtml = `
-        <div class="doc-header">
-          <div class="logo-space">📚</div>
-          <div class="meta-title">
-            <h2>ARSIP REPOSITORI DOKUMEN & SPESIFIKASI TEKNIS</h2>
-            <p>Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
+        <div class="doc-header" style="display: flex; align-items: center; border-bottom: 3px double #1e293b; padding-bottom: 12px; margin-bottom: 15px; font-family: 'Inter', system-ui, sans-serif;">
+          <div class="logo-space" style="shrink: 0; display: flex; align-items: center; justify-content: center;">${logoHtml}</div>
+          <div class="meta-title" style="flex: 1; margin-left: 15px;">
+            <h2 style="margin: 0; font-size: 15px; color: #0f172a; font-weight: 900; text-transform: uppercase;">${compName}</h2>
+            <p style="margin: 3px 0 0 0; font-size: 9px; color: #475569; line-height: 1.4; font-weight: 500;">${compAlamat}</p>
+            <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #64748b; font-weight: 400;">
+              ${compTelf ? `Tlp: ${compTelf}` : ""} 
+              ${compFax ? `&nbsp;|&nbsp; Fax: ${compFax}` : ""} 
+              ${compWeb ? `&nbsp;|&nbsp; Web: <a href="${compWeb}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compWeb.replace(/https?:\/\//, "")}</a>` : ""}
+              ${compEmail ? `&nbsp;|&nbsp; Email: <a href="mailto:${compEmail}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${compEmail}</a>` : ""}
+            </p>
           </div>
+        </div>
+        <div class="meta-title" style="margin-top: 10px; font-family: sans-serif;">
+          <h2 style="font-size: 12px; font-weight: 800; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase;">ARSIP REPOSITORI DOKUMEN & SPESIFIKASI TEKNIS</h2>
+          <p style="font-size: 9px; color: #64748b; margin: 0;">Sistem Informasi Manajemen Rumah Sakit (SIMRS) - Partnership & Collaboration Suite</p>
         </div>
 
         <div class="divider"></div>

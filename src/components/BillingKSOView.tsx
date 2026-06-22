@@ -37,6 +37,7 @@ import {
   Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { api } from "../lib/api";
 
 // Spell numbers in Indonesian language helper (e.g. 15000000 -> Lima Belas Juta Rupiah)
 function terbilang(nominal: number): string {
@@ -124,6 +125,7 @@ export default function BillingKSOView({
   const [namaSiteCoordinator, setNamaSiteCoordinator] = useState<string>("");
   const [jabatanSiteCoordinator, setJabatanSiteCoordinator] = useState<string>("Site Coordinator");
   const [namaPerusahaanSite, setNamaPerusahaanSite] = useState<string>("PT. Medika KSO Indonesia");
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
 
   // Helper to count / calculate next auto increment 3-character rekap code
   const getNextAutoCounter = () => {
@@ -256,6 +258,28 @@ export default function BillingKSOView({
     rejectReason: "",
     paymentDate: new Date().toISOString().slice(0, 10)
   });
+
+  // Load company profile dynamically
+  useEffect(() => {
+    const loadCompany = async () => {
+      try {
+        const cp = await api.getCompanyProfile();
+        if (cp) {
+          setCompanyProfile(cp);
+          if (cp.nama) {
+            setNamaPerusahaanSite(cp.nama);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal memuat profil perusahaan di billing:", err);
+      }
+    };
+    loadCompany();
+    window.addEventListener("companyProfileUpdated", loadCompany);
+    return () => {
+      window.removeEventListener("companyProfileUpdated", loadCompany);
+    };
+  }, []);
 
   // Pre-fill or pre-select clients based on site restrictions
   useEffect(() => {
@@ -1525,16 +1549,29 @@ export default function BillingKSOView({
                 
                 {/* Header Kop Surat */}
                 <div className="flex flex-col md:flex-row justify-between items-start border-b-4 border-double border-slate-350 pb-6">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Receipt className="w-7 h-7 text-indigo-600 print:text-black" />
-                      <span className="text-xl font-black tracking-tight text-slate-900 font-sans">
-                        MEDIKA KSO INDONESIA
-                      </span>
+                  <div className="flex items-start gap-3">
+                    {companyProfile?.logoUrl ? (
+                      <img 
+                        src={companyProfile.logoUrl} 
+                        alt="Logo" 
+                        className="h-12 max-w-[130px] object-contain print:max-h-12 shrink-0 rounded"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Receipt className="w-8 h-8 text-indigo-600 print:text-black shrink-0 mt-1" />
+                    )}
+                    <div>
+                      <h1 className="text-base font-black tracking-tight text-slate-900 font-sans uppercase">
+                        {companyProfile?.nama || "MEDIKA KSO INDONESIA"}
+                      </h1>
+                      <p className="text-[10px] text-slate-500 max-w-sm mt-1 leading-relaxed">
+                        {companyProfile?.alamat || "Lantai 4 Gedung Pusat KSO Nusantara, Jl. RE Martadinata No. 129, Bandung, Jawa Barat."}
+                        {companyProfile?.telepon && ` Telp: ${companyProfile.telepon}`}
+                        {companyProfile?.fax && ` | Fax: ${companyProfile.fax}`}
+                        {companyProfile?.web && ` | Web: ${companyProfile.web}`}
+                        {companyProfile?.email && ` | Email: ${companyProfile.email}`}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-500 max-w-sm mt-1 leading-relaxed">
-                      Lantai 4 Gedung Pusat KSO Nusantara, Jl. RE Martadinata No. 129, Bandung, Jawa Barat. Telp: (022) 412490
-                    </p>
                   </div>
                   <div className="text-right mt-4 md:mt-0 font-sans">
                     <h2 className="text-xl font-extrabold tracking-tight text-indigo-700 print:text-black uppercase">

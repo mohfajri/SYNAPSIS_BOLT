@@ -522,5 +522,17 @@ export interface ChecklistSubmission {
   approvedRole?: string;
 }
 
+export interface CompanyProfile {
+  id: string; // e.g., "default"
+  nama: string;
+  alamat: string;
+  telepon: string;
+  fax: string;
+  web: string;
+  email?: string; // email address added
+  logoUrl?: string; // base64 or url
+  updatedAt?: string;
+}
+
 
 

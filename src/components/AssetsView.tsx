@@ -497,32 +497,44 @@ export default function AssetsView({
         )}
       </div>
 
-      {/* Asset Creator/Editor Modal */}
+      {/* Asset Creator/Editor Centered Modal */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Elegant transparent dark backdrop matching site implementation style */}
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[92vh] overflow-y-auto"
-            >
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <Settings className="w-5 h-5 text-indigo-500" /> {isEditing ? "Modifikasi Rincian Aset Perangkat" : `Daftarkan Aset ${category}`}
-                  </h3>
-                  <p className="text-xs text-slate-450">Data spesifikasi akan dimuat kustom menyesuaikan sub-tipe alat.</p>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 text-xl font-bold"
-                >
-                  &times;
-                </button>
-              </div>
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="absolute inset-0 bg-slate-950"
+            />
 
-              <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl flex flex-col z-10 overflow-hidden max-h-[85vh]"
+            >
+              <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                <div className="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                      <Settings className="w-5 h-5 text-indigo-500" /> {isEditing ? "Modifikasi Rincian Aset Perangkat" : `Daftarkan Aset ${category}`}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Data spesifikasi akan dimuat kustom menyesuaikan sub-tipe alat.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="w-8 h-8 rounded-full border border-slate-205 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs font-semibold">
                 
                 {/* Primary General Details Block */}
                 <div className="grid grid-cols-2 gap-3.5">
@@ -800,31 +812,32 @@ export default function AssetsView({
                     placeholder="Keadaan fisik perangkat, riwayat serah terima, dsb..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100"
+                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100 font-sans"
                   />
                 </div>
+              </div>
 
-                {/* Submits */}
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsOpen(false)}
-                    className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-550 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-50"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center gap-1"
-                  >
-                    <CheckCircle className="w-4 h-4" /> {isEditing ? "Terapkan Perubahan" : "Simpan Inventori Aset"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              {/* Submits - Fixed at bottom */}
+              <div className="p-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-end gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-550 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-150 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                >
+                  <CheckCircle className="w-4 h-4" /> {isEditing ? "Terapkan Perubahan" : "Simpan Inventori Aset"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }
