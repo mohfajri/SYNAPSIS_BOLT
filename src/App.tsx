@@ -1657,21 +1657,16 @@ export default function App() {
             <span className="text-xs font-black text-slate-400 dark:text-slate-500 hidden sm:inline-block tracking-widest uppercase">
               SUITE &bull; {currentView.toUpperCase()}
             </span>
+          </div>
 
+          {/* Action triggers: Theme Mode Sun/Moon, PostgreSQL sync */}
+          <div className="flex items-center gap-3 text-xs">
             {currentUser?.siteTugas && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-extrabold text-[#2563eb] dark:text-[#60a5fa] bg-[#eff6ff] dark:bg-slate-900 border border-[#dbeafe] dark:border-slate-800 rounded-lg shrink-0">
                 <Building2 className="w-3.5 h-3.5 shrink-0" />
                 <span>Client Site: <span className="font-extrabold text-[#1d4ed8] dark:text-[#93c5fd]">{currentUser.siteTugas}</span></span>
               </div>
             )}
-          </div>
-
-          {/* Action triggers: Theme Mode Sun/Moon, PostgreSQL sync */}
-          <div className="flex items-center gap-3 text-xs">
-            <div className="items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/30 px-2.5 py-1 rounded hidden sm:flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>PostgreSQL Connected</span>
-            </div>
 
             {/* Bell Notification Trigger & Popover */}
             <div className="relative">
