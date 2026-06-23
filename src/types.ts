@@ -291,6 +291,8 @@ export interface Asset {
   status: 'Aktif' | 'Rusak' | 'Maintenance' | string;
   specs: AssetSpecs;
   notes?: string;
+  tanggalDatang?: string; // 1. Tanggal barang datang
+  statusKepemilikan?: 'Perusahaan' | 'Rumah Sakit' | string; // 3. Status Kepemilikan (Perusahaan, Rumah Sakit)
   createdAt: string;
   createdBy?: string;
 }

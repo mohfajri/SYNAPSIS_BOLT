@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "motion/react";
 interface AssetsViewProps {
   assets: Asset[];
   clients: Client[];
+  users: User[];
   currentUser: User | null;
   onAddAsset: (asset: Partial<Asset>) => Promise<void>;
   onUpdateAsset: (id: string, asset: Partial<Asset>) => Promise<void>;
@@ -32,6 +33,7 @@ interface AssetsViewProps {
 export default function AssetsView({
   assets,
   clients,
+  users,
   currentUser,
   onAddAsset,
   onUpdateAsset,
@@ -56,6 +58,8 @@ export default function AssetsView({
   const [pic, setPic] = useState("");
   const [status, setStatus] = useState<"Aktif" | "Rusak" | "Maintenance">("Aktif");
   const [notes, setNotes] = useState("");
+  const [tanggalDatang, setTanggalDatang] = useState("");
+  const [statusKepemilikan, setStatusKepemilikan] = useState("Perusahaan");
 
   // Spec Form States
   const [pro, setPro] = useState("");
@@ -77,6 +81,9 @@ export default function AssetsView({
 
   // Hospital List Reference
   const rsNames = clients.map(c => c.namaRS);
+  
+  const hasSiteRestriction = !!(currentUser?.siteTugas && currentUser.siteTugas.toLowerCase().trim() !== "kantor pusat" && currentUser.siteTugas.trim() !== "");
+  const userSite = currentUser?.siteTugas || "";
 
   // Active client's rooms
   const selectedClient = clients.find(c => c.namaRS.toLowerCase().trim() === clientRS.toLowerCase().trim());
@@ -86,11 +93,33 @@ export default function AssetsView({
     setCategory(activeCategory);
     setSerialNumber("");
     setDeviceName("");
-    setClientRS(rsNames[0] || "Kantor Pusat / Umum");
+    
+    // 2. Lokasi Penerima otomatis sesuai dengan user tugas di site tersebut
+    const initialClientRS = hasSiteRestriction ? userSite : (rsNames[0] || "Kantor Pusat / Umum");
+    setClientRS(initialClientRS);
+    
     setRoomId("");
-    setPic(currentUser?.name || "");
+    
+    // 4. PIC Penanggung Jawab data diambil dari data karyawan di site tugas
+    const siteEmployees = users.filter(u => 
+      u.siteTugas && 
+      initialClientRS && 
+      u.siteTugas.toLowerCase().trim() === initialClientRS.toLowerCase().trim()
+    );
+    if (siteEmployees.length > 0) {
+      const matchMe = siteEmployees.find(u => u.name === currentUser?.name);
+      setPic(matchMe ? matchMe.name : siteEmployees[0].name);
+    } else {
+      setPic(currentUser?.name || "");
+    }
+    
     setStatus("Aktif");
     setNotes("");
+
+    // 1. Tambahkan tanggal barang datang (default ke hari ini)
+    setTanggalDatang(new Date().toISOString().substring(0, 10));
+    // 3. Status Kepemilikan (default Perusahaan)
+    setStatusKepemilikan("Perusahaan");
 
     // Specs reset
     setPro(""); setRam(""); setSto(""); setOs("");
@@ -111,6 +140,8 @@ export default function AssetsView({
     setPic(as.pic || "");
     setStatus(as.status as any);
     setNotes(as.notes || "");
+    setTanggalDatang(as.tanggalDatang ? as.tanggalDatang.substring(0, 10) : "");
+    setStatusKepemilikan(as.statusKepemilikan || "Perusahaan");
 
     // Populate specs accordingly
     const s = as.specs || {};
@@ -171,6 +202,8 @@ export default function AssetsView({
       pic,
       status,
       notes,
+      tanggalDatang,
+      statusKepemilikan,
       specs: compsSpecs
     };
 
@@ -206,6 +239,400 @@ export default function AssetsView({
 
     return isCat && matchesSearch && matchesRS && matchesStat;
   });
+
+  if (isOpen) {
+    return (
+      <div className="space-y-6 animate-fadeIn font-sans pb-10" id="assets-form-container">
+        {/* Navigation / Page Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 dark:border-slate-800/80 pb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="px-3.5 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-800 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 self-start shadow-xs active:scale-95"
+            >
+              ← Kembali ke Daftar Aset
+            </button>
+            <div className="hidden sm:block h-6 w-[1px] bg-slate-200 dark:bg-slate-800" />
+            <div>
+              <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-1.5">
+                <Settings className="w-5 h-5 text-indigo-500" />
+                {isEditing ? "Modifikasi Rincian Aset Perangkat" : `Daftarkan Perangkat ${category}`}
+              </h1>
+              <p className="text-[11px] text-slate-500 mt-0.5">Lengkapi formulir di bawah untuk memperbarui inventori KSO secara terintegrasi.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Compact Form Component */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden p-6">
+          <form onSubmit={handleSubmit} className="space-y-6 text-xs font-semibold">
+            {/* Split layout compartments: General details and KSO details */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Box 1: General Info */}
+              <div className="space-y-4 bg-slate-50/40 dark:bg-slate-950/20 p-5 rounded-2xl border border-slate-100 dark:border-slate-850">
+                <h3 className="text-xs uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-black border-b border-slate-150 dark:border-slate-800 pb-2 flex items-center gap-1.5 font-sans">
+                  📁 1. Klasifikasi & Identitas Perangkat
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Kategori Perangkat</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value as any)}
+                      disabled={isEditing}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-extrabold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="Komputer">Komputer / Server</option>
+                      <option value="Monitor">Monitor / Layar</option>
+                      <option value="Printer">Printer</option>
+                      <option value="Perangkat Jaringan">Perangkat Jaringan</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Nama / Brand & Tipe Perangkat *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Server ASUS TS100 / Printer EPSON LX310"
+                      value={deviceName}
+                      onChange={(e) => setDeviceName(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 placeholder:opacity-50 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Serial Number (S/N) *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Contoh: SN-8239AJD921"
+                        value={serialNumber}
+                        onChange={(e) => setSerialNumber(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 placeholder:opacity-50 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Status Kondisi</label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as any)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-extrabold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="Aktif">Aktif / Normal</option>
+                        <option value="Rusak">Rusak</option>
+                        <option value="Maintenance">Maintenance / Perbaikan</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Location/PIC */}
+              <div className="space-y-4 bg-slate-50/40 dark:bg-slate-950/20 p-5 rounded-2xl border border-slate-100 dark:border-slate-850">
+                <h3 className="text-xs uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-black border-b border-slate-150 dark:border-slate-800 pb-2 flex items-center gap-1.5 font-sans">
+                  📍 2. Lokasi KSO & Penanggung Jawab
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Lokasi RS Penerima</label>
+                    <select
+                      value={clientRS}
+                      onChange={(e) => {
+                        setClientRS(e.target.value);
+                        setRoomId("");
+                      }}
+                      disabled={hasSiteRestriction}
+                      className={`bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-extrabold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        hasSiteRestriction ? "opacity-75 cursor-not-allowed bg-slate-100 dark:bg-slate-900" : ""
+                      }`}
+                    >
+                      {hasSiteRestriction ? (
+                        <option value={userSite}>{userSite}</option>
+                      ) : (
+                        <>
+                          {rsNames.map(name => <option key={name} value={name}>{name}</option>)}
+                          <option value="Kantor Pusat / Umum">Kantor Pusat / Umum</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {clientRS !== "Kantor Pusat / Umum" && (
+                    <div className="flex flex-col gap-1 animate-fadeIn">
+                      <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Ruangan / Unit RS ({clientRooms.length})</label>
+                      <select
+                        value={roomId}
+                        onChange={(e) => setRoomId(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-extrabold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="">— Pilih Ruangan (Opsional) —</option>
+                        {clientRooms.map(room => (
+                          <option key={room.id} value={room.id}>
+                            {room.name} {room.floor ? `(Lantai ${room.floor})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">PIC Penanggung Jawab / Staff</label>
+                    <input
+                      type="text"
+                      list="pic-employees-list-standalone"
+                      placeholder="Nama PIC penanggung jawab"
+                      value={pic}
+                      onChange={(e) => setPic(e.target.value)}
+                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 placeholder:opacity-50 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                    />
+                    <datalist id="pic-employees-list-standalone">
+                      {users
+                        .filter(u => u.siteTugas && clientRS && u.siteTugas.toLowerCase().trim() === clientRS.toLowerCase().trim())
+                        .map(u => (
+                          <option key={u.id} value={u.name}>
+                            {u.name} ({u.divisi || u.role || "Staf"})
+                          </option>
+                        ))
+                      }
+                    </datalist>
+                    {users.filter(u => u.siteTugas && clientRS && u.siteTugas.toLowerCase().trim() === clientRS.toLowerCase().trim()).length > 0 && (
+                      <p className="text-[9px] text-indigo-500 font-semibold mt-0.5">
+                        * Terdeteksi {users.filter(u => u.siteTugas && clientRS && u.siteTugas.toLowerCase().trim() === clientRS.toLowerCase().trim()).length} karyawan terdaftar di site {clientRS}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Specifications Component Box */}
+            <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+              <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-850 pb-2">
+                ⚙️ Spesifikasi Teknis Perangkat ({category})
+              </h4>
+
+              {category === "Komputer" && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Prosesor / CPU</label>
+                    <input
+                      type="text"
+                      placeholder="Intel i5-12400 / AMD Ryzen 5"
+                      value={pro}
+                      onChange={(e) => setPro(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Kapasitas RAM</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 8 GB / 16 GB DDR4"
+                      value={ram}
+                      onChange={(e) => setRam(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Penyimpanan (Storage)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. SSD 512 GB NVMe"
+                      value={sto}
+                      onChange={(e) => setSto(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Sistem Operasi</label>
+                    <input
+                      type="text"
+                      placeholder="Windows 11 / Ubuntu Server"
+                      value={os}
+                      onChange={(e) => setOs(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {category === "Monitor" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Ukuran Layar (Inchi)</label>
+                    <input
+                      type="text"
+                      placeholder='e.g. 21.5" atau 24"'
+                      value={sz}
+                      onChange={(e) => setSz(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Resolusi Display</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Full HD 1920x1080"
+                      value={res}
+                      onChange={(e) => setRes(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Tipe Input Port</label>
+                    <input
+                      type="text"
+                      placeholder="HDMI / VGA / DisplayPort"
+                      value={pt}
+                      onChange={(e) => setPt(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-202 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {category === "Printer" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Tipe Printer</label>
+                    <select
+                      value={prType}
+                      onChange={(e) => setPrType(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="Laser">LaserJet</option>
+                      <option value="Inkjet">InkJet / Infus</option>
+                      <option value="DotMatrix">DotMatrix (Kasir)</option>
+                      <option value="Thermal">Thermal (Antrean/Label)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Konektivitas</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. USB / Wi-Fi / LAN"
+                      value={conn}
+                      onChange={(e) => setConn(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-202 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Kecepatan Cetak (PPM)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 15 ppm / 30 ppm"
+                      value={speed}
+                      onChange={(e) => setSpeed(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-202 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {category === "Perangkat Jaringan" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Jenis Perangkat</label>
+                    <select
+                      value={netType}
+                      onChange={(e) => setNetType(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="Switch">Switch Hub</option>
+                      <option value="Managed Switch">Managed Switch</option>
+                      <option value="Router">Router Board</option>
+                      <option value="Access Point">Access Point</option>
+                      <option value="Firewall">Firewall / Gate</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Jumlah Port</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 8 / 24 / 48 Ports"
+                      value={ports}
+                      onChange={(e) => setPorts(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-202 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-slate-500">Bandwidth / Cap</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1 Gbps / 10 Gbps"
+                      value={band}
+                      onChange={(e) => setBand(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-202 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Extra Metadata (tanggal, status kepemilikan, catatan) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-slate-100 dark:border-slate-800 pt-5">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Tanggal Barang Datang</label>
+                <input
+                  type="date"
+                  value={tanggalDatang}
+                  onChange={(e) => setTanggalDatang(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Status Kepemilikan</label>
+                <select
+                  value={statusKepemilikan}
+                  onChange={(e) => setStatusKepemilikan(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-202 font-extrabold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="Perusahaan">Perusahaan</option>
+                  <option value="Rumah Sakit">Rumah Sakit</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-slate-500 uppercase tracking-widest font-sans">Catatan Tambahan Alokasi / Rusak</label>
+                <input
+                  type="text"
+                  placeholder="Keterangan kondisi fisik perangkat, serah terima..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3 rounded-lg text-slate-800 dark:text-slate-100 placeholder:opacity-50 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Submit Action Controls */}
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="px-5 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
+              >
+                Batal & Kembali
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <CheckCircle className="w-4 h-4" /> {isEditing ? "Simpan Perubahan Aset" : "Daftarkan Inventori Aset"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-10" id="assets-view-container">
@@ -387,8 +814,24 @@ export default function AssetsView({
                         <div className="text-[10px] font-mono text-slate-500 font-bold mt-0.5">
                           S/N: <strong className="text-slate-700 dark:text-slate-300">{as.serialNumber}</strong>
                         </div>
+                        {as.tanggalDatang && (
+                          <div className="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">
+                            📅 Datang: <strong className="text-slate-705 dark:text-slate-300">{new Date(as.tanggalDatang).toLocaleDateString("id-ID", {day: "numeric", month: "short", year: "numeric"})}</strong>
+                          </div>
+                        )}
+                        {as.statusKepemilikan && (
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                              as.statusKepemilikan === "Perusahaan" 
+                                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/40" 
+                                : "bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800/40"
+                            }`}>
+                              🏛️ Kepemilikan: {as.statusKepemilikan}
+                            </span>
+                          </div>
+                        )}
                         {as.createdBy && (
-                          <div className="text-[9px] text-indigo-500 dark:text-indigo-400 font-bold mt-1 bg-indigo-50/50 dark:bg-indigo-950/30 px-1.5 py-0.5 rounded w-fit border border-indigo-100/10 font-sans">
+                          <div className="text-[9px] text-indigo-500 dark:text-indigo-400 font-bold mt-1.5 bg-indigo-50/50 dark:bg-indigo-950/30 px-1.5 py-0.5 rounded w-fit border border-indigo-100/10 font-sans">
                             🧑‍💻 Input: {as.createdBy}
                           </div>
                         )}
@@ -496,348 +939,6 @@ export default function AssetsView({
           </div>
         )}
       </div>
-
-      {/* Asset Creator/Editor Centered Modal */}
-      <AnimatePresence>
-        {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Elegant transparent dark backdrop matching site implementation style */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="absolute inset-0 bg-slate-950"
-            />
-
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0, y: 12 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0, y: 12 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl flex flex-col z-10 overflow-hidden max-h-[85vh]"
-            >
-              <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                <div className="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                      <Settings className="w-5 h-5 text-indigo-500" /> {isEditing ? "Modifikasi Rincian Aset Perangkat" : `Daftarkan Aset ${category}`}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Data spesifikasi akan dimuat kustom menyesuaikan sub-tipe alat.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsOpen(false)}
-                    className="w-8 h-8 rounded-full border border-slate-205 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                  >
-                    &times;
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs font-semibold">
-                
-                {/* Primary General Details Block */}
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="flex flex-col gap-1 col-span-2">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">Kategori Perangkat</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value as any)}
-                      disabled={isEditing}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-bold"
-                    >
-                      <option value="Komputer">Komputer / Server</option>
-                      <option value="Monitor">Monitor / Layar</option>
-                      <option value="Printer">Printer</option>
-                      <option value="Perangkat Jaringan">Perangkat Jaringan</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1 col-span-2">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">Nama / Brand & Tipe Perangkat *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Server ASUS TS100 / Printer EPSON LX310"
-                      value={deviceName}
-                      onChange={(e) => setDeviceName(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">Serial Number (S/N) *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: SN-8239AJD921"
-                      value={serialNumber}
-                      onChange={(e) => setSerialNumber(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">Status Alat</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as any)}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
-                    >
-                      <option value="Aktif">Aktif / Normal</option>
-                      <option value="Rusak">Rusak</option>
-                      <option value="Maintenance">Maintenance / Perbaikan</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">Lokasi RS Penerima</label>
-                    <select
-                      value={clientRS}
-                      onChange={(e) => {
-                        setClientRS(e.target.value);
-                        setRoomId("");
-                      }}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 font-bold"
-                    >
-                      {rsNames.map(name => <option key={name} value={name}>{name}</option>)}
-                      <option value="Kantor Pusat / Umum">Kantor Pusat / Umum</option>
-                    </select>
-                  </div>
-
-                  {clientRS !== "Kantor Pusat / Umum" && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] text-slate-500 uppercase tracking-widest">Ruangan / Penempatan</label>
-                      <select
-                        value={roomId}
-                        onChange={(e) => setRoomId(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200"
-                      >
-                        <option value="">-- Pilih Ruangan / Belum Ditentukan --</option>
-                        {clientRooms.map(r => (
-                          <option key={r.id} value={r.id}>
-                            {r.name} {r.floor ? `(${r.floor})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {clientRooms.length === 0 && (
-                        <p className="text-[9px] text-slate-400 italic mt-0.5">
-                          * RS ini belum mendaftarkan ruangan di Profile RS. Anda bisa mendaftarkannya terlebih dahulu di menu Profile RS agar aset dapat dipetakan secara detail.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-slate-500 uppercase tracking-widest">PIC Penanggung Jawab / Staff</label>
-                    <input
-                      type="text"
-                      placeholder="Nama PIC penanggung jawab"
-                      value={pic}
-                      onChange={(e) => setPic(e.target.value)}
-                      className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                {/* DYNAMIC SPECS SUB-FORM BLOCK */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl space-y-3">
-                  <p className="text-[10.5px] font-black uppercase text-indigo-500 tracking-wider">
-                    Spesifikasi Teknis Khusus ({category})
-                  </p>
-
-                  {category === "Komputer" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Tipe Processor</label>
-                        <input
-                          type="text"
-                          placeholder="Intel Xeon / Core i7"
-                          value={pro}
-                          onChange={(e) => setPro(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Kapasitas RAM</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 16 GB DDR4"
-                          value={ram}
-                          onChange={(e) => setRam(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Kapasitas HDD/SSD</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. NVMe SSD 512GB"
-                          value={sto}
-                          onChange={(e) => setSto(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Sistem Operasi (OS)</label>
-                        <input
-                          type="text"
-                          placeholder="Windows 11 Pro / Ubuntu Server"
-                          value={os}
-                          onChange={(e) => setOs(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {category === "Monitor" && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Ukuran Layar (inch)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 21.5 Inch"
-                          value={sz}
-                          onChange={(e) => setSz(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Resolusi Display</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Full HD 1920x1080"
-                          value={res}
-                          onChange={(e) => setRes(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Tipe Input Port</label>
-                        <input
-                          type="text"
-                          placeholder="HDMI / VGA / DisplayPort"
-                          value={pt}
-                          onChange={(e) => setPt(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 py-1.5 px-2.5 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {category === "Printer" && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Tipe Printer</label>
-                        <select
-                          value={prType}
-                          onChange={(e) => setPrType(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2 rounded text-slate-850 dark:text-slate-300"
-                        >
-                          <option value="Laser">LaserJet</option>
-                          <option value="Inkjet">InkJet / Infus</option>
-                          <option value="DotMatrix">DotMatrix (Kasir)</option>
-                          <option value="Thermal">Thermal (Antrean/Label)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Konektivitas</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. USB / Wi-Fi / LAN"
-                          value={conn}
-                          onChange={(e) => setConn(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 py-1.5 px-2 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Kecepatan Cetak (PPM)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 15 ppm / 30 ppm"
-                          value={speed}
-                          onChange={(e) => setSpeed(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 py-1.5 px-2 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {category === "Perangkat Jaringan" && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Jenis Perangkat</label>
-                        <select
-                          value={netType}
-                          onChange={(e) => setNetType(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-1.5 px-2 rounded text-slate-850 dark:text-slate-300"
-                        >
-                          <option value="Switch">Switch Hub</option>
-                          <option value="Managed Switch">Managed Switch</option>
-                          <option value="Router">Router Board</option>
-                          <option value="Access Point">Access Point</option>
-                          <option value="Firewall">Firewall / Gate</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Jumlah Port</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 8 / 24 / 48 Ports"
-                          value={ports}
-                          onChange={(e) => setPorts(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-850 py-1.5 px-2 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] uppercase font-bold text-slate-500">Bandwidth / Cap</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 1 Gbps / 10 Gbps"
-                          value={band}
-                          onChange={(e) => setBand(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-850 py-1.5 px-2 rounded text-slate-800 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes/Deskripsi */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-widest">Catatan Tambahan Alokasi / Rusak</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Keadaan fisik perangkat, riwayat serah terima, dsb..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-100 font-sans"
-                  />
-                </div>
-              </div>
-
-              {/* Submits - Fixed at bottom */}
-              <div className="p-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-end gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-550 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-slate-150 dark:hover:bg-slate-800 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
-                >
-                  <CheckCircle className="w-4 h-4" /> {isEditing ? "Terapkan Perubahan" : "Simpan Inventori Aset"}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
     </div>
   );
 }

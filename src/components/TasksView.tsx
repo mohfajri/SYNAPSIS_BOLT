@@ -1522,7 +1522,7 @@ export default function TasksView({
                         checked={taskType === t}
                         onChange={() => setTaskType(t)}
                       />
-                      <span className="px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 text-[11px] font-bold hover:shadow-xs peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all block select-none">
+                      <span className="px-4 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 text-[11px] font-bold hover:shadow-xs peer-checked:bg-blue-50/90 dark:peer-checked:bg-blue-950/40 peer-checked:text-blue-700 dark:peer-checked:text-blue-400 peer-checked:border-blue-600 dark:peer-checked:border-blue-500 transition-all block select-none">
                         {t}
                       </span>
                     </label>
@@ -1744,28 +1744,30 @@ export default function TasksView({
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">SUB-TASKS CHECKLIST (PEMECAHAN RINCIAN)</label>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <CheckSquare className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-                    <input
-                      type="text"
-                      value={newSubTitle}
-                      onChange={(e) => setNewSubTitle(e.target.value)}
-                      placeholder="Tulis butir tugas baru dan tekan enter atau klik tombol..."
-                      className="flex-1 bg-transparent border-none p-0 focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:opacity-50 font-semibold"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTempSub();
-                        }
-                      }}
-                    />
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800 w-full focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/25 transition-all">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0 px-2.5 py-1.5 bg-transparent">
+                      <CheckSquare className="w-4.5 h-4.5 text-blue-500 shrink-0" />
+                      <input
+                        type="text"
+                        value={newSubTitle}
+                        onChange={(e) => setNewSubTitle(e.target.value)}
+                        placeholder="Tulis butir data rincian teknis pekerjaan baru di sini dan tekan enter..."
+                        className="w-full flex-1 min-w-0 bg-transparent border-none p-0 focus:outline-none focus:ring-0 text-slate-800 dark:text-slate-100 placeholder:opacity-50 font-bold text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddTempSub();
+                          }
+                        }}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={handleAddTempSub}
-                      className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-405 px-3 py-1.5 rounded-md font-bold transition-all shrink-0"
+                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2.5 rounded-lg transition-all shrink-0 active:scale-95 cursor-pointer shadow-xs"
                     >
-                      + Tambah
+                      + Tambah Rincian
                     </button>
                   </div>
 
@@ -2230,10 +2232,14 @@ export default function TasksView({
             <select
               value={filterTaskType}
               onChange={(e) => setFilterTaskType(e.target.value)}
-              className="w-full bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 text-xs font-semibold py-1.5 px-3.5 rounded-xl text-slate-600 dark:text-slate-300 hover:border-slate-350 dark:hover:border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 focus:outline-none transition-all cursor-pointer appearance-none pr-8"
             >
-              <option value="">Semua Tipe Tugas</option>
-              {tasktypesList.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="" className="text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900">Semua Tipe Tugas</option>
+              {tasktypesList.map(t => (
+                <option key={t} value={t} className="text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900">
+                  {t}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
           </div>

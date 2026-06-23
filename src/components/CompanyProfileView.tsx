@@ -148,10 +148,10 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
     setErrorMsg(null);
     setSuccessMsg(null);
     
-    // Check authorizations
-    const isAuthorized = currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager";
+    // Check authorizations (Hanya Administrator yang diperbolehkan mengupdate)
+    const isAuthorized = currentUser?.role === "Administrator";
     if (!isAuthorized) {
-      setErrorMsg("Akses Ditolak: Hanya Administrator, Direktur, atau Manager yang diizinkan untuk mengubah profil perusahaan.");
+      setErrorMsg("Akses Ditolak: Hanya Administrator yang diizinkan untuk mengubah profil perusahaan.");
       setIsSaving(false);
       return;
     }
@@ -179,7 +179,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
     }
   };
 
-  const isAuthorized = currentUser?.role === "Administrator" || currentUser?.role === "Direktur" || currentUser?.role === "Manager";
+  const isAuthorized = currentUser?.role === "Administrator";
 
   if (isLoading) {
     return (
@@ -316,7 +316,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="md:col-span-2 space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Nama Resmi Perusahaan *</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none !bg-transparent !border-none !shadow-none">
                     <Building className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
@@ -335,7 +335,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="md:col-span-2 space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Alamat Kantor Pusat / Korespondensi</label>
                 <div className="relative">
-                  <div className="absolute top-2.5 left-3 pointer-events-none">
+                  <div className="absolute top-2.5 left-3 pointer-events-none !bg-transparent !border-none !shadow-none">
                     <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <textarea
@@ -354,7 +354,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Nomor Telepon Kantor</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none !bg-transparent !border-none !shadow-none">
                     <Phone className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
@@ -373,7 +373,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Nomor Fax</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none !bg-transparent !border-none !shadow-none">
                     <Printer className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
@@ -392,7 +392,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Situs Resmi / Web Perusahaan</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none !bg-transparent !border-none !shadow-none">
                     <Globe className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <input
@@ -411,7 +411,7 @@ export default function CompanyProfileView({ currentUser }: CompanyProfileViewPr
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Alamat Email Perusahaan</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none !bg-transparent !border-none !shadow-none">
                     <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </div>
                   <input

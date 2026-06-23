@@ -76,6 +76,7 @@ const AVAILABLE_VIEWS = [
   { id: "billing", label: "Billing KSO & ATK" },
   { id: "kassite", label: "Kas Site (Petty Cash)" },
   { id: "checklist", label: "Checklist Pemeliharaan" },
+  { id: "company_profile", label: "Profil Perusahaan" },
   { id: "clients", label: "Profile Client / RS" },
   { id: "users", label: "Penyusunan Akun (CRUD)" },
   { id: "settings", label: "Setting Sistem" }

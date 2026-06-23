@@ -837,7 +837,7 @@ export default function KasSiteView({
         
         {/* CARD A: PEMASUKAN DARI KANTOR PUSAT */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-3xs hover:shadow-2xs transition-all relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 p-6 bg-emerald-550/5 rounded-full" />
+          <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 p-6 bg-emerald-500/10 rounded-full pointer-events-none" />
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Dropping HQ (Pemasukan)</span>
             <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/70">DEBIT</span>
@@ -851,7 +851,7 @@ export default function KasSiteView({
 
         {/* CARD B: PENGELUARAN OPERASIONAL SITE */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-3xs hover:shadow-2xs transition-all relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 p-6 bg-rose-550/5 rounded-full" />
+          <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 p-6 bg-rose-500/10 rounded-full pointer-events-none" />
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Biaya Operasional Lapangan</span>
             <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/70">KREDIT</span>
@@ -865,7 +865,7 @@ export default function KasSiteView({
 
         {/* CARD C: SALDO SISA KAS KECIL */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-3xs hover:shadow-2xs transition-all relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 p-8 bg-blue-500/5 rounded-full" />
+          <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 p-8 bg-blue-500/10 rounded-full pointer-events-none" />
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Sisa Saldo Kas Lapangan</span>
             <span className={`px-2 py-0.5 rounded text-[9px] font-black ${currentBalance < 500000 ? "bg-rose-500 text-white animate-pulse" : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"}`}>

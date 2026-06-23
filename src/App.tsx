@@ -1461,9 +1461,9 @@ export default function App() {
   const userRoleConfig = settings?.roles?.find((r: any) => r.roleName === currentUser?.role);
   
   // Default values based on specifications
-  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets", "checklist"];
+  let allowedViewIds = ["dashboard", "projects", "tasks", "kanban", "gantt", "calendar", "collab", "tickets", "appmodules", "assets", "checklist", "company_profile"];
   if (currentUser?.role === "Administrator") {
-    allowedViewIds = ["settings", "users", "clients", "tickets", "appmodules", "assets", "checklist"];
+    allowedViewIds = ["settings", "users", "clients", "tickets", "appmodules", "assets", "checklist", "company_profile"];
   }
 
   if (userRoleConfig && userRoleConfig.active) {
@@ -1485,8 +1485,8 @@ export default function App() {
     allowedViewIds = [...allowedViewIds, "kassite"];
   }
 
-  // Grant 'company_profile' view automatically if user is authenticated
-  if (currentUser && !allowedViewIds.includes("company_profile")) {
+  // Grant 'company_profile' view automatically if user is authenticated and hasn't explicitly customized roles config
+  if (currentUser && !userRoleConfig && !allowedViewIds.includes("company_profile")) {
     allowedViewIds = [...allowedViewIds, "company_profile"];
   }
 
@@ -2052,6 +2052,7 @@ export default function App() {
             <AssetsView 
               assets={scopedAssets}
               clients={scopedClients}
+              users={users}
               currentUser={currentUser}
               onAddAsset={handleAddAsset}
               onUpdateAsset={handleUpdateAsset}
