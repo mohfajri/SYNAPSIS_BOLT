@@ -307,12 +307,26 @@ async function syncCollectionsToSupabase(data: any) {
 
     syncTable("clients", (data.clients || []).map((c: any) => ({
       id: c.id,
-      code: c.code || "",
-      name: c.name || "",
-      pic: c.pic || "",
-      status: c.status || "",
-      created_at: c.createdAt || new Date().toISOString()
+      code: c.kodeRS || c.code || "",
+      name: c.namaRS || c.name || "",
+      pic: c.direkturRS || c.pic || "",
+      status: c.tipeMedika || c.status || "",
+      created_at: c.createdAt || new Date().toISOString(),
+      kode_rs: c.kodeRS || ""
     }))),
+
+    syncTable("client_rooms", (data.clients || []).flatMap((c: any) => 
+      (c.rooms || []).map((r: any) => ({
+        id: r.id,
+        client_id: c.id,
+        name: r.name || "",
+        building: r.building || "",
+        code: r.code || "",
+        floor: r.floor || "",
+        description: r.description || "",
+        created_at: r.createdAt || new Date().toISOString()
+      }))
+    )),
 
     syncTable("tasks", (data.tasks || []).map((t: any) => ({
       id: t.id,
@@ -1756,7 +1770,7 @@ app.get("/api/clients", async (req, res) => {
 
 app.post("/api/clients", async (req, res) => {
   try {
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS } = req.body;
     if (!namaRS) {
       return res.status(400).json({ error: "Nama RS wajib diisi!" });
     }
@@ -1774,7 +1788,8 @@ app.post("/api/clients", async (req, res) => {
       moduleStatuses: moduleStatuses || [],
       persentaseKSO: persentaseKSO !== undefined ? parseFloat(persentaseKSO) : 100,
       directors: directors || [],
-      rooms: rooms || []
+      rooms: rooms || [],
+      kodeRS: (kodeRS || "").substring(0, 5)
     };
     db.clients.push(newClient);
     await writeDB(db);
@@ -1787,7 +1802,7 @@ app.post("/api/clients", async (req, res) => {
 app.put("/api/clients/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS } = req.body;
     const db = await readDB();
     const idx = db.clients.findIndex((cl: any) => cl.id === id);
     if (idx === -1) {
@@ -1804,6 +1819,7 @@ app.put("/api/clients/:id", async (req, res) => {
     if (persentaseKSO !== undefined) db.clients[idx].persentaseKSO = persentaseKSO !== null ? parseFloat(persentaseKSO) : undefined;
     if (directors !== undefined) db.clients[idx].directors = directors;
     if (rooms !== undefined) db.clients[idx].rooms = rooms;
+    if (kodeRS !== undefined) db.clients[idx].kodeRS = (kodeRS || "").substring(0, 5);
     
     await writeDB(db);
     return res.json(db.clients[idx]);

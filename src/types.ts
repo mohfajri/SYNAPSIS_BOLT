@@ -37,6 +37,7 @@ export interface ClientRoom {
   floor?: string;     // Lantai (e.g. Lantai 1, Lantai 2)
   description?: string; // Keterangan tambahan
   createdAt: string;
+  building?: string;  // Gedung (Gedung RS)
 }
 
 export interface Client {
@@ -54,6 +55,7 @@ export interface Client {
   persentaseKSO?: number; // Persentase KSO (e.g. 10.5)
   directors?: DirectorHistory[]; // List of historical directors
   rooms?: ClientRoom[]; // Daftar Ruangan penempatan aset
+  kodeRS?: string; // Kode RS (max 5 karakter)
 }
 
 export interface Project {

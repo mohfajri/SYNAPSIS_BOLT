@@ -46,6 +46,7 @@ export default function ClientCard({
 
   // Edit RS Profile states (prefilled from cl on entry)
   const [editNamaRS, setEditNamaRS] = useState("");
+  const [editKodeRS, setEditKodeRS] = useState("");
   const [editTipeMedika, setEditTipeMedika] = useState("");
   const [editNoKSO, setEditNoKSO] = useState("");
   const [editPersentaseKSO, setEditPersentaseKSO] = useState<number>(100);
@@ -62,11 +63,13 @@ export default function ClientCard({
   const [subDirActive, setSubDirActive] = useState(true);
 
   // Manage Rooms Drawer states
+  const [addRoomBuilding, setAddRoomBuilding] = useState("");
   const [addRoomName, setAddRoomName] = useState("");
   const [addRoomCode, setAddRoomCode] = useState("");
   const [addRoomFloor, setAddRoomFloor] = useState("");
   const [addRoomDesc, setAddRoomDesc] = useState("");
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editRoomBuilding, setEditRoomBuilding] = useState("");
   const [editRoomName, setEditRoomName] = useState("");
   const [editRoomCode, setEditRoomCode] = useState("");
   const [editRoomFloor, setEditRoomFloor] = useState("");
@@ -88,6 +91,7 @@ export default function ClientCard({
   // Setup Initial Edit form state on enter
   const handleStartEdit = () => {
     setEditNamaRS(cl.namaRS || "");
+    setEditKodeRS(cl.kodeRS || "");
     setEditTipeMedika(cl.tipeMedika || tipeMedikaList[0] || "Rumah Sakit");
     setEditNoKSO(cl.noKSO || "");
     setEditPersentaseKSO(cl.persentaseKSO !== undefined ? cl.persentaseKSO : 100);
@@ -115,11 +119,16 @@ export default function ClientCard({
       alert("Nama RS/Client wajib diisi!");
       return;
     }
+    if (editKodeRS.trim().length > 5) {
+      alert("Kode RS maksimal 5 karakter!");
+      return;
+    }
     const activeDir = editDirectors.find(d => d.isActive);
     const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (editDirekturRS || "-");
 
     await onUpdateClient(cl.id, {
       namaRS: editNamaRS.trim(),
+      kodeRS: editKodeRS.trim().substring(0, 5),
       noKSO: editNoKSO.trim(),
       direkturRS: finalDirekturRS,
       tanggalProject: editTanggalProject,
@@ -145,12 +154,14 @@ export default function ClientCard({
     const newRoom: ClientRoom = {
       id: "room-" + Math.random().toString(36).slice(2, 9),
       name: addRoomName.trim(),
+      building: addRoomBuilding.trim() || undefined,
       code: addRoomCode.trim() || undefined,
       floor: addRoomFloor.trim() || undefined,
       description: addRoomDesc.trim() || undefined,
       createdAt: new Date().toISOString()
     };
     await onUpdateClient(cl.id, { rooms: [...currentRooms, newRoom] });
+    setAddRoomBuilding("");
     setAddRoomName("");
     setAddRoomCode("");
     setAddRoomFloor("");
@@ -168,6 +179,7 @@ export default function ClientCard({
         return {
           ...r,
           name: editRoomName.trim(),
+          building: editRoomBuilding.trim() || undefined,
           code: editRoomCode.trim() || undefined,
           floor: editRoomFloor.trim() || undefined,
           description: editRoomDesc.trim() || undefined,
@@ -252,7 +264,7 @@ export default function ClientCard({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Nama RS / Client</label>
               <input
@@ -260,6 +272,18 @@ export default function ClientCard({
                 required
                 value={editNamaRS}
                 onChange={(e) => setEditNamaRS(e.target.value)}
+                disabled={isUserScoped}
+                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Kode RS (Maks 5 Karakter)</label>
+              <input
+                type="text"
+                maxLength={5}
+                value={editKodeRS}
+                onChange={(e) => setEditKodeRS(e.target.value.substring(0, 5).toUpperCase())}
                 disabled={isUserScoped}
                 className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
               />
@@ -499,7 +523,12 @@ export default function ClientCard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white">{cl.namaRS}</span>
-                <span className="text-[10px] bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 rounded-sm px-1.5 py-0.5 font-bold uppercase tracking-wide">
+                {cl.kodeRS && (
+                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 rounded px-1.5 py-0.5 font-bold font-mono uppercase">
+                    KODE: {cl.kodeRS}
+                  </span>
+                )}
+                <span className="text-[10px] bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide">
                   {cl.tipeMedika || "Rumah Sakit"}
                 </span>
               </div>
@@ -880,41 +909,55 @@ export default function ClientCard({
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Nama Ruangan *</label>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Gedung</label>
+                                  <input
+                                    type="text"
+                                    value={editRoomBuilding}
+                                    onChange={(e) => setEditRoomBuilding(e.target.value)}
+                                    placeholder="e.g. Gedung A"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Nama Ruangan RS *</label>
                                   <input
                                     type="text"
                                     value={editRoomName}
                                     onChange={(e) => setEditRoomName(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs"
+                                    placeholder="e.g. Ruang UGD"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
                                   />
                                 </div>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
                                 <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Kode Ruangan</label>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Kode Singkatan</label>
                                   <input
                                     type="text"
                                     value={editRoomCode}
                                     onChange={(e) => setEditRoomCode(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs"
+                                    placeholder="e.g. UGD-01"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
                                   />
                                 </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Lantai</label>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Lantai RS</label>
                                   <input
                                     type="text"
                                     value={editRoomFloor}
                                     onChange={(e) => setEditRoomFloor(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs"
+                                    placeholder="e.g. 1"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Deskripsi</label>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Keterangan / Fungsi</label>
                                   <input
                                     type="text"
                                     value={editRoomDesc}
                                     onChange={(e) => setEditRoomDesc(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs"
+                                    placeholder="Keterangan / Fungsi"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
                                   />
                                 </div>
                               </div>
@@ -938,10 +981,11 @@ export default function ClientCard({
                           ) : (
                             <div>
                               <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-900/40">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {room.building && <span className="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 text-[8.5px] font-black px-1.5 py-0.5 rounded uppercase border border-amber-200 dark:border-amber-900/45">🏢 {room.building}</span>}
                                   <span className="font-bold text-xs text-slate-850 dark:text-slate-105 flex items-center gap-1">🚪 {room.name}</span>
-                                  {room.code && <span className="bg-emerald-100/30 text-emerald-800 dark:text-emerald-400 text-[8px] font-bold px-1 rounded">{room.code}</span>}
-                                  {room.floor && <span className="bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 text-[8px] font-medium px-1 rounded">Lt.{room.floor}</span>}
+                                  {room.code && <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/45">{room.code}</span>}
+                                  {room.floor && <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8.5px] font-medium px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/45">Lt.{room.floor}</span>}
                                 </div>
                                 <div className="flex gap-2">
                                   <button
@@ -949,6 +993,7 @@ export default function ClientCard({
                                     onClick={() => {
                                       setEditingRoomId(room.id);
                                       setEditRoomName(room.name);
+                                      setEditRoomBuilding(room.building || "");
                                       setEditRoomCode(room.code || "");
                                       setEditRoomFloor(room.floor || "");
                                       setEditRoomDesc(room.description || "");
@@ -968,7 +1013,7 @@ export default function ClientCard({
                               </div>
 
                               <div className="space-y-1">
-                                {room.description && <p className="text-[10px] text-slate-500 mt-1 italic leading-tight">💬 {room.description}</p>}
+                                {room.description && <p className="text-[10px] text-slate-500 mt-1 italic leading-tight">💬 Fungsi/Keterangan: {room.description}</p>}
                               </div>
 
                               {/* Nested penempatan aset list */}
@@ -1001,7 +1046,17 @@ export default function ClientCard({
 
               {/* Add room form inside expanded drawer */}
               <div className="bg-white dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-850 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Gedung RS</label>
+                    <input
+                      type="text"
+                      value={addRoomBuilding}
+                      onChange={(e) => setAddRoomBuilding(e.target.value)}
+                      placeholder="e.g. Gedung A / Barat"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                   <div>
                     <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Nama Ruangan RS *</label>
                     <input
@@ -1038,7 +1093,7 @@ export default function ClientCard({
                       type="text"
                       value={addRoomDesc}
                       onChange={(e) => setAddRoomDesc(e.target.value)}
-                      placeholder="e.g. Area darurat lantai dasar sebelah timur"
+                      placeholder="e.g. Area darurat lantai dasar"
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
                     />
                   </div>

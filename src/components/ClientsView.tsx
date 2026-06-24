@@ -54,6 +54,7 @@ export default function ClientsView({
 
   // Create Client State
   const [namaRS, setNamaRS] = useState("");
+  const [kodeRS, setKodeRS] = useState("");
   const [noKSO, setNoKSO] = useState("");
   const [direkturRS, setDirekturRS] = useState("");
   const [modulSIMRS, setModulSIMRS] = useState("");
@@ -91,11 +92,17 @@ export default function ClientsView({
       return;
     }
 
+    if (kodeRS.trim().length > 5) {
+      setErrorText("Kode RS maksimal 5 karakter!");
+      return;
+    }
+
     const activeDir = directors.find(d => d.isActive);
     const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (direkturRS || "-");
 
     await onAddClient({
       namaRS: namaRS.trim(),
+      kodeRS: kodeRS.trim().substring(0, 5),
       noKSO: noKSO.trim(),
       direkturRS: finalDirekturRS,
       modulSIMRS: modulSIMRS.trim(),
@@ -108,6 +115,7 @@ export default function ClientsView({
 
     // Reset Form
     setNamaRS("");
+    setKodeRS("");
     setNoKSO("");
     setDirekturRS("");
     setModulSIMRS("");
@@ -129,7 +137,8 @@ export default function ClientsView({
     cl.namaRS.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (cl.noKSO || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (cl.direkturRS || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (cl.modulSIMRS || "").toLowerCase().includes(searchTerm.toLowerCase())
+    (cl.modulSIMRS || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (cl.kodeRS || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Stats calculation
@@ -236,7 +245,7 @@ export default function ClientsView({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nama RS / Client <span className="text-red-500">*</span></label>
                   <input
@@ -245,6 +254,18 @@ export default function ClientsView({
                     value={namaRS}
                     onChange={(e) => setNamaRS(e.target.value)}
                     placeholder="Nama RS (e.g. RS Medika Utama)"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Kode RS (Maks 5 Karakter)</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={kodeRS}
+                    onChange={(e) => setKodeRS(e.target.value.substring(0, 5).toUpperCase())}
+                    placeholder="e.g. RS001"
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
