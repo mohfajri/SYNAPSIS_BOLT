@@ -1837,7 +1837,20 @@ app.put("/api/clients/:id", async (req, res) => {
     if (moduleStatuses !== undefined) db.clients[idx].moduleStatuses = moduleStatuses;
     if (persentaseKSO !== undefined) db.clients[idx].persentaseKSO = persentaseKSO !== null ? parseFloat(persentaseKSO) : undefined;
     if (directors !== undefined) db.clients[idx].directors = directors;
-    if (rooms !== undefined) db.clients[idx].rooms = rooms;
+    if (rooms !== undefined) {
+      const oldRooms = db.clients[idx].rooms || [];
+      const newRoomIds = new Set(rooms.map((r: any) => r.id));
+      const deletedRoomIds = oldRooms.filter((r: any) => r.id && !newRoomIds.has(r.id)).map((r: any) => r.id);
+      if (deletedRoomIds.length > 0) {
+        db.assets = (db.assets || []).map((as: any) => {
+          if (as.clientRS === db.clients[idx].namaRS && deletedRoomIds.includes(as.roomId)) {
+            return { ...as, roomId: "", roomName: "" };
+          }
+          return as;
+        });
+      }
+      db.clients[idx].rooms = rooms;
+    }
     if (kodeRS !== undefined) db.clients[idx].kodeRS = (kodeRS || "").substring(0, 5);
     if (statusAktif !== undefined) db.clients[idx].statusAktif = !!statusAktif;
     

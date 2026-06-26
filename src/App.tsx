@@ -998,6 +998,11 @@ export default function App() {
     try {
       const res = await api.updateClient(id, data);
       setClients(prev => prev.map(cl => cl.id === id ? { ...cl, ...res } : cl));
+      if (data.rooms !== undefined) {
+        // Jika list ruangan berubah (misal dihapus), update state assets karena relasi bisa ber-cascade
+        const freshAssets = await api.getAssets();
+        setAssets(freshAssets);
+      }
     } catch (err: any) {
       alert(`Gagal mengubah data Client: ${err.message}`);
     }

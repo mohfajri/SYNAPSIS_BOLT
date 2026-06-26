@@ -10,7 +10,11 @@ import {
   X,
   Percent,
   Home,
-  Plus
+  Plus,
+  FileSpreadsheet,
+  Upload,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react";
 
 interface ClientCardProps {
@@ -79,6 +83,13 @@ export default function ClientCard({
   const [editRoomDesc, setEditRoomDesc] = useState("");
   const [editRoomSubRoom, setEditRoomSubRoom] = useState("");
   const [editRoomStatusAktif, setEditRoomStatusAktif] = useState(true);
+
+  // Import Rooms state
+  const [isImportRoomsOpen, setIsImportRoomsOpen] = useState(false);
+  const [dragRoomsActive, setDragRoomsActive] = useState(false);
+  const [importRoomsPreview, setImportRoomsPreview] = useState<Partial<ClientRoom>[]>([]);
+  const [importRoomsError, setImportRoomsError] = useState("");
+  const [importRoomsSuccess, setImportRoomsSuccess] = useState("");
 
   // Manage Module Statuses Drawer states
   const [addModulName, setAddModulName] = useState("");
@@ -205,17 +216,171 @@ export default function ClientCard({
   };
 
   const handleDeleteRoom = async (rId: string, roomName: string) => {
-    // 2. Jika sudah ada data aset pada ruangan, validasi supaya tidak bisa di hapus
-    const roomAssets = clientAssets.filter(as => as.roomId === rId || as.roomName === roomName);
+    // Cocokkan secara presisi: dengan roomId yang sama, atau jika nama ruangan sama tapi asset tidak memiliki roomId (legacy)
+    const roomAssets = clientAssets.filter(as => as.roomId === rId || (as.roomName === roomName && !as.roomId));
+    
+    let confirmMsg = `Apakah Anda yakin ingin menghapus ruangan "${roomName}" dari profil RS?`;
     if (roomAssets.length > 0) {
-      alert(`Ruangan "${roomName}" tidak dapat dihapus karena masih terdapat ${roomAssets.length} aset terpasang di dalamnya! Silakan pindahkan atau hapus aset terlebih dahulu.`);
-      return;
+      confirmMsg = `⚠️ Perhatian: Terdapat ${roomAssets.length} aset terpasang di ruangan "${roomName}".\n\nJika Anda menghapus ruangan ini, penempatan aset-aset tersebut akan dikosongkan (di-reset) secara otomatis.\n\nApakah Anda yakin ingin melanjutkan menghapus ruangan ini?`;
     }
 
-    if (confirm(`Apakah anda yakin ingin menghapus ruangan "${roomName}" dari profil RS?`)) {
+    if (confirm(confirmMsg)) {
       const currentRooms = cl.rooms || [];
       const updated = currentRooms.filter(r => r.id !== rId);
       await onUpdateClient(cl.id, { rooms: updated });
+    }
+  };
+
+  // CSV Parsing function for Rooms
+  function parseRoomsCSV(text: string): Partial<ClientRoom>[] {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return [];
+
+    const splitCSVLine = (line: string) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const rawHeaders = splitCSVLine(lines[0]);
+    const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    const roomsList: Partial<ClientRoom>[] = [];
+
+    const findIndex = (aliases: string[]) => {
+      return headers.findIndex(h => aliases.includes(h));
+    };
+
+    const idxGedung = findIndex(["gedung", "building", "block", "floorbuilding"]);
+    const idxRuangan = findIndex(["ruangan", "nama", "namaruangan", "room", "roomname"]);
+    const idxSubRuangan = findIndex(["subruangan", "subroom", "subroomname", "bed", "bilik"]);
+    const idxKode = findIndex(["kodesingkatan", "kode", "code", "roomcode"]);
+    const idxLantai = findIndex(["lantai", "floor"]);
+    const idxKeterangan = findIndex(["keterangan", "deskripsi", "description", "desc"]);
+    const idxStatus = findIndex(["status", "statusaktif", "aktif", "active"]);
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      const cols = splitCSVLine(line);
+      if (cols.length === 0) continue;
+
+      const ruanganName = idxRuangan !== -1 && cols[idxRuangan] ? cols[idxRuangan].replace(/^"|"$/g, '') : "";
+      if (!ruanganName) continue; // Nama ruangan is required
+
+      const gedung = idxGedung !== -1 && cols[idxGedung] ? cols[idxGedung].replace(/^"|"$/g, '') : undefined;
+      const subRuangan = idxSubRuangan !== -1 && cols[idxSubRuangan] ? cols[idxSubRuangan].replace(/^"|"$/g, '') : undefined;
+      const kode = idxKode !== -1 && cols[idxKode] ? cols[idxKode].replace(/^"|"$/g, '') : undefined;
+      const lantai = idxLantai !== -1 && cols[idxLantai] ? cols[idxLantai].replace(/^"|"$/g, '') : undefined;
+      const keterangan = idxKeterangan !== -1 && cols[idxKeterangan] ? cols[idxKeterangan].replace(/^"|"$/g, '') : undefined;
+
+      let statusAktif = true;
+      if (idxStatus !== -1 && cols[idxStatus]) {
+        const val = cols[idxStatus].toLowerCase().replace(/^"|"$/g, '');
+        if (val === "false" || val === "0" || val === "non-aktif" || val === "tidak aktif" || val === "nonaktif") {
+          statusAktif = false;
+        }
+      }
+
+      roomsList.push({
+        id: "rm-" + Math.random().toString(36).substring(2, 9),
+        name: ruanganName,
+        building: gedung || undefined,
+        subRoomName: subRuangan || undefined,
+        code: kode || undefined,
+        floor: lantai || undefined,
+        description: keterangan || undefined,
+        statusAktif,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    return roomsList;
+  }
+
+  // Handle Rooms CSV File Import
+  const handleRoomsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportRoomsError("");
+    setImportRoomsSuccess("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    readAndProcessRoomsFile(file);
+  };
+
+  const readAndProcessRoomsFile = (file: File) => {
+    if (!file.name.endsWith(".csv")) {
+      setImportRoomsError("Hanya file .csv yang diperbolehkan! Silakan simpan Excel Anda sebagai format CSV (Comma Separated Values) terlebih dahulu.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      try {
+        const list = parseRoomsCSV(text);
+        if (list.length === 0) {
+          setImportRoomsError("Tidak ada baris data valid yang terbaca. Pastikan baris pertama berisi header nama kolom, minimal ada kolom 'RUANGAN' atau 'Nama'.");
+        } else {
+          setImportRoomsPreview(list);
+        }
+      } catch (err) {
+        setImportRoomsError("Terjadi kesalahan membaca file CSV: " + (err as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleRoomsDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragRoomsActive(true);
+    } else if (e.type === "dragleave") {
+      setDragRoomsActive(false);
+    }
+  };
+
+  const handleRoomsDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragRoomsActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      readAndProcessRoomsFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleConfirmRoomsImport = async () => {
+    setImportRoomsError("");
+    setImportRoomsSuccess("");
+    try {
+      const currentRooms = cl.rooms || [];
+      // Combine existing rooms with newly imported rooms
+      const updatedRooms = [...currentRooms];
+      for (const newRoom of importRoomsPreview) {
+        updatedRooms.push(newRoom as ClientRoom);
+      }
+      
+      await onUpdateClient(cl.id, { rooms: updatedRooms });
+      setImportRoomsSuccess(`Berhasil mengimpor ${importRoomsPreview.length} data ruangan ke profil RS!`);
+      setImportRoomsPreview([]);
+      setTimeout(() => {
+        setIsImportRoomsOpen(false);
+        setImportRoomsSuccess("");
+      }, 3000);
+    } catch (err) {
+      setImportRoomsError("Gagal menyimpan data ruangan ke database: " + (err as Error).message);
     }
   };
 
@@ -920,14 +1085,178 @@ export default function ClientCard({
                   <Home className="w-4 h-4 text-emerald-500" />
                   <span>Kelola Ruangan & Penempatan Aset RS</span>
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => setIsRoomsExpanded(false)} 
-                  className="text-slate-400 dark:text-slate-500 hover:text-slate-950 dark:hover:text-white text-xs font-bold cursor-pointer"
-                >
-                  Tutup
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsImportRoomsOpen(!isImportRoomsOpen);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-750 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70 dark:text-emerald-400 text-[10px] font-extrabold transition-all border border-emerald-200 dark:border-emerald-900/50 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3 h-3 text-emerald-500" />
+                    <span>{isImportRoomsOpen ? "Tutup Importer" : "Import Excel/CSV"}</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setIsRoomsExpanded(false)} 
+                    className="text-slate-400 dark:text-slate-500 hover:text-slate-950 dark:hover:text-white text-xs font-bold cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
+
+              {/* Rooms Importer panel */}
+              {isImportRoomsOpen && (
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-4 shadow-sm">
+                  <h4 className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                    Import Ruangan dari File Excel/CSV
+                  </h4>
+
+                  {importRoomsSuccess && (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 text-xs py-2 px-3 rounded-lg font-bold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                      <span>{importRoomsSuccess}</span>
+                    </div>
+                  )}
+
+                  {importRoomsError && (
+                    <div className="bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 text-xs py-2 px-3 rounded-lg font-bold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                      <span>{importRoomsError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Column guides */}
+                    <div className="lg:col-span-1 bg-slate-50 dark:bg-slate-900 p-3 border border-slate-150 dark:border-slate-800 rounded-lg space-y-2">
+                      <h5 className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">📋 Format Kolom yang Didukung</h5>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
+                        Sistem mendeteksi nama kolom secara otomatis. Pastikan file Excel disimpan sebagai <strong>CSV (Comma Separated Values)</strong> dengan header baris pertama berupa:
+                      </p>
+                      <ul className="text-[9px] space-y-1 text-slate-600 dark:text-slate-400 list-disc list-inside">
+                        <li><strong className="text-slate-700 dark:text-slate-200">RUANGAN / Nama</strong> <span className="text-red-500">*</span> (e.g. REKAM MEDIK)</li>
+                        <li><strong>GEDUNG / Building</strong> (e.g. POLIKLINIK)</li>
+                        <li><strong>SUB RUANGAN / SubRoom</strong> (e.g. RUANG KODING)</li>
+                        <li><strong>KODE SINGKATAN / Code</strong> (e.g. RM-KOD)</li>
+                        <li><strong>LANTAI / Floor</strong> (e.g. 1)</li>
+                        <li><strong>KETERANGAN / Description</strong> (e.g. Deskripsi fungsi)</li>
+                        <li><strong>STATUS / Active</strong> (True / False)</li>
+                      </ul>
+                      <div className="pt-1.5">
+                        <a
+                          href="data:text/csv;charset=utf-8,GEDUNG,RUANGAN,SUB RUANGAN,KODE SINGKATAN,LANTAI,KETERANGAN,STATUS%0APOLIKLINIK,REKAM MEDIK,RUANG KODING,RM-KOD,1,Ruang koding rekam medik,TRUE%0APOLIKLINIK,POLI PARU,POLI PARU,,1,,TRUE"
+                          download="template_ruangan_rs.csv"
+                          className="inline-flex items-center gap-1 text-[9px] bg-white hover:bg-slate-50 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 font-bold"
+                        >
+                          💾 Unduh Contoh Template CSV
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Drag-and-drop & Click selection container */}
+                    <div className="lg:col-span-2 space-y-3">
+                      {importRoomsPreview.length === 0 ? (
+                        <div
+                          onDragEnter={handleRoomsDrag}
+                          onDragOver={handleRoomsDrag}
+                          onDragLeave={handleRoomsDrag}
+                          onDrop={handleRoomsDrop}
+                          className={`relative min-h-[120px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 text-center transition-all ${
+                            dragRoomsActive 
+                              ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10" 
+                              : "border-slate-300 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-950/20"
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            id="csv-rooms-file-upload-input"
+                            accept=".csv"
+                            className="hidden"
+                            onChange={handleRoomsFileChange}
+                          />
+                          <label 
+                            htmlFor="csv-rooms-file-upload-input"
+                            className="cursor-pointer flex flex-col items-center justify-center space-y-1 w-full h-full"
+                          >
+                            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500">
+                              <Upload className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                                Seret & Letakkan file .csv di sini, atau <span className="text-emerald-500 hover:underline">Pilih dari Komputer</span>
+                              </p>
+                              <p className="text-[9px] text-slate-400 mt-0.5">
+                                Hanya mendukung file CSV (*.csv) hasil ekspor Excel
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      ) : (
+                        /* Import Preview Table */
+                        <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-950/20">
+                          <div className="p-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">🔎 Preview Data Ruangan ({importRoomsPreview.length} Baris)</span>
+                            <button
+                              onClick={() => setImportRoomsPreview([])}
+                              className="text-[9px] text-rose-500 hover:underline font-bold"
+                            >
+                              Reset / Batal
+                            </button>
+                          </div>
+                          <div className="max-h-[140px] overflow-y-auto overflow-x-auto text-[9px] scrollbar-thin">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50 dark:bg-slate-955 text-slate-500 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-800">
+                                  <th className="p-1.5">Gedung</th>
+                                  <th className="p-1.5">Ruangan</th>
+                                  <th className="p-1.5">Sub Ruangan</th>
+                                  <th className="p-1.5">Kode</th>
+                                  <th className="p-1.5">Lantai</th>
+                                  <th className="p-1.5">Keterangan</th>
+                                  <th className="p-1.5">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200/50 dark:divide-slate-800">
+                                {importRoomsPreview.map((item, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-100/30 dark:hover:bg-slate-900/20 text-slate-700 dark:text-slate-300">
+                                    <td className="p-1.5">{item.building || "-"}</td>
+                                    <td className="p-1.5 font-bold text-slate-900 dark:text-white">{item.name}</td>
+                                    <td className="p-1.5">{item.subRoomName || "-"}</td>
+                                    <td className="p-1.5 font-mono text-blue-500">{item.code || "-"}</td>
+                                    <td className="p-1.5">{item.floor || "-"}</td>
+                                    <td className="p-1.5 max-w-[120px] truncate" title={item.description}>{item.description || "-"}</td>
+                                    <td className="p-1.5">
+                                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${item.statusAktif !== false ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400"}`}>
+                                        {item.statusAktif !== false ? "Aktif" : "Non-Aktif"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="p-2 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+                            <button
+                              onClick={() => setImportRoomsPreview([])}
+                              className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2.5 py-1 rounded transition-all cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              onClick={handleConfirmRoomsImport}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded transition-all shadow-md shadow-emerald-600/15 cursor-pointer"
+                            >
+                              Confirm & Simpan Ke Database
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {!cl.rooms || cl.rooms.length === 0 ? (
