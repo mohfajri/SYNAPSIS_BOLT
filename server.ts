@@ -312,7 +312,8 @@ async function syncCollectionsToSupabase(data: any) {
       pic: c.direkturRS || c.pic || "",
       status: c.tipeMedika || c.status || "",
       created_at: c.createdAt || new Date().toISOString(),
-      kode_rs: c.kodeRS || ""
+      kode_rs: c.kodeRS || "",
+      status_aktif: c.statusAktif !== false
     }))),
 
     syncTable("client_rooms", (data.clients || []).flatMap((c: any) => 
@@ -324,6 +325,7 @@ async function syncCollectionsToSupabase(data: any) {
         code: r.code || "",
         floor: r.floor || "",
         description: r.description || "",
+        sub_room_name: r.subRoomName || "",
         created_at: r.createdAt || new Date().toISOString()
       }))
     )),
@@ -1770,7 +1772,7 @@ app.get("/api/clients", async (req, res) => {
 
 app.post("/api/clients", async (req, res) => {
   try {
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif } = req.body;
     if (!namaRS) {
       return res.status(400).json({ error: "Nama RS wajib diisi!" });
     }
@@ -1789,7 +1791,8 @@ app.post("/api/clients", async (req, res) => {
       persentaseKSO: persentaseKSO !== undefined ? parseFloat(persentaseKSO) : 100,
       directors: directors || [],
       rooms: rooms || [],
-      kodeRS: (kodeRS || "").substring(0, 5)
+      kodeRS: (kodeRS || "").substring(0, 5),
+      statusAktif: statusAktif !== undefined ? !!statusAktif : true
     };
     db.clients.push(newClient);
     await writeDB(db);
@@ -1802,7 +1805,7 @@ app.post("/api/clients", async (req, res) => {
 app.put("/api/clients/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS } = req.body;
+    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif } = req.body;
     const db = await readDB();
     const idx = db.clients.findIndex((cl: any) => cl.id === id);
     if (idx === -1) {
@@ -1820,6 +1823,7 @@ app.put("/api/clients/:id", async (req, res) => {
     if (directors !== undefined) db.clients[idx].directors = directors;
     if (rooms !== undefined) db.clients[idx].rooms = rooms;
     if (kodeRS !== undefined) db.clients[idx].kodeRS = (kodeRS || "").substring(0, 5);
+    if (statusAktif !== undefined) db.clients[idx].statusAktif = !!statusAktif;
     
     await writeDB(db);
     return res.json(db.clients[idx]);

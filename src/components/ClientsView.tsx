@@ -63,6 +63,7 @@ export default function ClientsView({
   const [tipeMedika, setTipeMedika] = useState<string>(tipeMedikaList[0] || "Rumah Sakit");
   const [persentaseKSO, setPersentaseKSO] = useState<number>(100);
   const [directors, setDirectors] = useState<DirectorHistory[]>([]);
+  const [statusAktif, setStatusAktif] = useState(true);
   // Individual newly-added director sub-form fields
   const [newDirName, setNewDirName] = useState("");
   const [newDirNip, setNewDirNip] = useState("");
@@ -110,7 +111,8 @@ export default function ClientsView({
       tanggalCutOff,
       tipeMedika,
       persentaseKSO: persentaseKSO,
-      directors: directors
+      directors: directors,
+      statusAktif: statusAktif
     });
 
     // Reset Form
@@ -124,6 +126,7 @@ export default function ClientsView({
     setTipeMedika(tipeMedikaList[0] || "Rumah Sakit");
     setPersentaseKSO(100);
     setDirectors([]);
+    setStatusAktif(true);
     setNewDirName("");
     setNewDirNip("");
     setNewDirStart("");
@@ -245,7 +248,7 @@ export default function ClientsView({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nama RS / Client <span className="text-red-500">*</span></label>
                   <input
@@ -305,6 +308,18 @@ export default function ClientsView({
                     placeholder="e.g. 10.5"
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Status Keaktifan RS</label>
+                  <select
+                    value={statusAktif ? "Aktif" : "Non-Aktif"}
+                    onChange={(e) => setStatusAktif(e.target.value === "Aktif")}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non-Aktif">Non-Aktif</option>
+                  </select>
                 </div>
               </div>
 

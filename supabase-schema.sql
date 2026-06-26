@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS clients (
   name VARCHAR(255) NOT NULL,
   pic VARCHAR(100),
   status VARCHAR(100),
+  status_aktif BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   kode_rs VARCHAR(5)
 );
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS client_rooms (
   code VARCHAR(50),
   floor VARCHAR(50),
   description TEXT,
+  sub_room_name VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 

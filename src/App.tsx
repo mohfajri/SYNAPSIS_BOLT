@@ -1827,6 +1827,8 @@ export default function App() {
             <DashboardView 
               projects={scopedProjects}
               tasks={scopedTasks}
+              commlogs={scopedLogs}
+              tickets={scopedTickets}
               onNavigateToView={(v) => setCurrentView(v)}
               onViewTaskDetail={handleOpenTaskDetailDirectly}
               picThemeColors={picThemeColors}

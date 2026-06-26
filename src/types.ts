@@ -38,6 +38,7 @@ export interface ClientRoom {
   description?: string; // Keterangan tambahan
   createdAt: string;
   building?: string;  // Gedung (Gedung RS)
+  subRoomName?: string; // Sub Ruangan (e.g. Bed 1, Ruang Dokter, Bilik A)
 }
 
 export interface Client {
@@ -56,6 +57,7 @@ export interface Client {
   directors?: DirectorHistory[]; // List of historical directors
   rooms?: ClientRoom[]; // Daftar Ruangan penempatan aset
   kodeRS?: string; // Kode RS (max 5 karakter)
+  statusAktif?: boolean; // Status Aktif RS (default: true)
 }
 
 export interface Project {
@@ -196,6 +198,17 @@ export interface BALog {
   noID?: string;
 }
 
+export interface TicketComment {
+  id: string;
+  sender: string;
+  role: string;
+  text: string;
+  createdAt: string;
+  parentCommentId?: string; // for threaded replies
+  attachmentName?: string;
+  attachmentData?: string;
+}
+
 export interface Ticket {
   id: string;
   projectName: string; // Reference to Client RS (master data) or Project
@@ -219,6 +232,7 @@ export interface Ticket {
   closedAt?: string;
   followUpLog?: string;
   dueDate?: string;
+  comments?: TicketComment[];
 }
 
 export interface SubModule {

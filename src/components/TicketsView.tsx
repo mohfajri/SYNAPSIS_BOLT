@@ -155,8 +155,180 @@ export default function TicketsView({
   const [activeAssigneeDropdownId, setActiveAssigneeDropdownId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
+  // SLA ticker and comment states
+  const [ticker, setTicker] = useState(0);
+  const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
+  const [replyToSender, setReplyToSender] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setTicker(prev => prev + 1);
+    }, 10000); // refresh every 10 seconds to keep remaining time live
+    return () => clearInterval(timer);
+  }, []);
+
   const toggleExpand = (id: string) => {
     setExpandedTicketId(prev => prev === id ? null : id);
+    setReplyToCommentId(null);
+    setReplyToSender(null);
+    setCommentText("");
+  };
+
+  const handleAddComment = async (ticketId: string, text: string, parentCommentId?: string) => {
+    if (!text.trim()) return;
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    const newComment = {
+      id: "comment-" + Math.random().toString(36).slice(2, 9),
+      sender: currentUser?.nickname || currentUser?.username || "Staff",
+      role: currentUser?.role || "Site Staff",
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      parentCommentId
+    };
+
+    const updatedComments = [...(ticket.comments || []), newComment];
+    await onUpdateTicket(ticketId, { comments: updatedComments });
+    setCommentText("");
+    setReplyToCommentId(null);
+    setReplyToSender(null);
+  };
+
+  const handleDeleteComment = async (ticketId: string, commentId: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    
+    if (!confirm("Hapus komentar ini?")) return;
+
+    const updatedComments = (ticket.comments || []).filter(c => c.id !== commentId && c.parentCommentId !== commentId);
+    await onUpdateTicket(ticketId, { comments: updatedComments });
+  };
+
+  const getSlaLimitHours = (priority: string) => {
+    const p = (priority || "").toLowerCase();
+    if (p === "urgent") return 2;
+    if (p === "high") return 4;
+    if (p === "medium") return 8;
+    return 24; // Low / default
+  };
+
+  const getSlaStatus = (ticket: Ticket) => {
+    const limitHours = getSlaLimitHours(ticket.priority);
+    const limitMs = limitHours * 60 * 60 * 1000;
+    
+    const createdTime = new Date(ticket.createdAt).getTime();
+    const isFinished = ticket.status === "Closed" || ticket.status === "Resolved" || ticket.status === "Solved";
+    
+    // Use ticket.closedAt as endTime if resolved, else now
+    const endTime = isFinished 
+      ? (ticket.closedAt ? new Date(ticket.closedAt).getTime() : new Date().getTime())
+      : new Date().getTime();
+      
+    const elapsedMs = endTime - createdTime;
+    const remainingMs = limitMs - elapsedMs;
+    const isOverdue = remainingMs < 0;
+    
+    const absRemainingMs = Math.abs(remainingMs);
+    const hours = Math.floor(absRemainingMs / (1000 * 60 * 60));
+    const minutes = Math.floor((absRemainingMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let formattedRemaining = "";
+    if (isOverdue) {
+      formattedRemaining = `${hours}j ${minutes}m LATE`;
+    } else {
+      formattedRemaining = `${hours}j ${minutes}m sisa`;
+    }
+    
+    const percentageRemaining = Math.max(0, Math.min(100, ((limitMs - elapsedMs) / limitMs) * 100));
+    
+    let badgeClass = "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-200/50";
+    let barColor = "bg-emerald-500";
+    if (isOverdue) {
+      badgeClass = "text-rose-700 bg-rose-50 dark:bg-rose-950/20 dark:text-rose-400 border-rose-200/50 animate-pulse";
+      barColor = "bg-rose-500";
+    } else if (percentageRemaining < 25) {
+      badgeClass = "text-amber-700 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 border-amber-200/50";
+      barColor = "bg-amber-500";
+    } else if (percentageRemaining < 50) {
+      badgeClass = "text-yellow-700 bg-yellow-50 dark:bg-yellow-950/20 dark:text-yellow-400 border-yellow-200/50";
+      barColor = "bg-yellow-400";
+    }
+    
+    return {
+      limitHours,
+      isFinished,
+      remainingMs,
+      isOverdue,
+      formattedRemaining,
+      percentageRemaining,
+      badgeClass,
+      barColor,
+      elapsedMs
+    };
+  };
+
+  const renderCommentThread = (tk: Ticket, comment: any, depth = 0): React.ReactNode => {
+    const allComments = tk.comments || [];
+    const replies = allComments.filter(c => c.parentCommentId === comment.id);
+    return (
+      <div key={comment.id} className="space-y-2.5">
+        <div className={`p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xs transition-all ${depth > 0 ? "ml-6 md:ml-10 border-l-2 border-l-indigo-500" : ""}`}>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-1.5 mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center font-bold text-[9px] text-indigo-600 dark:text-indigo-400">
+                {comment.sender.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[11px] font-black text-slate-850 dark:text-slate-150">{comment.sender}</span>
+                <span className="text-[8.5px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-1 rounded">
+                  {comment.role}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] text-slate-400">
+              <span>{formatTicketDate(comment.createdAt)}</span>
+              {(currentUser?.username === comment.sender || currentUser?.role === "Administrator") && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteComment(tk.id, comment.id)}
+                  className="p-1 text-red-500 hover:bg-red-500/10 rounded cursor-pointer transition-colors"
+                  title="Hapus komentar"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <p className="text-xs font-semibold text-slate-705 dark:text-slate-300 whitespace-pre-line leading-relaxed pl-0.5">
+            {comment.text}
+          </p>
+          
+          <div className="flex items-center gap-2 mt-2 pl-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setReplyToCommentId(comment.id);
+                setReplyToSender(comment.sender);
+              }}
+              className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <MessageSquare className="w-2.5 h-2.5" />
+              Balas
+            </button>
+          </div>
+        </div>
+        
+        {replies.length > 0 && (
+          <div className="space-y-2.5 relative">
+            <div className={`absolute left-3 top-0 bottom-4 w-0.5 bg-slate-200 dark:bg-slate-800 ${depth > 0 ? "ml-6 md:ml-10" : ""}`} />
+            {replies.map(reply => renderCommentThread(tk, reply, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Form View Control (replaces pop-up completely)
@@ -2739,6 +2911,15 @@ export default function TicketsView({
                           }`}>
                             {tk.priority} Priority
                           </span>
+                          {(() => {
+                            const sla = getSlaStatus(tk);
+                            return (
+                              <span className={`px-2 py-0.5 text-[9px] w-fit rounded border font-black tracking-wider flex items-center gap-1 ${sla.badgeClass}`} title={`SLA Target: ${sla.limitHours} Jam (${tk.priority})`}>
+                                <Clock className="w-2.5 h-2.5 shrink-0" />
+                                <span>{sla.formattedRemaining}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                       </td>
 
@@ -2856,6 +3037,68 @@ export default function TicketsView({
                                     )}
                                   </div>
                                 </div>
+
+                                {/* Internal Chat / Threaded Discussion di Tiket */}
+                                <div className="space-y-4 pt-4 border-t border-slate-200/60 dark:border-slate-800">
+                                  <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
+                                    <MessageSquare className="w-4 h-4 text-indigo-500" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Komentar & Koordinasi Internal</span>
+                                    <span className="bg-indigo-550/10 text-indigo-600 dark:text-indigo-400 font-extrabold px-1.5 py-0.5 rounded text-[9.5px]">
+                                      {(tk.comments || []).length}
+                                    </span>
+                                  </div>
+
+                                  {/* Threaded comments list */}
+                                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                                    {(tk.comments || []).length === 0 ? (
+                                      <p className="text-slate-400 italic text-xs py-4 text-center">Belum ada diskusi koordinasi. Gunakan kolom di bawah untuk memulai obrolan.</p>
+                                    ) : (
+                                      (tk.comments || []).filter(c => !c.parentCommentId).map(rootComment => {
+                                        return renderCommentThread(tk, rootComment);
+                                      })
+                                    )}
+                                  </div>
+
+                                  {/* Comment input form */}
+                                  <div className="space-y-2.5 bg-slate-50 dark:bg-slate-900/45 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                                    {replyToCommentId && (
+                                      <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-150/40 animate-fadeIn">
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-black">MEMBALAS</span>
+                                          <span>komentar {replyToSender}</span>
+                                        </div>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            setReplyToCommentId(null);
+                                            setReplyToSender(null);
+                                          }}
+                                          className="text-indigo-400 hover:text-indigo-600 p-0.5 cursor-pointer"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex gap-2">
+                                      <textarea
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        placeholder={replyToCommentId ? "Tulis balasan Anda..." : "Tulis komentar atau koordinasi tim..."}
+                                        className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-805 dark:text-white"
+                                        rows={2}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddComment(tk.id, commentText, replyToCommentId || undefined)}
+                                        disabled={!commentText.trim()}
+                                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 font-extrabold text-xs px-4 rounded-xl shadow-xs transition-all flex items-center justify-center cursor-pointer uppercase tracking-wider text-[10.5px]"
+                                      >
+                                        Kirim
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
 
                               {/* Right Area: Attachment download / viewer & audit details */}
@@ -2912,6 +3155,51 @@ export default function TicketsView({
                                     Tidak ada file bukti terlampir.
                                   </div>
                                 )}
+
+                                {/* SLA (Service Level Agreement) Tracker Card */}
+                                {(() => {
+                                  const sla = getSlaStatus(tk);
+                                  return (
+                                    <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-850 shadow-xs space-y-3">
+                                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-2">
+                                        <div className="flex items-center gap-1.5">
+                                          <Clock className="w-4 h-4 text-indigo-500" />
+                                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SLA Tracker</span>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${sla.isOverdue ? "bg-red-500/15 text-red-600" : "bg-emerald-500/15 text-emerald-600"}`}>
+                                          {sla.isOverdue ? "Overdue" : "On Schedule"}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                                          <span>Sisa Waktu Penanganan:</span>
+                                          <span className={`font-black ${sla.isOverdue ? "text-rose-600 animate-pulse" : "text-slate-800 dark:text-white"}`}>
+                                            {sla.formattedRemaining}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-slate-400">
+                                          <span>Target SLA ({tk.priority}):</span>
+                                          <span>{sla.limitHours} Jam</span>
+                                        </div>
+                                      </div>
+
+                                      {/* SLA Progress Bar */}
+                                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                                        <div 
+                                          className={`h-full transition-all duration-500 ${sla.barColor}`} 
+                                          style={{ width: `${sla.percentageRemaining}%` }}
+                                        />
+                                      </div>
+                                      
+                                      <p className="text-[10px] font-semibold text-slate-400 leading-normal">
+                                        {sla.isFinished 
+                                          ? "Pekerjaan selesai! SLA Tracker beku di status akhir." 
+                                          : `Tiket ini harus diselesaikan dalam waktu ${sla.limitHours} jam sejak disubmit.`}
+                                      </p>
+                                    </div>
+                                  );
+                                })()}
 
                                 {/* Submitter & Admin info */}
                                 <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 text-[11px] space-y-2.5 font-semibold text-slate-500 dark:text-slate-400 shadow-xs">

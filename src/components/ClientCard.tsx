@@ -43,6 +43,7 @@ export default function ClientCard({
   const [isEditing, setIsEditing] = useState(false);
   const [isRoomsExpanded, setIsRoomsExpanded] = useState(false);
   const [isModulesExpanded, setIsModulesExpanded] = useState(false);
+  const [editStatusAktif, setEditStatusAktif] = useState(true);
 
   // Edit RS Profile states (prefilled from cl on entry)
   const [editNamaRS, setEditNamaRS] = useState("");
@@ -68,12 +69,14 @@ export default function ClientCard({
   const [addRoomCode, setAddRoomCode] = useState("");
   const [addRoomFloor, setAddRoomFloor] = useState("");
   const [addRoomDesc, setAddRoomDesc] = useState("");
+  const [addRoomSubRoom, setAddRoomSubRoom] = useState("");
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editRoomBuilding, setEditRoomBuilding] = useState("");
   const [editRoomName, setEditRoomName] = useState("");
   const [editRoomCode, setEditRoomCode] = useState("");
   const [editRoomFloor, setEditRoomFloor] = useState("");
   const [editRoomDesc, setEditRoomDesc] = useState("");
+  const [editRoomSubRoom, setEditRoomSubRoom] = useState("");
 
   // Manage Module Statuses Drawer states
   const [addModulName, setAddModulName] = useState("");
@@ -99,6 +102,7 @@ export default function ClientCard({
     setEditTanggalProject(cl.tanggalProject || "");
     setEditTanggalCutOff(cl.tanggalCutOff || "");
     setEditDirectors(cl.directors || []);
+    setEditStatusAktif(cl.statusAktif !== false);
     setIsEditing(true);
   };
 
@@ -135,7 +139,8 @@ export default function ClientCard({
       tanggalCutOff: editTanggalCutOff,
       tipeMedika: editTipeMedika,
       persentaseKSO: editPersentaseKSO,
-      directors: editDirectors
+      directors: editDirectors,
+      statusAktif: editStatusAktif
     });
     setIsEditing(false);
   };
@@ -158,6 +163,7 @@ export default function ClientCard({
       code: addRoomCode.trim() || undefined,
       floor: addRoomFloor.trim() || undefined,
       description: addRoomDesc.trim() || undefined,
+      subRoomName: addRoomSubRoom.trim() || undefined,
       createdAt: new Date().toISOString()
     };
     await onUpdateClient(cl.id, { rooms: [...currentRooms, newRoom] });
@@ -166,6 +172,7 @@ export default function ClientCard({
     setAddRoomCode("");
     setAddRoomFloor("");
     setAddRoomDesc("");
+    setAddRoomSubRoom("");
   };
 
   const handleUpdateRoom = async (rId: string) => {
@@ -183,6 +190,7 @@ export default function ClientCard({
           code: editRoomCode.trim() || undefined,
           floor: editRoomFloor.trim() || undefined,
           description: editRoomDesc.trim() || undefined,
+          subRoomName: editRoomSubRoom.trim() || undefined,
         };
       }
       return r;
@@ -263,8 +271,7 @@ export default function ClientCard({
               <X className="w-4 h-4" />
             </button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Nama RS / Client</label>
               <input
@@ -324,6 +331,18 @@ export default function ClientCard({
                 onChange={(e) => setEditPersentaseKSO(parseFloat(e.target.value) || 0)}
                 className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Status Keaktifan RS</label>
+              <select
+                value={editStatusAktif ? "Aktif" : "Non-Aktif"}
+                onChange={(e) => setEditStatusAktif(e.target.value === "Aktif")}
+                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+              >
+                <option value="Aktif">Aktif</option>
+                <option value="Non-Aktif">Non-Aktif</option>
+              </select>
             </div>
           </div>
 
@@ -530,6 +549,9 @@ export default function ClientCard({
                 )}
                 <span className="text-[10px] bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide">
                   {cl.tipeMedika || "Rumah Sakit"}
+                </span>
+                <span className={`text-[10px] border rounded px-1.5 py-0.5 font-black uppercase tracking-wider ${cl.statusAktif !== false ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40" : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-900/40"}`}>
+                  {cl.statusAktif !== false ? "● Aktif" : "○ Non-Aktif"}
                 </span>
               </div>
 
@@ -907,7 +929,7 @@ export default function ClientCard({
                         <div key={room.id} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-850 shadow-sm flex flex-col justify-between gap-1.5">
                           {isEditingThisRoom ? (
                             <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="grid grid-cols-3 gap-2">
                                 <div>
                                   <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Gedung</label>
                                   <input
@@ -925,6 +947,16 @@ export default function ClientCard({
                                     value={editRoomName}
                                     onChange={(e) => setEditRoomName(e.target.value)}
                                     placeholder="e.g. Ruang UGD"
+                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Sub Ruangan</label>
+                                  <input
+                                    type="text"
+                                    value={editRoomSubRoom}
+                                    onChange={(e) => setEditRoomSubRoom(e.target.value)}
+                                    placeholder="e.g. Bed 1 / Ruang Tindakan"
                                     className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
                                   />
                                 </div>
@@ -984,6 +1016,7 @@ export default function ClientCard({
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {room.building && <span className="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 text-[8.5px] font-black px-1.5 py-0.5 rounded uppercase border border-amber-200 dark:border-amber-900/45">🏢 {room.building}</span>}
                                   <span className="font-bold text-xs text-slate-850 dark:text-slate-105 flex items-center gap-1">🚪 {room.name}</span>
+                                  {room.subRoomName && <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 text-[8.5px] font-black px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/45">🔑 Sub: {room.subRoomName}</span>}
                                   {room.code && <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/45">{room.code}</span>}
                                   {room.floor && <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8.5px] font-medium px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/45">Lt.{room.floor}</span>}
                                 </div>
@@ -997,6 +1030,7 @@ export default function ClientCard({
                                       setEditRoomCode(room.code || "");
                                       setEditRoomFloor(room.floor || "");
                                       setEditRoomDesc(room.description || "");
+                                      setEditRoomSubRoom(room.subRoomName || "");
                                     }}
                                     className="text-slate-400 hover:text-emerald-600 p-0.5 rounded cursor-pointer"
                                   >
@@ -1046,7 +1080,7 @@ export default function ClientCard({
 
               {/* Add room form inside expanded drawer */}
               <div className="bg-white dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-850 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                   <div>
                     <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Gedung RS</label>
                     <input
@@ -1064,6 +1098,16 @@ export default function ClientCard({
                       value={addRoomName}
                       onChange={(e) => setAddRoomName(e.target.value)}
                       placeholder="e.g. Unit Gawat Darurat (UGD)"
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Sub Ruangan</label>
+                    <input
+                      type="text"
+                      value={addRoomSubRoom}
+                      onChange={(e) => setAddRoomSubRoom(e.target.value)}
+                      placeholder="e.g. Bed 1 / Tindakan"
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
                     />
                   </div>
