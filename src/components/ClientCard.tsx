@@ -70,6 +70,7 @@ export default function ClientCard({
   const [addRoomFloor, setAddRoomFloor] = useState("");
   const [addRoomDesc, setAddRoomDesc] = useState("");
   const [addRoomSubRoom, setAddRoomSubRoom] = useState("");
+  const [addRoomStatusAktif, setAddRoomStatusAktif] = useState(true);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editRoomBuilding, setEditRoomBuilding] = useState("");
   const [editRoomName, setEditRoomName] = useState("");
@@ -77,6 +78,7 @@ export default function ClientCard({
   const [editRoomFloor, setEditRoomFloor] = useState("");
   const [editRoomDesc, setEditRoomDesc] = useState("");
   const [editRoomSubRoom, setEditRoomSubRoom] = useState("");
+  const [editRoomStatusAktif, setEditRoomStatusAktif] = useState(true);
 
   // Manage Module Statuses Drawer states
   const [addModulName, setAddModulName] = useState("");
@@ -164,6 +166,7 @@ export default function ClientCard({
       floor: addRoomFloor.trim() || undefined,
       description: addRoomDesc.trim() || undefined,
       subRoomName: addRoomSubRoom.trim() || undefined,
+      statusAktif: addRoomStatusAktif,
       createdAt: new Date().toISOString()
     };
     await onUpdateClient(cl.id, { rooms: [...currentRooms, newRoom] });
@@ -173,6 +176,7 @@ export default function ClientCard({
     setAddRoomFloor("");
     setAddRoomDesc("");
     setAddRoomSubRoom("");
+    setAddRoomStatusAktif(true);
   };
 
   const handleUpdateRoom = async (rId: string) => {
@@ -191,6 +195,7 @@ export default function ClientCard({
           floor: editRoomFloor.trim() || undefined,
           description: editRoomDesc.trim() || undefined,
           subRoomName: editRoomSubRoom.trim() || undefined,
+          statusAktif: editRoomStatusAktif,
         };
       }
       return r;
@@ -199,8 +204,15 @@ export default function ClientCard({
     setEditingRoomId(null);
   };
 
-  const handleDeleteRoom = async (rId: string) => {
-    if (confirm("Apakah anda yakin ingin menghapus ruangan ini dari profil RS?")) {
+  const handleDeleteRoom = async (rId: string, roomName: string) => {
+    // 2. Jika sudah ada data aset pada ruangan, validasi supaya tidak bisa di hapus
+    const roomAssets = clientAssets.filter(as => as.roomId === rId || as.roomName === roomName);
+    if (roomAssets.length > 0) {
+      alert(`Ruangan "${roomName}" tidak dapat dihapus karena masih terdapat ${roomAssets.length} aset terpasang di dalamnya! Silakan pindahkan atau hapus aset terlebih dahulu.`);
+      return;
+    }
+
+    if (confirm(`Apakah anda yakin ingin menghapus ruangan "${roomName}" dari profil RS?`)) {
       const currentRooms = cl.rooms || [];
       const updated = currentRooms.filter(r => r.id !== rId);
       await onUpdateClient(cl.id, { rooms: updated });
@@ -921,7 +933,7 @@ export default function ClientCard({
                 {!cl.rooms || cl.rooms.length === 0 ? (
                   <p className="text-xs text-slate-500 italic font-medium">Belum ada ruangan yang didaftarkan. Silakan tambahkan ruangan untuk menaruh aset.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-2">
+                  <div className="grid grid-cols-1 gap-3 pb-2">
                     {cl.rooms.map((room) => {
                       const isEditingThisRoom = editingRoomId === room.id;
                       const roomAssets = clientAssets.filter(as => as.roomId === room.id || as.roomName === room.name);
@@ -993,6 +1005,18 @@ export default function ClientCard({
                                   />
                                 </div>
                               </div>
+                              <div className="flex items-center gap-2 pt-1">
+                                <input
+                                  type="checkbox"
+                                  id={`edit-room-status-${room.id}`}
+                                  checked={editRoomStatusAktif}
+                                  onChange={(e) => setEditRoomStatusAktif(e.target.checked)}
+                                  className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                                />
+                                <label htmlFor={`edit-room-status-${room.id}`} className="text-[10px] font-bold text-slate-750 dark:text-slate-300 cursor-pointer select-none">
+                                  Ruangan Aktif
+                                </label>
+                              </div>
                               <div className="flex gap-2 justify-end pt-1">
                                 <button
                                   type="button"
@@ -1019,6 +1043,9 @@ export default function ClientCard({
                                   {room.subRoomName && <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 text-[8.5px] font-black px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/45">🔑 Sub: {room.subRoomName}</span>}
                                   {room.code && <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/45">{room.code}</span>}
                                   {room.floor && <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8.5px] font-medium px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/45">Lt.{room.floor}</span>}
+                                  <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border ${room.statusAktif !== false ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/45" : "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-450 dark:border-rose-900/45"}`}>
+                                    {room.statusAktif !== false ? "Aktif" : "Non-Aktif"}
+                                  </span>
                                 </div>
                                 <div className="flex gap-2">
                                   <button
@@ -1031,6 +1058,7 @@ export default function ClientCard({
                                       setEditRoomFloor(room.floor || "");
                                       setEditRoomDesc(room.description || "");
                                       setEditRoomSubRoom(room.subRoomName || "");
+                                      setEditRoomStatusAktif(room.statusAktif !== false);
                                     }}
                                     className="text-slate-400 hover:text-emerald-600 p-0.5 rounded cursor-pointer"
                                   >
@@ -1038,7 +1066,7 @@ export default function ClientCard({
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteRoom(room.id)}
+                                    onClick={() => handleDeleteRoom(room.id, room.name)}
                                     className="text-slate-400 hover:text-red-500 p-0.5 rounded cursor-pointer"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1052,18 +1080,25 @@ export default function ClientCard({
 
                               {/* Nested penempatan aset list */}
                               <div className="bg-slate-105/50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200/50 dark:border-slate-850 space-y-1.5 mt-2">
-                                <span className="text-[8px] font-black uppercase text-slate-405 block tracking-wider">📦 Daftar Penempatan Aset ({roomAssets.length})</span>
+                                <span className="text-[8.5px] font-black uppercase text-slate-405 block tracking-wider">📦 Daftar Penempatan Aset ({roomAssets.length})</span>
                                 {roomAssets.length === 0 ? (
                                   <p className="text-[10px] text-slate-500 italic font-medium">Tidak ada perangkat terpasang saat ini.</p>
                                 ) : (
-                                  <div className="max-h-24 overflow-y-auto space-y-1 scrollbar-thin">
-                                    {roomAssets.map(dev => (
-                                      <div key={dev.id} className="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200/50 dark:border-slate-800/60 flex items-center justify-between">
-                                        <div>
-                                          <span className="font-bold text-slate-800 dark:text-slate-200">{dev.deviceName}</span>
-                                          <span className="text-slate-400 block text-[8px] font-mono">SN: {dev.serialNumber || "-"} | Kat: {dev.category}</span>
+                                  <div className="max-h-32 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800 text-[10px] scrollbar-thin">
+                                    {roomAssets.map((dev, idx) => (
+                                      <div key={dev.id} className="py-1.5 flex items-center justify-between gap-2">
+                                        <div className="flex items-start gap-1.5">
+                                          <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] mt-0.5">{idx + 1}.</span>
+                                          <div>
+                                            <span className="font-semibold text-slate-800 dark:text-slate-200">{dev.deviceName}</span>
+                                            <span className="text-slate-400 dark:text-slate-500 text-[8.5px] font-mono ml-1.5">
+                                              (SN: {dev.serialNumber || "-"} | Kat: {dev.category})
+                                            </span>
+                                          </div>
                                         </div>
-                                        <span className={`text-[8px] font-black uppercase px-1 rounded ${dev.status === "Aktif" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600"}`}>{dev.status}</span>
+                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${dev.status === "Aktif" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600"}`}>
+                                          {dev.status}
+                                        </span>
                                       </div>
                                     ))}
                                   </div>
@@ -1141,6 +1176,18 @@ export default function ClientCard({
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
                     />
                   </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="add-room-status"
+                    checked={addRoomStatusAktif}
+                    onChange={(e) => setAddRoomStatusAktif(e.target.checked)}
+                    className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <label htmlFor="add-room-status" className="text-xs font-bold text-slate-755 dark:text-slate-300 cursor-pointer select-none">
+                    Ruangan Aktif
+                  </label>
                 </div>
                 <div className="flex justify-end pt-1">
                   <button

@@ -263,12 +263,27 @@ async function syncCollectionsToSupabase(data: any) {
     try {
       const { error } = await supabase.from(tableName).upsert(rows);
       if (error) {
-        console.warn(`[Supabase Sync] Table "${tableName}" failed to sync (Does the table exist in Supabase? Run supabase-schema.sql to build it):`, error.message);
+        // If the schema in Supabase does not have status_aktif yet, try syncing without it to avoid errors
+        const isStatusAktifError = error.message && (
+          error.message.includes("status_aktif") || 
+          error.message.includes("Could not find the 'status_aktif' column")
+        );
+        if (isStatusAktifError) {
+          const cleanedRows = rows.map(({ status_aktif, ...rest }) => rest);
+          const { error: retryError } = await supabase.from(tableName).upsert(cleanedRows);
+          if (retryError) {
+            console.log(`[Supabase Sync Warning] Table "${tableName}" failed to sync on retry:`, retryError.message);
+          } else {
+            console.log(`[Supabase Sync] Table "${tableName}" synced successfully on retry without status_aktif.`);
+          }
+        } else {
+          console.log(`[Supabase Sync Warning] Table "${tableName}" failed to sync:`, error.message);
+        }
       } else {
         console.log(`[Supabase Sync] Table "${tableName}" synced successfully with ${rows.length} rows.`);
       }
     } catch (err: any) {
-      console.warn(`[Supabase Sync] Exception during sync of Table "${tableName}":`, err.message || err);
+      console.log(`[Supabase Sync Exception] Exception during sync of Table "${tableName}":`, err.message || err);
     }
   };
 
@@ -326,6 +341,7 @@ async function syncCollectionsToSupabase(data: any) {
         floor: r.floor || "",
         description: r.description || "",
         sub_room_name: r.subRoomName || "",
+        status_aktif: r.statusAktif !== false,
         created_at: r.createdAt || new Date().toISOString()
       }))
     )),

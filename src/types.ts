@@ -39,6 +39,7 @@ export interface ClientRoom {
   createdAt: string;
   building?: string;  // Gedung (Gedung RS)
   subRoomName?: string; // Sub Ruangan (e.g. Bed 1, Ruang Dokter, Bilik A)
+  statusAktif?: boolean; // Status keaktifan ruangan
 }
 
 export interface Client {

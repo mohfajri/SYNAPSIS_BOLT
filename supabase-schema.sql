@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS client_rooms (
   floor VARCHAR(50),
   description TEXT,
   sub_room_name VARCHAR(255),
+  status_aktif BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
