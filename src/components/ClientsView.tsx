@@ -9,7 +9,11 @@ import {
   X,
   FileText,
   Clipboard,
-  HeartPulse
+  HeartPulse,
+  Upload,
+  FileSpreadsheet,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ClientCard from "./ClientCard";
@@ -49,8 +53,191 @@ export default function ClientsView({
     currentUser.role !== "Direktur");
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [importPreview, setImportPreview] = useState<Partial<Client>[]>([]);
+  const [importError, setImportError] = useState("");
+  const [importSuccess, setImportSuccess] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [errorText, setErrorText] = useState("");
+
+  // CSV Parsing function
+  function parseCSV(text: string): Partial<Client>[] {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return [];
+
+    const splitCSVLine = (line: string) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const rawHeaders = splitCSVLine(lines[0]);
+    const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    const clientsList: Partial<Client>[] = [];
+
+    const findIndex = (aliases: string[]) => {
+      return headers.findIndex(h => aliases.includes(h));
+    };
+
+    const idxNama = findIndex(["namars", "nama", "client", "namarsclient", "hospitalname", "name", "rs", "namarumahsakit", "rumahsakit"]);
+    const idxKode = findIndex(["koders", "kode", "rs_code", "hospitalcode", "code", "koderumahsakit"]);
+    const idxNoKSO = findIndex(["nokso", "nomorkso", "kso", "ksonumber", "nokersama", "nomorkerjasama"]);
+    const idxDirektur = findIndex(["direkturrs", "direktur", "pic", "director", "dirut", "namadirektur"]);
+    const idxTipe = findIndex(["tipemedika", "tipe", "type", "category", "jenis"]);
+    const idxTglProj = findIndex(["tanggalproject", "startdate", "projectstart", "tglmulai", "mulai", "tanggalmulai"]);
+    const idxTglCutoff = findIndex(["tanggalcutoff", "cutoffdate", "cutoff", "tglcutoff", "tanggalcutoff"]);
+    const idxPersen = findIndex(["persentasekso", "persen", "percentage", "porsi", "kso_persen"]);
+    const idxAktif = findIndex(["statusaktif", "aktif", "status", "active", "status_aktif", "keaktifan"]);
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      const cols = splitCSVLine(line);
+      if (cols.length === 0) continue;
+
+      const nama = idxNama !== -1 && cols[idxNama] ? cols[idxNama].replace(/^"|"$/g, '') : "";
+      if (!nama) continue;
+
+      const kodeRaw = idxKode !== -1 && cols[idxKode] ? cols[idxKode].replace(/^"|"$/g, '') : "";
+      const kode = kodeRaw.substring(0, 5).toUpperCase();
+
+      const noKSO = idxNoKSO !== -1 && cols[idxNoKSO] ? cols[idxNoKSO].replace(/^"|"$/g, '') : "";
+      const direkturRS = idxDirektur !== -1 && cols[idxDirektur] ? cols[idxDirektur].replace(/^"|"$/g, '') : "";
+      
+      let tipeMedika = "Rumah Sakit";
+      if (idxTipe !== -1 && cols[idxTipe]) {
+        const val = cols[idxTipe].toLowerCase().replace(/^"|"$/g, '');
+        if (val.includes("klinik utama")) tipeMedika = "Klinik Utama";
+        else if (val.includes("klinik pratama")) tipeMedika = "Klinik Pratama";
+        else if (val.includes("puskesmas")) tipeMedika = "Puskesmas";
+        else if (val.includes("lab")) tipeMedika = "Laboratorium";
+      }
+
+      const tanggalProject = idxTglProj !== -1 && cols[idxTglProj] ? cols[idxTglProj].replace(/^"|"$/g, '') : "";
+      const tanggalCutOff = idxTglCutoff !== -1 && cols[idxTglCutoff] ? cols[idxTglCutoff].replace(/^"|"$/g, '') : "";
+      
+      let persentaseKSO = 100;
+      if (idxPersen !== -1 && cols[idxPersen]) {
+        const pNum = parseFloat(cols[idxPersen].replace(/^"|"$/g, ''));
+        if (!isNaN(pNum)) persentaseKSO = pNum;
+      }
+
+      let statusAktif = true;
+      if (idxAktif !== -1 && cols[idxAktif]) {
+        const val = cols[idxAktif].toLowerCase().replace(/^"|"$/g, '');
+        if (val === "false" || val === "0" || val === "non-aktif" || val === "tidak aktif" || val === "nonaktif") {
+          statusAktif = false;
+        }
+      }
+
+      clientsList.push({
+        id: "rs-" + Math.random().toString(36).substring(2, 9),
+        namaRS: nama,
+        kodeRS: kode,
+        noKSO,
+        direkturRS,
+        tipeMedika,
+        tanggalProject,
+        tanggalCutOff,
+        persentaseKSO,
+        statusAktif,
+        rooms: [],
+        directors: direkturRS ? [{
+          id: "dir-" + Math.random().toString(36).slice(2, 9),
+          name: direkturRS,
+          nip: "",
+          startDate: "",
+          endDate: "",
+          isActive: true
+        }] : []
+      });
+    }
+
+    return clientsList;
+  }
+
+  // Handle file import
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError("");
+    setImportSuccess("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    readAndProcessFile(file);
+  };
+
+  const readAndProcessFile = (file: File) => {
+    if (!file.name.endsWith(".csv")) {
+      setImportError("Hanya file .csv yang diperbolehkan! Silakan simpan Excel Anda sebagai format CSV (Comma Separated Values) terlebih dahulu.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      try {
+        const list = parseCSV(text);
+        if (list.length === 0) {
+          setImportError("Tidak ada baris data valid yang terbaca. Pastikan baris pertama berisi header nama kolom, minimal ada kolom 'Nama RS'.");
+        } else {
+          setImportPreview(list);
+        }
+      } catch (err) {
+        setImportError("Terjadi kesalahan membaca file CSV: " + (err as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      readAndProcessFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    setImportError("");
+    setImportSuccess("");
+    try {
+      for (const item of importPreview) {
+        await onAddClient(item);
+      }
+      setImportSuccess(`Berhasil mengimpor ${importPreview.length} data Client RS ke sistem!`);
+      setImportPreview([]);
+      setTimeout(() => {
+        setIsImportOpen(false);
+        setImportSuccess("");
+      }, 3000);
+    } catch (err) {
+      setImportError("Gagal menyimpan beberapa data ke database: " + (err as Error).message);
+    }
+  };
 
   // Create Client State
   const [namaRS, setNamaRS] = useState("");
@@ -168,13 +355,28 @@ export default function ClientsView({
           </p>
         </div>
         {!isUserScoped && (
-          <button
-            onClick={() => setIsFormOpen(!isFormOpen)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-md shadow-blue-600/20 active:scale-95 cursor-pointer"
-          >
-            {isFormOpen ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            {isFormOpen ? "Batal" : "Tambah Client RS"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setIsImportOpen(!isImportOpen);
+                setIsFormOpen(false);
+              }}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold px-3 py-2 rounded-lg transition-all active:scale-95 cursor-pointer border border-slate-200 dark:border-slate-700"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Import Excel/CSV</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsFormOpen(!isFormOpen);
+                setIsImportOpen(false);
+              }}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all shadow-md shadow-blue-600/20 active:scale-95 cursor-pointer"
+            >
+              {isFormOpen ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {isFormOpen ? "Batal" : "Tambah Client RS"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -510,6 +712,173 @@ export default function ClientsView({
                 </button>
               </div>
             </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CSV / Excel Importer Drawer */}
+      <AnimatePresence>
+        {isImportOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4 shadow-md shadow-blue-500/5">
+              <h3 className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                Import Database Client dari File Excel/CSV
+              </h3>
+
+              {importSuccess && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450 border border-emerald-200 dark:border-emerald-900/40 text-xs py-2 px-3 rounded-lg font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span>{importSuccess}</span>
+                </div>
+              )}
+
+              {importError && (
+                <div className="bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-450 border border-rose-200 dark:border-rose-900/40 text-xs py-2 px-3 rounded-lg font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{importError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Column guides */}
+                <div className="lg:col-span-1 bg-slate-50 dark:bg-slate-950/50 p-4 border border-slate-100 dark:border-slate-850 rounded-lg space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">📋 Format Kolom yang Didukung</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Sistem dapat mendeteksi nama kolom secara otomatis. Pastikan file Excel Anda di-save as <strong>CSV (*.csv)</strong> dengan header baris pertama berupa:
+                  </p>
+                  <ul className="text-[10px] space-y-1.5 text-slate-600 dark:text-slate-400 list-disc list-inside">
+                    <li><strong className="text-slate-700 dark:text-slate-200">Nama RS</strong> <span className="text-red-500">*</span> (e.g. RS Medika Utama)</li>
+                    <li><strong>Kode RS</strong> (Maks 5 huruf, e.g. RSMU)</li>
+                    <li><strong>Nomor KSO</strong> (e.g. 010/KSO/VI/2026)</li>
+                    <li><strong>Nama Direktur</strong> (e.g. dr. Fajri, Sp.B)</li>
+                    <li><strong>Tipe Medika</strong> (Rumah Sakit / Puskesmas / Klinik Utama / Klinik Pratama / Laboratorium)</li>
+                    <li><strong>Tanggal Mulai</strong> (YYYY-MM-DD)</li>
+                    <li><strong>Tanggal Cutoff</strong> (YYYY-MM-DD)</li>
+                    <li><strong>Persentase KSO</strong> (Angka 0 s.d 100)</li>
+                    <li><strong>Status Aktif</strong> (True / False)</li>
+                  </ul>
+                  <div className="pt-2">
+                    <a
+                      href="data:text/csv;charset=utf-8,Nama RS,Kode RS,Nomor KSO,Nama Direktur,Tipe Medika,Tanggal Mulai,Tanggal Cutoff,Persentase KSO,Status Aktif%0ARSIA Amanda,RSIAA,020/KSO-AM/V/2026,dr. Amanda Sp.A,Klinik Utama,2026-05-01,2026-06-30,100,True%0ARSUD Pratama Jaya,RSPJ,034/KSO-PJ/VI/2026,dr. Bambang Sp.B,Rumah Sakit,2026-06-01,,85,True"
+                      download="template_client_rs.csv"
+                      className="inline-flex items-center gap-1.5 text-[10px] bg-white hover:bg-slate-50 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded px-2.5 py-1 font-bold"
+                    >
+                      💾 Unduh Contoh Template CSV
+                    </a>
+                  </div>
+                </div>
+
+                {/* Drag-and-drop & Click selection container */}
+                <div className="lg:col-span-2 space-y-4">
+                  {importPreview.length === 0 ? (
+                    <div
+                      onDragEnter={handleDrag}
+                      onDragOver={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDrop={handleDrop}
+                      className={`relative min-h-[180px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-6 text-center transition-all ${
+                        dragActive 
+                          ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10" 
+                          : "border-slate-300 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-950/20"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        id="csv-file-upload-input"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                      <label 
+                        htmlFor="csv-file-upload-input"
+                        className="cursor-pointer flex flex-col items-center justify-center space-y-2 w-full h-full"
+                      >
+                        <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                            Seret & Letakkan file .csv di sini, atau <span className="text-emerald-500 hover:underline">Pilih dari Komputer</span>
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                            Hanya mendukung file CSV (*.csv) hasil ekspor Excel
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  ) : (
+                    /* Import Preview Table */
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/20">
+                      <div className="p-3 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">🔎 Preview Data yang Akan Diimpor ({importPreview.length} Baris)</span>
+                        <button
+                          onClick={() => setImportPreview([])}
+                          className="text-[10px] text-rose-500 hover:underline font-bold"
+                        >
+                          Reset / Batal
+                        </button>
+                      </div>
+                      <div className="max-h-[160px] overflow-y-auto overflow-x-auto text-[10px]">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 uppercase tracking-wider font-bold border-b border-slate-250 dark:border-slate-800">
+                              <th className="p-2">Nama RS</th>
+                              <th className="p-2">Kode</th>
+                              <th className="p-2">Nomor KSO</th>
+                              <th className="p-2">Direktur</th>
+                              <th className="p-2">Tipe</th>
+                              <th className="p-2">Mulai</th>
+                              <th className="p-2">Cutoff</th>
+                              <th className="p-2">Persen</th>
+                              <th className="p-2">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200/50 dark:divide-slate-850">
+                            {importPreview.map((item, idx) => (
+                              <tr key={idx} className="hover:bg-slate-100/30 dark:hover:bg-slate-900/20 text-slate-700 dark:text-slate-300">
+                                <td className="p-2 font-bold">{item.namaRS}</td>
+                                <td className="p-2 font-mono text-blue-500">{item.kodeRS || "-"}</td>
+                                <td className="p-2">{item.noKSO || "-"}</td>
+                                <td className="p-2">{item.direkturRS || "-"}</td>
+                                <td className="p-2">{item.tipeMedika}</td>
+                                <td className="p-2">{item.tanggalProject || "-"}</td>
+                                <td className="p-2">{item.tanggalCutOff || "-"}</td>
+                                <td className="p-2">{item.persentaseKSO}%</td>
+                                <td className="p-2">
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${item.statusAktif ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-450"}`}>
+                                    {item.statusAktif ? "Aktif" : "Non-Aktif"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+                        <button
+                          onClick={() => setImportPreview([])}
+                          className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          Kembali
+                        </button>
+                        <button
+                          onClick={handleConfirmImport}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-all shadow-md shadow-emerald-600/20"
+                        >
+                          Confirm & Simpan Ke Database
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
