@@ -774,8 +774,8 @@ export default function ClientCard({
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      if (file.size > 500 * 1024) {
-                        alert("Ukuran file maksimal 500KB!");
+                      if (file.size > 1000 * 1024) {
+                        alert("Ukuran file maksimal 1MB (1000KB)!");
                         return;
                       }
                       const reader = new FileReader();
@@ -793,7 +793,7 @@ export default function ClientCard({
                   htmlFor={`edit-logo-upload-${cl.id}`}
                   className="bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-all inline-block border-solid"
                 >
-                  Pilih File Gambar (Max 500KB)
+                  Pilih File Gambar (Max 1MB)
                 </label>
                 <p className="text-[10px] text-slate-450 mt-1">Format yang didukung: JPG, PNG, WEBP, GIF</p>
               </div>
