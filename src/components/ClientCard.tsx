@@ -14,7 +14,10 @@ import {
   FileSpreadsheet,
   Upload,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 interface ClientCardProps {
@@ -86,6 +89,7 @@ export default function ClientCard({
 
   // Import Rooms state
   const [isImportRoomsOpen, setIsImportRoomsOpen] = useState(false);
+  const [isAddRoomFormOpen, setIsAddRoomFormOpen] = useState(false);
   const [dragRoomsActive, setDragRoomsActive] = useState(false);
   const [importRoomsPreview, setImportRoomsPreview] = useState<Partial<ClientRoom>[]>([]);
   const [importRoomsError, setImportRoomsError] = useState("");
@@ -98,6 +102,35 @@ export default function ClientCard({
   const [editingModuleStatusId, setEditingModuleStatusId] = useState<string | null>(null);
   const [tempStatus, setTempStatus] = useState("");
   const [tempTanggal, setTempTanggal] = useState("");
+
+  // Manage Rooms Pagination & Search states
+  const [roomSearchQuery, setRoomSearchQuery] = useState("");
+  const [roomCurrentPage, setRoomCurrentPage] = useState(1);
+
+  const handleRoomSearchChange = (val: string) => {
+    setRoomSearchQuery(val);
+    setRoomCurrentPage(1);
+  };
+
+  const filteredRooms = (cl.rooms || []).filter(room => {
+    if (!roomSearchQuery.trim()) return true;
+    const query = roomSearchQuery.toLowerCase().trim();
+    return (
+      (room.name || "").toLowerCase().includes(query) ||
+      (room.building || "").toLowerCase().includes(query) ||
+      (room.subRoomName || "").toLowerCase().includes(query) ||
+      (room.code || "").toLowerCase().includes(query) ||
+      (room.description || "").toLowerCase().includes(query) ||
+      (room.floor || "").toLowerCase().includes(query)
+    );
+  });
+
+  const roomsPerPage = 10;
+  const totalRoomsPages = Math.ceil(filteredRooms.length / roomsPerPage);
+  const activeRoomsPage = Math.min(roomCurrentPage, totalRoomsPages || 1);
+  const indexOfLastRoom = activeRoomsPage * roomsPerPage;
+  const indexOfFirstRoom = indexOfLastRoom - roomsPerPage;
+  const currentPagedRooms = filteredRooms.slice(indexOfFirstRoom, indexOfLastRoom);
 
   // Scoped calculation inputs
   const clientAssets = assets.filter(a => a.clientRS === cl.namaRS);
@@ -188,6 +221,7 @@ export default function ClientCard({
     setAddRoomDesc("");
     setAddRoomSubRoom("");
     setAddRoomStatusAktif(true);
+    setIsAddRoomFormOpen(false);
   };
 
   const handleUpdateRoom = async (rId: string) => {
@@ -1089,7 +1123,19 @@ export default function ClientCard({
                   <button
                     type="button"
                     onClick={() => {
+                      setIsAddRoomFormOpen(!isAddRoomFormOpen);
+                      if (!isAddRoomFormOpen) setIsImportRoomsOpen(false);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-750 dark:bg-blue-950/40 dark:hover:bg-blue-950/70 dark:text-blue-400 text-[10px] font-extrabold transition-all border border-blue-200 dark:border-blue-900/50 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3 text-blue-500" />
+                    <span>{isAddRoomFormOpen ? "Tutup Form" : "Tambah Ruangan"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setIsImportRoomsOpen(!isImportRoomsOpen);
+                      if (!isImportRoomsOpen) setIsAddRoomFormOpen(false);
                     }}
                     className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-750 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70 dark:text-emerald-400 text-[10px] font-extrabold transition-all border border-emerald-200 dark:border-emerald-900/50 cursor-pointer"
                   >
@@ -1105,6 +1151,108 @@ export default function ClientCard({
                   </button>
                 </div>
               </div>
+
+              {/* Add room form inside expanded drawer - placed at the top */}
+              {isAddRoomFormOpen && (
+                <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-blue-100 dark:border-blue-950/50 space-y-3 shadow-md">
+                  <h4 className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-blue-500" />
+                    Input Data Ruangan Baru
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Gedung RS</label>
+                      <input
+                        type="text"
+                        value={addRoomBuilding}
+                        onChange={(e) => setAddRoomBuilding(e.target.value)}
+                        placeholder="e.g. Gedung A / Barat"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Nama Ruangan RS *</label>
+                      <input
+                        type="text"
+                        value={addRoomName}
+                        onChange={(e) => setAddRoomName(e.target.value)}
+                        placeholder="e.g. Unit Gawat Darurat (UGD)"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Sub Ruangan</label>
+                      <input
+                        type="text"
+                        value={addRoomSubRoom}
+                        onChange={(e) => setAddRoomSubRoom(e.target.value)}
+                        placeholder="e.g. Bed 1 / Tindakan"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Kode Singkatan</label>
+                      <input
+                        type="text"
+                        value={addRoomCode}
+                        onChange={(e) => setAddRoomCode(e.target.value)}
+                        placeholder="e.g. UGD-01"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Lantai RS</label>
+                      <input
+                        type="text"
+                        value={addRoomFloor}
+                        onChange={(e) => setAddRoomFloor(e.target.value)}
+                        placeholder="e.g. 1"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Keterangan / Fungsi</label>
+                      <input
+                        type="text"
+                        value={addRoomDesc}
+                        onChange={(e) => setAddRoomDesc(e.target.value)}
+                        placeholder="e.g. Area darurat lantai dasar"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="add-room-status"
+                        checked={addRoomStatusAktif}
+                        onChange={(e) => setAddRoomStatusAktif(e.target.checked)}
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                      />
+                      <label htmlFor="add-room-status" className="text-xs font-bold text-slate-755 dark:text-slate-300 cursor-pointer select-none">
+                        Ruangan Aktif
+                      </label>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddRoomFormOpen(false)}
+                        className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-bold px-4 py-1.5 rounded-md transition-all cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddRoom}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-1.5 rounded-md transition-all shadow-md shadow-blue-500/10 cursor-pointer active:scale-95"
+                      >
+                        Simpan Ruangan
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Rooms Importer panel */}
               {isImportRoomsOpen && (
@@ -1258,276 +1406,279 @@ export default function ClientCard({
                 </div>
               )}
 
+              {cl.rooms && cl.rooms.length > 0 && (
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={roomSearchQuery}
+                    onChange={(e) => handleRoomSearchChange(e.target.value)}
+                    placeholder="Cari ruangan berdasarkan nama, gedung, sub ruangan, kode, lantai atau keterangan..."
+                    className="block w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-550 focus:border-emerald-550"
+                  />
+                  {roomSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => handleRoomSearchChange("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-3">
                 {!cl.rooms || cl.rooms.length === 0 ? (
                   <p className="text-xs text-slate-500 italic font-medium">Belum ada ruangan yang didaftarkan. Silakan tambahkan ruangan untuk menaruh aset.</p>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 pb-2">
-                    {cl.rooms.map((room) => {
-                      const isEditingThisRoom = editingRoomId === room.id;
-                      const roomAssets = clientAssets.filter(as => as.roomId === room.id || as.roomName === room.name);
-                      return (
-                        <div key={room.id} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-850 shadow-sm flex flex-col justify-between gap-1.5">
-                          {isEditingThisRoom ? (
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-3 gap-2">
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Gedung</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomBuilding}
-                                    onChange={(e) => setEditRoomBuilding(e.target.value)}
-                                    placeholder="e.g. Gedung A"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Nama Ruangan RS *</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomName}
-                                    onChange={(e) => setEditRoomName(e.target.value)}
-                                    placeholder="e.g. Ruang UGD"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Sub Ruangan</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomSubRoom}
-                                    onChange={(e) => setEditRoomSubRoom(e.target.value)}
-                                    placeholder="e.g. Bed 1 / Ruang Tindakan"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Kode Singkatan</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomCode}
-                                    onChange={(e) => setEditRoomCode(e.target.value)}
-                                    placeholder="e.g. UGD-01"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Lantai RS</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomFloor}
-                                    onChange={(e) => setEditRoomFloor(e.target.value)}
-                                    placeholder="e.g. 1"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Keterangan / Fungsi</label>
-                                  <input
-                                    type="text"
-                                    value={editRoomDesc}
-                                    onChange={(e) => setEditRoomDesc(e.target.value)}
-                                    placeholder="Keterangan / Fungsi"
-                                    className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 pt-1">
-                                <input
-                                  type="checkbox"
-                                  id={`edit-room-status-${room.id}`}
-                                  checked={editRoomStatusAktif}
-                                  onChange={(e) => setEditRoomStatusAktif(e.target.checked)}
-                                  className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
-                                />
-                                <label htmlFor={`edit-room-status-${room.id}`} className="text-[10px] font-bold text-slate-750 dark:text-slate-300 cursor-pointer select-none">
-                                  Ruangan Aktif
-                                </label>
-                              </div>
-                              <div className="flex gap-2 justify-end pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateRoom(room.id)}
-                                  className="bg-emerald-600 text-white font-bold text-[9px] px-2.5 py-1 rounded cursor-pointer"
-                                >
-                                  Simpan
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingRoomId(null)}
-                                  className="bg-slate-100 text-slate-600 font-bold text-[9px] px-2.5 py-1 rounded cursor-pointer"
-                                >
-                                  Batal
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-900/40">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {room.building && <span className="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 text-[8.5px] font-black px-1.5 py-0.5 rounded uppercase border border-amber-200 dark:border-amber-900/45">🏢 {room.building}</span>}
-                                  <span className="font-bold text-xs text-slate-850 dark:text-slate-105 flex items-center gap-1">🚪 {room.name}</span>
-                                  {room.subRoomName && <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 text-[8.5px] font-black px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/45">🔑 Sub: {room.subRoomName}</span>}
-                                  {room.code && <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/45">{room.code}</span>}
-                                  {room.floor && <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8.5px] font-medium px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/45">Lt.{room.floor}</span>}
-                                  <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border ${room.statusAktif !== false ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/45" : "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-450 dark:border-rose-900/45"}`}>
-                                    {room.statusAktif !== false ? "Aktif" : "Non-Aktif"}
-                                  </span>
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingRoomId(room.id);
-                                      setEditRoomName(room.name);
-                                      setEditRoomBuilding(room.building || "");
-                                      setEditRoomCode(room.code || "");
-                                      setEditRoomFloor(room.floor || "");
-                                      setEditRoomDesc(room.description || "");
-                                      setEditRoomSubRoom(room.subRoomName || "");
-                                      setEditRoomStatusAktif(room.statusAktif !== false);
-                                    }}
-                                    className="text-slate-400 hover:text-emerald-600 p-0.5 rounded cursor-pointer"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteRoom(room.id, room.name)}
-                                    className="text-slate-400 hover:text-red-500 p-0.5 rounded cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                {room.description && <p className="text-[10px] text-slate-500 mt-1 italic leading-tight">💬 Fungsi/Keterangan: {room.description}</p>}
-                              </div>
-
-                              {/* Nested penempatan aset list */}
-                              <div className="bg-slate-105/50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200/50 dark:border-slate-850 space-y-1.5 mt-2">
-                                <span className="text-[8.5px] font-black uppercase text-slate-405 block tracking-wider">📦 Daftar Penempatan Aset ({roomAssets.length})</span>
-                                {roomAssets.length === 0 ? (
-                                  <p className="text-[10px] text-slate-500 italic font-medium">Tidak ada perangkat terpasang saat ini.</p>
-                                ) : (
-                                  <div className="max-h-32 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800 text-[10px] scrollbar-thin">
-                                    {roomAssets.map((dev, idx) => (
-                                      <div key={dev.id} className="py-1.5 flex items-center justify-between gap-2">
-                                        <div className="flex items-start gap-1.5">
-                                          <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] mt-0.5">{idx + 1}.</span>
-                                          <div>
-                                            <span className="font-semibold text-slate-800 dark:text-slate-200">{dev.deviceName}</span>
-                                            <span className="text-slate-400 dark:text-slate-500 text-[8.5px] font-mono ml-1.5">
-                                              (SN: {dev.serialNumber || "-"} | Kat: {dev.category})
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${dev.status === "Aktif" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600"}`}>
-                                          {dev.status}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                ) : filteredRooms.length === 0 ? (
+                  <div className="p-6 text-center bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-850 rounded-xl">
+                    <p className="text-xs text-slate-500 italic">Tidak ada ruangan yang cocok dengan pencarian "{roomSearchQuery}".</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 gap-3 pb-2">
+                      {currentPagedRooms.map((room) => {
+                        const isEditingThisRoom = editingRoomId === room.id;
+                        const roomAssets = clientAssets.filter(as => as.roomId === room.id || as.roomName === room.name);
+                        return (
+                          <div key={room.id} className="p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-850 shadow-sm flex flex-col justify-between gap-1.5">
+                            {isEditingThisRoom ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Gedung</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomBuilding}
+                                      onChange={(e) => setEditRoomBuilding(e.target.value)}
+                                      placeholder="e.g. Gedung A"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Nama Ruangan RS *</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomName}
+                                      onChange={(e) => setEditRoomName(e.target.value)}
+                                      placeholder="e.g. Ruang UGD"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Sub Ruangan</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomSubRoom}
+                                      onChange={(e) => setEditRoomSubRoom(e.target.value)}
+                                      placeholder="e.g. Bed 1 / Ruang Tindakan"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Kode Singkatan</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomCode}
+                                      onChange={(e) => setEditRoomCode(e.target.value)}
+                                      placeholder="e.g. UGD-01"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Lantai RS</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomFloor}
+                                      onChange={(e) => setEditRoomFloor(e.target.value)}
+                                      placeholder="e.g. 1"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Keterangan / Fungsi</label>
+                                    <input
+                                      type="text"
+                                      value={editRoomDesc}
+                                      onChange={(e) => setEditRoomDesc(e.target.value)}
+                                      placeholder="Keterangan / Fungsi"
+                                      className="w-full bg-slate-50 dark:bg-slate-905 border border-slate-250 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-950 dark:text-white"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                  <input
+                                    type="checkbox"
+                                    id={`edit-room-status-${room.id}`}
+                                    checked={editRoomStatusAktif}
+                                    onChange={(e) => setEditRoomStatusAktif(e.target.checked)}
+                                    className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                                  />
+                                  <label htmlFor={`edit-room-status-${room.id}`} className="text-[10px] font-bold text-slate-755 dark:text-slate-300 cursor-pointer select-none">
+                                    Ruangan Aktif
+                                  </label>
+                                </div>
+                                <div className="flex gap-2 justify-end pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateRoom(room.id)}
+                                    className="bg-emerald-600 text-white font-bold text-[9px] px-2.5 py-1 rounded cursor-pointer"
+                                  >
+                                    Simpan
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRoomId(null)}
+                                    className="bg-slate-100 text-slate-600 font-bold text-[9px] px-2.5 py-1 rounded cursor-pointer"
+                                  >
+                                    Batal
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-900/40">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {room.building && <span className="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 text-[8.5px] font-black px-1.5 py-0.5 rounded uppercase border border-amber-200 dark:border-amber-900/45">🏢 {room.building}</span>}
+                                    <span className="font-bold text-xs text-slate-850 dark:text-slate-105 flex items-center gap-1">🚪 {room.name}</span>
+                                    {room.subRoomName && <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 text-[8.5px] font-black px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/45">🔑 Sub: {room.subRoomName}</span>}
+                                    {room.code && <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-[8.5px] font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/45">{room.code}</span>}
+                                    {room.floor && <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8.5px] font-medium px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/45">Lt.{room.floor}</span>}
+                                    <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border ${room.statusAktif !== false ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/45" : "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-450 dark:border-rose-900/45"}`}>
+                                      {room.statusAktif !== false ? "Aktif" : "Non-Aktif"}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingRoomId(room.id);
+                                        setEditRoomName(room.name);
+                                        setEditRoomBuilding(room.building || "");
+                                        setEditRoomCode(room.code || "");
+                                        setEditRoomFloor(room.floor || "");
+                                        setEditRoomDesc(room.description || "");
+                                        setEditRoomSubRoom(room.subRoomName || "");
+                                        setEditRoomStatusAktif(room.statusAktif !== false);
+                                      }}
+                                      className="text-slate-400 hover:text-emerald-600 p-0.5 rounded cursor-pointer"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteRoom(room.id, room.name)}
+                                      className="text-slate-400 hover:text-red-500 p-0.5 rounded cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                  {room.description && <p className="text-[10px] text-slate-500 mt-1 italic leading-tight">💬 Fungsi/Keterangan: {room.description}</p>}
+                                </div>
+
+                                {/* Nested penempatan aset list */}
+                                <div className="bg-slate-105/50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200/50 dark:border-slate-850 space-y-1.5 mt-2">
+                                  <span className="text-[8.5px] font-black uppercase text-slate-405 block tracking-wider">📦 Daftar Penempatan Aset ({roomAssets.length})</span>
+                                  {roomAssets.length === 0 ? (
+                                    <p className="text-[10px] text-slate-500 italic font-medium">Tidak ada perangkat terpasang saat ini.</p>
+                                  ) : (
+                                    <div className="max-h-32 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800 text-[10px] scrollbar-thin">
+                                      {roomAssets.map((dev, idx) => (
+                                        <div key={dev.id} className="py-1.5 flex items-center justify-between gap-2">
+                                          <div className="flex items-start gap-1.5">
+                                            <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] mt-0.5">{idx + 1}.</span>
+                                            <div>
+                                              <span className="font-semibold text-slate-800 dark:text-slate-200">{dev.deviceName}</span>
+                                              <span className="text-slate-400 dark:text-slate-500 text-[8.5px] font-mono ml-1.5">
+                                                (SN: {dev.serialNumber || "-"} | Kat: {dev.category})
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${dev.status === "Aktif" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600"}`}>
+                                            {dev.status}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalRoomsPages > 1 && (
+                      <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-3 text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-955 p-3 rounded-xl border border-slate-200/50 dark:border-slate-850">
+                        <div className="font-medium text-[11px]">
+                          Menampilkan <strong className="text-slate-800 dark:text-slate-200">{indexOfFirstRoom + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(indexOfLastRoom, filteredRooms.length)}</strong> dari <strong className="text-slate-800 dark:text-slate-200">{filteredRooms.length}</strong> ruangan
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={activeRoomsPage === 1}
+                            onClick={() => setRoomCurrentPage(prev => Math.max(prev - 1, 1))}
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                            title="Halaman Sebelumnya"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          {Array.from({ length: totalRoomsPages }, (_, i) => i + 1).map((pNum) => {
+                            const shouldShow = totalRoomsPages <= 5 || 
+                              pNum === 1 || 
+                              pNum === totalRoomsPages || 
+                              Math.abs(pNum - activeRoomsPage) <= 1;
+                            
+                            if (!shouldShow) {
+                              if (pNum === 2 || pNum === totalRoomsPages - 1) {
+                                return <span key={pNum} className="px-1 text-slate-400">...</span>;
+                              }
+                              return null;
+                            }
+
+                            return (
+                              <button
+                                key={pNum}
+                                type="button"
+                                onClick={() => setRoomCurrentPage(pNum)}
+                                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                  activeRoomsPage === pNum
+                                    ? "bg-emerald-600 text-white shadow-sm"
+                                    : "border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300"
+                                }`}
+                              >
+                                {pNum}
+                              </button>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            disabled={activeRoomsPage === totalRoomsPages}
+                            onClick={() => setRoomCurrentPage(prev => Math.min(prev + 1, totalRoomsPages))}
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                            title="Halaman Selanjutnya"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
-              {/* Add room form inside expanded drawer */}
-              <div className="bg-white dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-850 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Gedung RS</label>
-                    <input
-                      type="text"
-                      value={addRoomBuilding}
-                      onChange={(e) => setAddRoomBuilding(e.target.value)}
-                      placeholder="e.g. Gedung A / Barat"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Nama Ruangan RS *</label>
-                    <input
-                      type="text"
-                      value={addRoomName}
-                      onChange={(e) => setAddRoomName(e.target.value)}
-                      placeholder="e.g. Unit Gawat Darurat (UGD)"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Sub Ruangan</label>
-                    <input
-                      type="text"
-                      value={addRoomSubRoom}
-                      onChange={(e) => setAddRoomSubRoom(e.target.value)}
-                      placeholder="e.g. Bed 1 / Tindakan"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Kode Singkatan</label>
-                    <input
-                      type="text"
-                      value={addRoomCode}
-                      onChange={(e) => setAddRoomCode(e.target.value)}
-                      placeholder="e.g. UGD-01"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Lantai RS</label>
-                    <input
-                      type="text"
-                      value={addRoomFloor}
-                      onChange={(e) => setAddRoomFloor(e.target.value)}
-                      placeholder="e.g. 1"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-extrabold text-slate-455 mb-1.5 uppercase">Keterangan / Fungsi</label>
-                    <input
-                      type="text"
-                      value={addRoomDesc}
-                      onChange={(e) => setAddRoomDesc(e.target.value)}
-                      placeholder="e.g. Area darurat lantai dasar"
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="add-room-status"
-                    checked={addRoomStatusAktif}
-                    onChange={(e) => setAddRoomStatusAktif(e.target.checked)}
-                    className="rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
-                  />
-                  <label htmlFor="add-room-status" className="text-xs font-bold text-slate-755 dark:text-slate-300 cursor-pointer select-none">
-                    Ruangan Aktif
-                  </label>
-                </div>
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={handleAddRoom}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-md transition-all shadow-md shadow-emerald-500/10 cursor-pointer active:scale-95"
-                  >
-                    Tambah Ruangan Baru
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>
