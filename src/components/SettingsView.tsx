@@ -498,7 +498,7 @@ export default function SettingsView({
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === "tipeMedika" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850"}`}
           >
             <HeartPulse className="w-4.5 h-4.5 shrink-0 animate-pulse text-red-500" />
-            <span>Tipe Medika (Kategori RS)</span>
+            <span>Jenis Faskes</span>
           </button>
 
           <button
@@ -803,7 +803,7 @@ export default function SettingsView({
                     {activeTab === "catProgresses" && "Katalog Kategori Progress"}
                     {activeTab === "priorities" && "List Prioritas Tugas"}
                     {activeTab === "progressStatuses" && "Indikator Status Progress"}
-                    {activeTab === "tipeMedika" && "Katalog Tipe Medika (Kategori RS)"}
+                    {activeTab === "tipeMedika" && "Katalog Jenis Faskes"}
                     {activeTab === "tipeMedia" && "Katalog Tipe Media Korespondensi"}
                     {activeTab === "kategoriDokumen" && "Kategori Dokumen Arsip"}
                     {activeTab === "jenisBeritaAcara" && "Jenis Berita Acara (BA)"}

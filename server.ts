@@ -260,30 +260,58 @@ async function syncCollectionsToSupabase(data: any) {
 
   const syncTable = async (tableName: string, rows: any[]) => {
     if (!rows || rows.length === 0) return;
-    try {
-      const { error } = await supabase.from(tableName).upsert(rows);
-      if (error) {
-        // If the schema in Supabase does not have status_aktif yet, try syncing without it to avoid errors
-        const isStatusAktifError = error.message && (
-          error.message.includes("status_aktif") || 
-          error.message.includes("Could not find the 'status_aktif' column")
-        );
-        if (isStatusAktifError) {
-          const cleanedRows = rows.map(({ status_aktif, ...rest }) => rest);
-          const { error: retryError } = await supabase.from(tableName).upsert(cleanedRows);
-          if (retryError) {
-            console.log(`[Supabase Sync Warning] Table "${tableName}" failed to sync on retry:`, retryError.message);
+    let currentRows = [...rows];
+    let retryCount = 0;
+    const maxRetries = 5;
+
+    while (retryCount < maxRetries) {
+      try {
+        const { error } = await supabase.from(tableName).upsert(currentRows);
+        if (!error) {
+          if (retryCount > 0) {
+            console.log(`[Supabase Sync] Table "${tableName}" synced successfully after removing unmapped columns.`);
           } else {
-            console.log(`[Supabase Sync] Table "${tableName}" synced successfully on retry without status_aktif.`);
+            console.log(`[Supabase Sync] Table "${tableName}" synced successfully with ${rows.length} rows.`);
           }
-        } else {
-          console.log(`[Supabase Sync Warning] Table "${tableName}" failed to sync:`, error.message);
+          break;
         }
-      } else {
-        console.log(`[Supabase Sync] Table "${tableName}" synced successfully with ${rows.length} rows.`);
+
+        console.log(`[Supabase Sync Info] Upsert attempt failed for "${tableName}": ${error.message}`);
+        
+        // Extract the missing column name using regex
+        const missingColMatch = 
+          error.message.match(/Could not find the '([^']+)' column/i) || 
+          error.message.match(/column "([^"]+)" of relation "[^"]+" does not exist/i) ||
+          error.message.match(/column "([^"]+)" does not exist/i);
+
+        if (missingColMatch && missingColMatch[1]) {
+          const colName = missingColMatch[1];
+          console.log(`[Supabase Sync] Dynamic correction: Removing missing column "${colName}" from sync payload for table "${tableName}"`);
+          currentRows = currentRows.map((r) => {
+            const copy = { ...r };
+            delete copy[colName];
+            return copy;
+          });
+          retryCount++;
+        } else {
+          // Special fallback check
+          const isStatusAktifError = error.message && (
+            error.message.includes("status_aktif") || 
+            error.message.includes("Could not find the 'status_aktif' column")
+          );
+          if (isStatusAktifError) {
+            console.log(`[Supabase Sync] Dynamic correction fallback: Removing status_aktif from table "${tableName}"`);
+            currentRows = currentRows.map(({ status_aktif, ...rest }) => rest);
+            retryCount++;
+          } else {
+            console.log(`[Supabase Sync Warning] Table "${tableName}" failed to sync:`, error.message);
+            break;
+          }
+        }
+      } catch (err: any) {
+        console.log(`[Supabase Sync Exception] Exception during sync of Table "${tableName}":`, err.message || err);
+        break;
       }
-    } catch (err: any) {
-      console.log(`[Supabase Sync Exception] Exception during sync of Table "${tableName}":`, err.message || err);
     }
   };
 
@@ -320,16 +348,37 @@ async function syncCollectionsToSupabase(data: any) {
       created_at: p.createdAt || new Date().toISOString()
     }))),
 
-    syncTable("clients", (data.clients || []).map((c: any) => ({
-      id: c.id,
-      code: c.kodeRS || c.code || "",
-      name: c.namaRS || c.name || "",
-      pic: c.direkturRS || c.pic || "",
-      status: c.tipeMedika || c.status || "",
-      created_at: c.createdAt || new Date().toISOString(),
-      kode_rs: c.kodeRS || "",
-      status_aktif: c.statusAktif !== false
-    }))),
+    syncTable("clients", (data.clients || []).map((c: any) => {
+      // Clean up legacy merged director RS string if needed
+      let parsedPic = c.direkturRS || c.pic || "";
+      let parsedNip = c.nipDirektur || "";
+      if (parsedPic && parsedPic.includes("(NIP.")) {
+        const nipMatch = parsedPic.match(/(.*?)\s*\(NIP\.\s*(.*?)\)/i);
+        if (nipMatch) {
+          parsedPic = nipMatch[1].trim();
+          if (!parsedNip) {
+            parsedNip = nipMatch[2].trim();
+          }
+        }
+      }
+      return {
+        id: c.id,
+        code: c.kodeRS || c.code || "",
+        name: c.namaRS || c.name || "",
+        pic: parsedPic,
+        nip_direktur: parsedNip,
+        status: c.tipeMedika || c.status || "",
+        tipe_medika: c.tipeMedika || "",
+        klasifikasi: c.klasifikasi || "",
+        no_kso: c.noKSO || "",
+        tanggal_awal_kso: c.tanggalAwalKSO || "",
+        tanggal_akhir_kso: c.tanggalAkhirKSO || "",
+        persentase_kso: typeof c.persentaseKSO === "number" ? c.persentaseKSO : null,
+        created_at: c.createdAt || new Date().toISOString(),
+        kode_rs: c.kodeRS || "",
+        status_aktif: c.statusAktif !== false
+      };
+    })),
 
     syncTable("client_rooms", (data.clients || []).flatMap((c: any) => 
       (c.rooms || []).map((r: any) => ({
@@ -343,6 +392,32 @@ async function syncCollectionsToSupabase(data: any) {
         sub_room_name: r.subRoomName || "",
         status_aktif: r.statusAktif !== false,
         created_at: r.createdAt || new Date().toISOString()
+      }))
+    )),
+
+    syncTable("client_directors", (data.clients || []).flatMap((c: any) => 
+      (c.directors || []).map((d: any) => ({
+        id: d.id,
+        client_id: c.id,
+        name: d.name || "",
+        nip: d.nip || "",
+        start_date: d.startDate || "",
+        end_date: d.endDate || "",
+        is_active: d.isActive !== false,
+        created_at: new Date().toISOString()
+      }))
+    )),
+
+    syncTable("client_kso_history", (data.clients || []).flatMap((c: any) => 
+      (c.ksoHistory || []).map((kh: any) => ({
+        id: kh.id,
+        client_id: c.id,
+        no_kso: kh.noKSO || "",
+        start_date: kh.startDate || "",
+        end_date: kh.endDate || "",
+        persentase_kso: typeof kh.persentaseKSO === 'number' ? kh.persentaseKSO : null,
+        status_aktif: kh.statusAktif !== false,
+        created_at: new Date().toISOString()
       }))
     )),
 
@@ -1788,7 +1863,7 @@ app.get("/api/clients", async (req, res) => {
 
 app.post("/api/clients", async (req, res) => {
   try {
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif } = req.body;
+    const { namaRS, noKSO, direkturRS, nipDirektur, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, klasifikasi, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif, logoRS, tanggalAwalKSO, tanggalAkhirKSO, ksoHistory } = req.body;
     if (!namaRS) {
       return res.status(400).json({ error: "Nama RS wajib diisi!" });
     }
@@ -1798,17 +1873,23 @@ app.post("/api/clients", async (req, res) => {
       namaRS,
       noKSO: noKSO || "",
       direkturRS: direkturRS || "",
+      nipDirektur: nipDirektur || "",
       modulSIMRS: modulSIMRS || "",
       tanggalProject: tanggalProject || "",
       tanggalCutOff: tanggalCutOff || "",
       tipeMedika: tipeMedika || "",
+      klasifikasi: klasifikasi || "",
       createdAt: new Date().toISOString(),
       moduleStatuses: moduleStatuses || [],
       persentaseKSO: persentaseKSO !== undefined ? parseFloat(persentaseKSO) : 100,
       directors: directors || [],
       rooms: rooms || [],
       kodeRS: (kodeRS || "").substring(0, 5),
-      statusAktif: statusAktif !== undefined ? !!statusAktif : true
+      statusAktif: statusAktif !== undefined ? !!statusAktif : true,
+      logoRS: logoRS || "",
+      tanggalAwalKSO: tanggalAwalKSO || "",
+      tanggalAkhirKSO: tanggalAkhirKSO || "",
+      ksoHistory: ksoHistory || []
     };
     db.clients.push(newClient);
     await writeDB(db);
@@ -1821,7 +1902,7 @@ app.post("/api/clients", async (req, res) => {
 app.put("/api/clients/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { namaRS, noKSO, direkturRS, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif } = req.body;
+    const { namaRS, noKSO, direkturRS, nipDirektur, modulSIMRS, tanggalProject, tanggalCutOff, tipeMedika, klasifikasi, moduleStatuses, persentaseKSO, directors, rooms, kodeRS, statusAktif, logoRS, tanggalAwalKSO, tanggalAkhirKSO, ksoHistory } = req.body;
     const db = await readDB();
     const idx = db.clients.findIndex((cl: any) => cl.id === id);
     if (idx === -1) {
@@ -1830,10 +1911,12 @@ app.put("/api/clients/:id", async (req, res) => {
     if (namaRS !== undefined) db.clients[idx].namaRS = namaRS;
     if (noKSO !== undefined) db.clients[idx].noKSO = noKSO;
     if (direkturRS !== undefined) db.clients[idx].direkturRS = direkturRS;
+    if (nipDirektur !== undefined) db.clients[idx].nipDirektur = nipDirektur;
     if (modulSIMRS !== undefined) db.clients[idx].modulSIMRS = modulSIMRS;
     if (tanggalProject !== undefined) db.clients[idx].tanggalProject = tanggalProject;
     if (tanggalCutOff !== undefined) db.clients[idx].tanggalCutOff = tanggalCutOff;
     if (tipeMedika !== undefined) db.clients[idx].tipeMedika = tipeMedika;
+    if (klasifikasi !== undefined) db.clients[idx].klasifikasi = klasifikasi;
     if (moduleStatuses !== undefined) db.clients[idx].moduleStatuses = moduleStatuses;
     if (persentaseKSO !== undefined) db.clients[idx].persentaseKSO = persentaseKSO !== null ? parseFloat(persentaseKSO) : undefined;
     if (directors !== undefined) db.clients[idx].directors = directors;
@@ -1847,12 +1930,17 @@ app.put("/api/clients/:id", async (req, res) => {
             return { ...as, roomId: "", roomName: "" };
           }
           return as;
+          return as;
         });
       }
       db.clients[idx].rooms = rooms;
     }
     if (kodeRS !== undefined) db.clients[idx].kodeRS = (kodeRS || "").substring(0, 5);
     if (statusAktif !== undefined) db.clients[idx].statusAktif = !!statusAktif;
+    if (logoRS !== undefined) db.clients[idx].logoRS = logoRS;
+    if (tanggalAwalKSO !== undefined) db.clients[idx].tanggalAwalKSO = tanggalAwalKSO;
+    if (tanggalAkhirKSO !== undefined) db.clients[idx].tanggalAkhirKSO = tanggalAkhirKSO;
+    if (ksoHistory !== undefined) db.clients[idx].ksoHistory = ksoHistory;
     
     await writeDB(db);
     return res.json(db.clients[idx]);

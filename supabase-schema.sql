@@ -55,7 +55,14 @@ CREATE TABLE IF NOT EXISTS clients (
   code VARCHAR(50) UNIQUE,
   name VARCHAR(255) NOT NULL,
   pic VARCHAR(100),
+  nip_direktur VARCHAR(100),
   status VARCHAR(100),
+  tipe_medika VARCHAR(100),
+  klasifikasi VARCHAR(100),
+  no_kso VARCHAR(100),
+  tanggal_awal_kso VARCHAR(50),
+  tanggal_akhir_kso VARCHAR(50),
+  persentase_kso NUMERIC,
   status_aktif BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   kode_rs VARCHAR(5)
@@ -71,6 +78,30 @@ CREATE TABLE IF NOT EXISTS client_rooms (
   floor VARCHAR(50),
   description TEXT,
   sub_room_name VARCHAR(255),
+  status_aktif BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 4c. Tabel Client Directors (client_directors)
+CREATE TABLE IF NOT EXISTS client_directors (
+  id VARCHAR(50) PRIMARY KEY,
+  client_id VARCHAR(50) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  nip VARCHAR(100),
+  start_date VARCHAR(50),
+  end_date VARCHAR(50),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 4d. Tabel Client KSO History (client_kso_history)
+CREATE TABLE IF NOT EXISTS client_kso_history (
+  id VARCHAR(50) PRIMARY KEY,
+  client_id VARCHAR(50) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  no_kso VARCHAR(100) NOT NULL,
+  start_date VARCHAR(50),
+  end_date VARCHAR(50),
+  persentase_kso NUMERIC,
   status_aktif BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

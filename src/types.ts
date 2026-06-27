@@ -30,6 +30,16 @@ export interface DirectorHistory {
   isActive: boolean; // Status Aktif
 }
 
+export interface KsoHistory {
+  id: string;
+  noKSO: string;
+  startDate: string; // Tanggal Awal KSO
+  endDate: string;   // Tanggal Akhir KSO
+  persentaseKSO?: number; // Nilai KSO jika berubah
+  statusAktif?: boolean;  // Status KSO (Aktif/Tidak)
+  notes?: string;         // Keterangan tambahan
+}
+
 export interface ClientRoom {
   id: string;
   name: string;      // Nama Ruangan (e.g. Ruang UGD, Poli Anak)
@@ -47,10 +57,12 @@ export interface Client {
   namaRS: string;      // Nama RS
   noKSO: string;       // No KSO
   direkturRS: string;  // Direktur RS
+  nipDirektur?: string; // NIP Direktur RS
   modulSIMRS: string;  // Modul SIMRS
   tanggalProject: string; // Tanggal Project
   tanggalCutOff: string;  // Tanggal Cut Off
   tipeMedika?: string; // Tipe Medika
+  klasifikasi?: string; // Klasifikasi Faskes (e.g. Kelas A, B, C, D, Rawat Inap, etc)
   createdAt: string;
   moduleStatuses?: ClientModuleStatus[]; // Added in Phase 5 for dynamic module implementation status
   createdBy?: string;
@@ -59,6 +71,10 @@ export interface Client {
   rooms?: ClientRoom[]; // Daftar Ruangan penempatan aset
   kodeRS?: string; // Kode RS (max 5 karakter)
   statusAktif?: boolean; // Status Aktif RS (default: true)
+  logoRS?: string; // Base64 representation of RS Logo
+  tanggalAwalKSO?: string; // Tanggal Awal KSO
+  tanggalAkhirKSO?: string; // Tanggal Akhir KSO
+  ksoHistory?: KsoHistory[]; // List of historical KSO contract extensions
 }
 
 export interface Project {

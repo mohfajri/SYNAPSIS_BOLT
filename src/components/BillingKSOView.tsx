@@ -308,8 +308,14 @@ export default function BillingKSOView({
           setNamaDirektur(activeDir.name);
           setNipDirektur(activeDir.nip || "");
         } else {
-          setNamaDirektur(foundClient.direkturRS || "");
-          setNipDirektur("");
+          const nipMatch = (foundClient.direkturRS || "").match(/(.*?)\s*\(NIP\.\s*(.*?)\)/i);
+          if (nipMatch) {
+            setNamaDirektur(nipMatch[1].trim());
+            setNipDirektur(nipMatch[2].trim());
+          } else {
+            setNamaDirektur(foundClient.direkturRS || "");
+            setNipDirektur(foundClient.nipDirektur || "");
+          }
         }
       }
     }
@@ -551,13 +557,27 @@ export default function BillingKSOView({
     setNamaPengurang("");
 
     let defaultDirektur = "";
+    let defaultNip = "";
     const activeSite = hasSiteRestriction ? userSite : (clients.length > 0 ? clients[0].namaRS : "");
     const foundC = clients.find(item => item.namaRS === activeSite);
     if (foundC) {
-      defaultDirektur = foundC.direkturRS || "";
+      const activeDir = foundC.directors?.find(d => d.isActive);
+      if (activeDir) {
+        defaultDirektur = activeDir.name;
+        defaultNip = activeDir.nip || "";
+      } else {
+        const nipMatch = (foundC.direkturRS || "").match(/(.*?)\s*\(NIP\.\s*(.*?)\)/i);
+        if (nipMatch) {
+          defaultDirektur = nipMatch[1].trim();
+          defaultNip = nipMatch[2].trim();
+        } else {
+          defaultDirektur = foundC.direkturRS || "";
+          defaultNip = foundC.nipDirektur || "";
+        }
+      }
     }
     setNamaDirektur(defaultDirektur);
-    setNipDirektur("");
+    setNipDirektur(defaultNip);
     setJabatanDirektur("Direktur");
     setNamaSiteCoordinator("");
     setJabatanSiteCoordinator("Site Coordinator");

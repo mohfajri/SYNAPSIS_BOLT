@@ -16,7 +16,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import ClientCard from "./ClientCard";
+import ClientCard, { faskesClassificationMap } from "./ClientCard";
 
 interface ClientsViewProps {
   clients: Client[];
@@ -243,11 +243,17 @@ export default function ClientsView({
   const [namaRS, setNamaRS] = useState("");
   const [kodeRS, setKodeRS] = useState("");
   const [noKSO, setNoKSO] = useState("");
+  const [logoRS, setLogoRS] = useState(""); // RS Logo Upload Base64 State
+  const [tanggalAwalKSO, setTanggalAwalKSO] = useState(""); // Tanggal Awal KSO
+  const [tanggalAkhirKSO, setTanggalAkhirKSO] = useState(""); // Tanggal Akhir KSO
+  const [direkturRSName, setDirekturRSName] = useState(""); // Nama Direktur Utama
+  const [direkturRSNip, setDirekturRSNip] = useState("");   // NIP Direktur Utama
   const [direkturRS, setDirekturRS] = useState("");
   const [modulSIMRS, setModulSIMRS] = useState("");
   const [tanggalProject, setTanggalProject] = useState("");
   const [tanggalCutOff, setTanggalCutOff] = useState("");
-  const [tipeMedika, setTipeMedika] = useState<string>(tipeMedikaList[0] || "Rumah Sakit");
+  const [tipeMedika, setTipeMedika] = useState<string>("Rumah Sakit");
+  const [klasifikasi, setKlasifikasi] = useState<string>("Kelas A");
   const [persentaseKSO, setPersentaseKSO] = useState<number>(100);
   const [directors, setDirectors] = useState<DirectorHistory[]>([]);
   const [statusAktif, setStatusAktif] = useState(true);
@@ -285,32 +291,72 @@ export default function ClientsView({
       return;
     }
 
-    const activeDir = directors.find(d => d.isActive);
-    const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (direkturRS || "-");
+    let finalDirectors = [...directors];
+    let finalDirekturRS = "";
+
+    if (direkturRSName.trim()) {
+      // deactivate other directors if there are any
+      finalDirectors = finalDirectors.map(d => ({ ...d, isActive: false }));
+      const newActiveDir: DirectorHistory = {
+        id: "dir-" + Math.random().toString(36).slice(2, 9),
+        name: direkturRSName.trim(),
+        nip: direkturRSNip.trim(),
+        startDate: tanggalAwalKSO || tanggalProject,
+        endDate: "",
+        isActive: true
+      };
+      finalDirectors.push(newActiveDir);
+      finalDirekturRS = `${direkturRSName.trim()}${direkturRSNip.trim() ? ` (NIP. ${direkturRSNip.trim()})` : ""}`;
+    } else {
+      const activeDir = finalDirectors.find(d => d.isActive);
+      finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (direkturRS || "-");
+    }
+
+    const initialKso = noKSO.trim() ? [{
+      id: "kso-" + Math.random().toString(36).slice(2, 9),
+      noKSO: noKSO.trim(),
+      startDate: tanggalAwalKSO,
+      endDate: tanggalAkhirKSO,
+      persentaseKSO: persentaseKSO,
+      statusAktif: true,
+      notes: "KSO Awal"
+    }] : [];
 
     await onAddClient({
       namaRS: namaRS.trim(),
       kodeRS: kodeRS.trim().substring(0, 5),
       noKSO: noKSO.trim(),
       direkturRS: finalDirekturRS,
+      nipDirektur: direkturRSNip.trim() || (finalDirectors.find(d => d.isActive)?.nip || ""),
       modulSIMRS: modulSIMRS.trim(),
       tanggalProject,
       tanggalCutOff,
       tipeMedika,
+      klasifikasi,
       persentaseKSO: persentaseKSO,
-      directors: directors,
-      statusAktif: statusAktif
+      directors: finalDirectors,
+      statusAktif: statusAktif,
+      logoRS: logoRS,
+      tanggalAwalKSO: tanggalAwalKSO,
+      tanggalAkhirKSO: tanggalAkhirKSO,
+      ksoHistory: initialKso
     });
 
     // Reset Form
     setNamaRS("");
     setKodeRS("");
     setNoKSO("");
+    setLogoRS("");
+    setTanggalAwalKSO("");
+    setTanggalAkhirKSO("");
+    setDirekturRSName("");
+    setDirekturRSNip("");
     setDirekturRS("");
     setModulSIMRS("");
     setTanggalProject("");
     setTanggalCutOff("");
-    setTipeMedika(tipeMedikaList[0] || "Rumah Sakit");
+    setTipeMedika("Rumah Sakit");
+    setKlasifikasi("Kelas A");
     setPersentaseKSO(100);
     setDirectors([]);
     setStatusAktif(true);
@@ -397,7 +443,7 @@ export default function ClientsView({
             <HeartPulse className="w-5 h-5 text-indigo-500 dark:text-indigo-405" />
           </div>
           <div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black">Tipe RS Medika</div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black">Rumah Sakit</div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
               {medikaBreakdown["Rumah Sakit"] || 0} Unit
             </div>
@@ -411,7 +457,7 @@ export default function ClientsView({
           <div>
             <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black">Puskesmas / Klinik</div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              {(medikaBreakdown["Puskesmas"] || 0) + (medikaBreakdown["Klinik Utama"] || 0) + (medikaBreakdown["Klinik Pratama"] || 0)} Unit
+              {(medikaBreakdown["Puskesmas"] || 0) + (medikaBreakdown["Klinik"] || 0) + (medikaBreakdown["Klinik Utama"] || 0) + (medikaBreakdown["Klinik Pratama"] || 0)} Unit
             </div>
           </div>
         </div>
@@ -450,78 +496,214 @@ export default function ClientsView({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nama RS / Client <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    required
-                    value={namaRS}
-                    onChange={(e) => setNamaRS(e.target.value)}
-                    placeholder="Nama RS (e.g. RS Medika Utama)"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
+              {/* Profil Dasar Rumah Sakit */}
+              <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+                <div className="text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                  🏥 Profil Dasar Rumah Sakit
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1">Nama RS / Client <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      value={namaRS}
+                      onChange={(e) => setNamaRS(e.target.value)}
+                      placeholder="Nama RS (e.g. RS Medika Utama)"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Kode RS (Maks 5 Karakter)</label>
-                  <input
-                    type="text"
-                    maxLength={5}
-                    value={kodeRS}
-                    onChange={(e) => setKodeRS(e.target.value.substring(0, 5).toUpperCase())}
-                    placeholder="e.g. RS001"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1">Kode RS (Maks 5 Karakter)</label>
+                    <input
+                      type="text"
+                      maxLength={5}
+                      value={kodeRS}
+                      onChange={(e) => setKodeRS(e.target.value.substring(0, 5).toUpperCase())}
+                      placeholder="e.g. RS001"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1">Jenis Faskes</label>
+                    <select
+                      value={tipeMedika}
+                      onChange={(e) => {
+                        const newVal = e.target.value;
+                        setTipeMedika(newVal);
+                        const options = faskesClassificationMap[newVal] || [];
+                        setKlasifikasi(options[0] || "");
+                      }}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      {["Rumah Sakit", "Puskesmas", "Klinik", "Laboratorium"].map((tm) => (
+                        <option key={tm} value={tm}>{tm}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1">Klasifikasi</label>
+                    <select
+                      value={klasifikasi}
+                      onChange={(e) => setKlasifikasi(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      {(faskesClassificationMap[tipeMedika] || ["-"]).map((kl) => (
+                        <option key={kl} value={kl}>{kl}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider mb-1">Status Keaktifan RS</label>
+                    <select
+                      value={statusAktif ? "Aktif" : "Non-Aktif"}
+                      onChange={(e) => setStatusAktif(e.target.value === "Aktif")}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="Aktif">Aktif</option>
+                      <option value="Non-Aktif">Non-Aktif</option>
+                    </select>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Tipe Medika</label>
-                  <select
-                    value={tipeMedika}
-                    onChange={(e) => setTipeMedika(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
-                  >
-                    {tipeMedikaList.map((tm) => (
-                      <option key={tm} value={tm}>{tm}</option>
-                    ))}
-                  </select>
+              {/* Detail Kerjasama KSO */}
+              <div className="bg-amber-50/40 dark:bg-amber-950/10 p-4 border border-amber-200/50 dark:border-amber-900/30 rounded-xl space-y-3">
+                <div className="text-[11px] font-black uppercase text-amber-700 dark:text-amber-450 tracking-wider">
+                  🤝 Informasi Kerjasama KSO
                 </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nomor Kerjasama (NO KSO)</label>
-                  <input
-                    type="text"
-                    value={noKSO}
-                    onChange={(e) => setNoKSO(e.target.value)}
-                    placeholder="e.g. KSO/2026/IX-33"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Nomor Kerjasama (NO KSO)</label>
+                    <input
+                      type="text"
+                      value={noKSO}
+                      onChange={(e) => setNoKSO(e.target.value)}
+                      placeholder="e.g. KSO/2026/IX-33"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Tanggal Mulai KSO</label>
+                    <input
+                      type="date"
+                      value={tanggalAwalKSO}
+                      onChange={(e) => setTanggalAwalKSO(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Tanggal Akhir KSO</label>
+                    <input
+                      type="date"
+                      value={tanggalAkhirKSO}
+                      onChange={(e) => setTanggalAkhirKSO(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Persentase Sharing KSO (%) <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={persentaseKSO}
+                      onChange={(e) => setPersentaseKSO(parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 10.5"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Persentase Sharing KSO (%) <span className="text-red-500">*</span></label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={persentaseKSO}
-                    onChange={(e) => setPersentaseKSO(parseFloat(e.target.value) || 0)}
-                    placeholder="e.g. 10.5"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
+              {/* Kepemimpinan Utama (Direktur) */}
+              <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+                <div className="text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                  👤 Direktur Utama Utama RS (Saat Ini)
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Direktur Utama RS</label>
+                    <input
+                      type="text"
+                      value={direkturRSName}
+                      onChange={(e) => setDirekturRSName(e.target.value)}
+                      placeholder="e.g. dr. H. Bambang, Sp.B"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">NIP Direktur Utama</label>
+                    <input
+                      type="text"
+                      value={direkturRSNip}
+                      onChange={(e) => setDirekturRSNip(e.target.value)}
+                      placeholder="e.g. 19750824..."
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Status Keaktifan RS</label>
-                  <select
-                    value={statusAktif ? "Aktif" : "Non-Aktif"}
-                    onChange={(e) => setStatusAktif(e.target.value === "Aktif")}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-105 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="Aktif">Aktif</option>
-                    <option value="Non-Aktif">Non-Aktif</option>
-                  </select>
+              {/* Logo Rumah Sakit Upload - Phase Phase Additional Fields */}
+              <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <Upload className="w-4 h-4 text-emerald-500" />
+                  <span>Upload Logo Rumah Sakit / Client</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {logoRS ? (
+                    <div className="relative w-16 h-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-1">
+                      <img src={logoRS} alt="Logo Preview" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                      <button
+                        type="button"
+                        onClick={() => setLogoRS("")}
+                        className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl hover:bg-red-600 transition-all cursor-pointer"
+                        title="Hapus Logo"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-350 dark:border-slate-700 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
+                      <Building2 className="w-8 h-8 opacity-40" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="create-logo-upload"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 500 * 1024) {
+                            alert("Ukuran file maksimal 500KB!");
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setLogoRS(event.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="create-logo-upload"
+                      className="bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-all inline-block border-solid"
+                    >
+                      Pilih File Gambar (Max 500KB)
+                    </label>
+                    <p className="text-[10px] text-slate-400 mt-1">Format yang didukung: JPG, PNG, WEBP, GIF</p>
+                  </div>
                 </div>
               </div>
 
@@ -532,62 +714,10 @@ export default function ClientsView({
                   <span>Manajemen Riwayat Direktur Utama & NIP</span>
                 </div>
 
-                {directors.length === 0 ? (
-                  <div className="text-center py-4 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                    <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Silakan tambahkan direktur baru di bawah.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {directors.map((dir) => (
-                      <div key={dir.id} className={`flex flex-col justify-between p-3 rounded-lg border bg-white dark:bg-slate-900 transition-all ${dir.isActive ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-200 dark:border-slate-800"}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                              {dir.name}
-                              {dir.isActive && (
-                                <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-1.5 rounded-sm border border-emerald-250 dark:border-emerald-900/50 uppercase">
-                                  Aktif
-                                </span>
-                              )}
-                            </p>
-                            {dir.nip && (
-                              <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">NIP: {dir.nip}</p>
-                            )}
-                            {(dir.startDate || dir.endDate) && (
-                              <p className="text-[9px] text-slate-500 dark:text-slate-450 mt-1 bg-slate-50 dark:bg-slate-950 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-850">
-                                {dir.startDate || "?"} s.d {dir.endDate || "Sekarang"}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-1">
-                            {!dir.isActive && (
-                              <button
-                                type="button"
-                                onClick={() => handleSetActiveDirInUnsaved(dir.id)}
-                                className="text-[9px] bg-slate-100 hover:bg-emerald-5 border border-slate-200 dark:border-slate-800 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded cursor-pointer"
-                              >
-                                Set Aktif
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteDirInUnsaved(dir.id)}
-                              className="text-red-500 hover:bg-red-50 p-1 rounded hover:text-red-700 dark:hover:bg-red-950/30 shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Inline form to append director to list */}
+                {/* Inline form to append director to list (Moved to top as requested!) */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-lg p-3 space-y-3">
-                  <div className="text-[10px] font-extrabold text-slate-505 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850">
-                    ➕ Formulir Direktur RS Baru
+                  <div className="text-[10px] font-extrabold text-slate-505 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850 flex items-center gap-1.5">
+                    <span>➕ Formulir Input Direktur RS Baru</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                     <div>
@@ -637,7 +767,7 @@ export default function ClientsView({
                         onChange={(e) => setNewDirActive(e.target.checked)}
                         className="rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-550 shrink-0 w-3.5 h-3.5"
                       />
-                      <span>Set sebagai Direktur Aktif saat ini</span>
+                      <span>Set sebagai Direktur Utama Aktif saat ini</span>
                     </label>
                     <button
                       type="button"
@@ -668,10 +798,66 @@ export default function ClientsView({
                       }}
                       className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold px-3 py-1 rounded transition-all cursor-pointer"
                     >
-                      Tambahkan
+                      Tambahkan ke Riwayat
                     </button>
                   </div>
                 </div>
+
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-105 dark:border-slate-800/60">
+                  📚 Daftar Riwayat Direktur Utama ({directors.length})
+                </div>
+
+                {directors.length === 0 ? (
+                  <div className="text-center py-4 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                    <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Gunakan formulir di atas untuk menambahkan direktur baru.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {directors.map((dir) => (
+                      <div key={dir.id} className={`flex flex-col justify-between p-3 rounded-lg border bg-white dark:bg-slate-900 transition-all ${dir.isActive ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-slate-200 dark:border-slate-800"}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                              {dir.name}
+                              {dir.isActive && (
+                                <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-1.5 rounded-sm border border-emerald-250 dark:border-emerald-900/50 uppercase">
+                                  Aktif
+                                </span>
+                              )}
+                            </p>
+                            {dir.nip && (
+                              <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">NIP: {dir.nip}</p>
+                            )}
+                            {(dir.startDate || dir.endDate) && (
+                              <p className="text-[9px] text-slate-500 dark:text-slate-450 mt-1 bg-slate-50 dark:bg-slate-950 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-850">
+                                {dir.startDate || "?"} s.d {dir.endDate || "Sekarang"}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            {!dir.isActive && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetActiveDirInUnsaved(dir.id)}
+                                className="text-[9px] bg-slate-100 hover:bg-emerald-5 border border-slate-200 dark:border-slate-800 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded cursor-pointer"
+                              >
+                                Set Aktif
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDirInUnsaved(dir.id)}
+                              className="text-red-500 hover:bg-red-50 p-1 rounded hover:text-red-700 dark:hover:bg-red-950/30 shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

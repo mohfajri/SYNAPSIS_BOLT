@@ -20,6 +20,13 @@ import {
   ChevronRight
 } from "lucide-react";
 
+export const faskesClassificationMap: Record<string, string[]> = {
+  "Rumah Sakit": ["Kelas A", "Kelas B", "Kelas C", "Kelas D"],
+  "Puskesmas": ["Rawat Inap", "Non Rawat Inap"],
+  "Klinik": ["Klinik Pratama", "Klinik Utama"],
+  "Laboratorium": ["-"]
+};
+
 interface ClientCardProps {
   key?: string;
   cl: Client;
@@ -50,13 +57,20 @@ export default function ClientCard({
   const [isEditing, setIsEditing] = useState(false);
   const [isRoomsExpanded, setIsRoomsExpanded] = useState(false);
   const [isModulesExpanded, setIsModulesExpanded] = useState(false);
+  const [isKsoExpanded, setIsKsoExpanded] = useState(false); // Expanded state for KSO history drawer
   const [editStatusAktif, setEditStatusAktif] = useState(true);
 
   // Edit RS Profile states (prefilled from cl on entry)
   const [editNamaRS, setEditNamaRS] = useState("");
   const [editKodeRS, setEditKodeRS] = useState("");
   const [editTipeMedika, setEditTipeMedika] = useState("");
+  const [editKlasifikasi, setEditKlasifikasi] = useState("");
   const [editNoKSO, setEditNoKSO] = useState("");
+  const [editLogoRS, setEditLogoRS] = useState(""); // Logo base64 state
+  const [editTanggalAwalKSO, setEditTanggalAwalKSO] = useState(""); // Tanggal Awal KSO state
+  const [editTanggalAkhirKSO, setEditTanggalAkhirKSO] = useState(""); // Tanggal Akhir KSO state
+  const [editDirekturRSName, setEditDirekturRSName] = useState(""); // Nama Direktur Utama
+  const [editDirekturRSNip, setEditDirekturRSNip] = useState("");   // NIP Direktur Utama
   const [editPersentaseKSO, setEditPersentaseKSO] = useState<number>(100);
   const [editDirekturRS, setEditDirekturRS] = useState("");
   const [editTanggalProject, setEditTanggalProject] = useState("");
@@ -69,6 +83,14 @@ export default function ClientCard({
   const [subDirStart, setSubDirStart] = useState("");
   const [subDirEnd, setSubDirEnd] = useState("");
   const [subDirActive, setSubDirActive] = useState(true);
+
+  // Sub KSO history input states
+  const [addKsoNo, setAddKsoNo] = useState("");
+  const [addKsoStart, setAddKsoStart] = useState("");
+  const [addKsoEnd, setAddKsoEnd] = useState("");
+  const [addKsoPersen, setAddKsoPersen] = useState<number>(100);
+  const [addKsoNotes, setAddKsoNotes] = useState("");
+  const [addKsoActive, setAddKsoActive] = useState(true);
 
   // Manage Rooms Drawer states
   const [addRoomBuilding, setAddRoomBuilding] = useState("");
@@ -141,14 +163,36 @@ export default function ClientCard({
   const handleStartEdit = () => {
     setEditNamaRS(cl.namaRS || "");
     setEditKodeRS(cl.kodeRS || "");
-    setEditTipeMedika(cl.tipeMedika || tipeMedikaList[0] || "Rumah Sakit");
+    const initialTipe = cl.tipeMedika || "Rumah Sakit";
+    setEditTipeMedika(initialTipe);
+    setEditKlasifikasi(cl.klasifikasi || (faskesClassificationMap[initialTipe]?.[0] || ""));
     setEditNoKSO(cl.noKSO || "");
+    setEditLogoRS(cl.logoRS || "");
+    setEditTanggalAwalKSO(cl.tanggalAwalKSO || "");
+    setEditTanggalAkhirKSO(cl.tanggalAkhirKSO || "");
     setEditPersentaseKSO(cl.persentaseKSO !== undefined ? cl.persentaseKSO : 100);
     setEditDirekturRS(cl.direkturRS || "");
     setEditTanggalProject(cl.tanggalProject || "");
     setEditTanggalCutOff(cl.tanggalCutOff || "");
     setEditDirectors(cl.directors || []);
     setEditStatusAktif(cl.statusAktif !== false);
+
+    // Populate direct Direktur inputs
+    const activeDir = (cl.directors || []).find(d => d.isActive);
+    if (activeDir) {
+      setEditDirekturRSName(activeDir.name);
+      setEditDirekturRSNip(activeDir.nip);
+    } else {
+      const nipMatch = (cl.direkturRS || "").match(/(.*?)\s*\(NIP\.\s*(.*?)\)/i);
+      if (nipMatch) {
+        setEditDirekturRSName(nipMatch[1].trim());
+        setEditDirekturRSNip(nipMatch[2].trim());
+      } else {
+        setEditDirekturRSName(cl.direkturRS || "");
+        setEditDirekturRSNip(cl.nipDirektur || "");
+      }
+    }
+
     setIsEditing(true);
   };
 
@@ -173,20 +217,74 @@ export default function ClientCard({
       alert("Kode RS maksimal 5 karakter!");
       return;
     }
-    const activeDir = editDirectors.find(d => d.isActive);
-    const finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (editDirekturRS || "-");
+
+    let finalDirectors = [...editDirectors];
+    let finalDirekturRS = "";
+
+    if (editDirekturRSName.trim()) {
+      // deactivate other directors
+      finalDirectors = finalDirectors.map(d => ({ ...d, isActive: false }));
+      const existingActiveIndex = finalDirectors.findIndex(d => d.name.toLowerCase().trim() === editDirekturRSName.toLowerCase().trim());
+      if (existingActiveIndex !== -1) {
+        finalDirectors[existingActiveIndex].isActive = true;
+        finalDirectors[existingActiveIndex].nip = editDirekturRSNip.trim();
+      } else {
+        finalDirectors.push({
+          id: "dir-" + Math.random().toString(36).slice(2, 9),
+          name: editDirekturRSName.trim(),
+          nip: editDirekturRSNip.trim(),
+          startDate: editTanggalAwalKSO || editTanggalProject,
+          endDate: "",
+          isActive: true
+        });
+      }
+      finalDirekturRS = `${editDirekturRSName.trim()}${editDirekturRSNip.trim() ? ` (NIP. ${editDirekturRSNip.trim()})` : ""}`;
+    } else {
+      const activeDir = finalDirectors.find(d => d.isActive);
+      finalDirekturRS = activeDir ? `${activeDir.name}${activeDir.nip ? ` (NIP. ${activeDir.nip})` : ""}` : (editDirekturRS || "-");
+    }
+
+    // sync ksoHistory
+    let finalKsoHistory = [...(cl.ksoHistory || [])];
+    if (editNoKSO.trim()) {
+      const activeKsoIndex = finalKsoHistory.findIndex(k => k.noKSO === editNoKSO.trim());
+      if (activeKsoIndex !== -1) {
+        finalKsoHistory[activeKsoIndex].startDate = editTanggalAwalKSO;
+        finalKsoHistory[activeKsoIndex].endDate = editTanggalAkhirKSO;
+        finalKsoHistory[activeKsoIndex].persentaseKSO = editPersentaseKSO;
+        finalKsoHistory[activeKsoIndex].statusAktif = true;
+      } else {
+        // deactivate other KSO
+        finalKsoHistory = finalKsoHistory.map(k => ({ ...k, statusAktif: false }));
+        finalKsoHistory.push({
+          id: "kso-" + Math.random().toString(36).slice(2, 9),
+          noKSO: editNoKSO.trim(),
+          startDate: editTanggalAwalKSO,
+          endDate: editTanggalAkhirKSO,
+          persentaseKSO: editPersentaseKSO,
+          statusAktif: true,
+          notes: "Diperbarui dari Profil"
+        });
+      }
+    }
 
     await onUpdateClient(cl.id, {
       namaRS: editNamaRS.trim(),
       kodeRS: editKodeRS.trim().substring(0, 5),
       noKSO: editNoKSO.trim(),
       direkturRS: finalDirekturRS,
+      nipDirektur: editDirekturRSNip.trim() || (finalDirectors.find(d => d.isActive)?.nip || ""),
       tanggalProject: editTanggalProject,
       tanggalCutOff: editTanggalCutOff,
       tipeMedika: editTipeMedika,
+      klasifikasi: editKlasifikasi,
       persentaseKSO: editPersentaseKSO,
-      directors: editDirectors,
-      statusAktif: editStatusAktif
+      directors: finalDirectors,
+      statusAktif: editStatusAktif,
+      logoRS: editLogoRS,
+      tanggalAwalKSO: editTanggalAwalKSO,
+      tanggalAkhirKSO: editTanggalAkhirKSO,
+      ksoHistory: finalKsoHistory
     });
     setIsEditing(false);
   };
@@ -260,7 +358,12 @@ export default function ClientCard({
 
     if (confirm(confirmMsg)) {
       const currentRooms = cl.rooms || [];
-      const updated = currentRooms.filter(r => r.id !== rId);
+      const updated = currentRooms.filter(r => {
+        if (rId && r.id) {
+          return r.id !== rId;
+        }
+        return r.name !== roomName;
+      });
       await onUpdateClient(cl.id, { rooms: updated });
     }
   };
@@ -482,78 +585,218 @@ export default function ClientCard({
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Nama RS / Client</label>
-              <input
-                type="text"
-                required
-                value={editNamaRS}
-                onChange={(e) => setEditNamaRS(e.target.value)}
-                disabled={isUserScoped}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
-              />
+          {/* Profil Dasar Rumah Sakit */}
+          <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+            <div className="text-[11px] font-black uppercase text-slate-550 dark:text-slate-400 tracking-wider">
+              🏥 Profil Dasar Rumah Sakit
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Nama RS / Client</label>
+                <input
+                  type="text"
+                  required
+                  value={editNamaRS}
+                  onChange={(e) => setEditNamaRS(e.target.value)}
+                  disabled={isUserScoped}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Kode RS (Maks 5 Karakter)</label>
-              <input
-                type="text"
-                maxLength={5}
-                value={editKodeRS}
-                onChange={(e) => setEditKodeRS(e.target.value.substring(0, 5).toUpperCase())}
-                disabled={isUserScoped}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
-              />
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Kode RS (Maks 5 Karakter)</label>
+                <input
+                  type="text"
+                  maxLength={5}
+                  value={editKodeRS}
+                  onChange={(e) => setEditKodeRS(e.target.value.substring(0, 5).toUpperCase())}
+                  disabled={isUserScoped}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Jenis Faskes</label>
+                <select
+                  value={editTipeMedika}
+                  onChange={(e) => {
+                    const newVal = e.target.value;
+                    setEditTipeMedika(newVal);
+                    const options = faskesClassificationMap[newVal] || [];
+                    setEditKlasifikasi(options[0] || "");
+                  }}
+                  disabled={isUserScoped}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                >
+                  {["Rumah Sakit", "Puskesmas", "Klinik", "Laboratorium"].map((tm) => (
+                    <option key={tm} value={tm}>{tm}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Klasifikasi</label>
+                <select
+                  value={editKlasifikasi}
+                  onChange={(e) => setEditKlasifikasi(e.target.value)}
+                  disabled={isUserScoped}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                >
+                  {(faskesClassificationMap[editTipeMedika] || ["-"]).map((kl) => (
+                    <option key={kl} value={kl}>{kl}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Status Keaktifan RS</label>
+                <select
+                  value={editStatusAktif ? "Aktif" : "Non-Aktif"}
+                  onChange={(e) => setEditStatusAktif(e.target.value === "Aktif")}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-955 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                >
+                  <option value="Aktif">Aktif</option>
+                  <option value="Non-Aktif">Non-Aktif</option>
+                </select>
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Tipe Medika</label>
-              <select
-                value={editTipeMedika}
-                onChange={(e) => setEditTipeMedika(e.target.value)}
-                disabled={isUserScoped}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
-              >
-                {tipeMedikaList.map((tm) => (
-                  <option key={tm} value={tm}>{tm}</option>
-                ))}
-              </select>
+          {/* Detail Kerjasama KSO */}
+          <div className="bg-amber-50/40 dark:bg-amber-950/10 p-4 border border-amber-200/50 dark:border-amber-900/30 rounded-xl space-y-3">
+            <div className="text-[11px] font-black uppercase text-amber-700 dark:text-amber-450 tracking-wider">
+              🤝 Informasi Kerjasama KSO
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">NO KSO</label>
+                <input
+                  type="text"
+                  value={editNoKSO}
+                  onChange={(e) => setEditNoKSO(e.target.value)}
+                  disabled={isUserScoped}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">NO KSO</label>
-              <input
-                type="text"
-                value={editNoKSO}
-                onChange={(e) => setEditNoKSO(e.target.value)}
-                disabled={isUserScoped}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
-              />
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Tanggal Mulai KSO</label>
+                <input
+                  type="date"
+                  value={editTanggalAwalKSO}
+                  onChange={(e) => setEditTanggalAwalKSO(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Tanggal Akhir KSO</label>
+                <input
+                  type="date"
+                  value={editTanggalAkhirKSO}
+                  onChange={(e) => setEditTanggalAkhirKSO(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Sharing KSO (%)</label>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={editPersentaseKSO}
+                  onChange={(e) => setEditPersentaseKSO(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Sharing KSO (%)</label>
-              <input
-                type="number"
-                step="any"
-                required
-                value={editPersentaseKSO}
-                onChange={(e) => setEditPersentaseKSO(parseFloat(e.target.value) || 0)}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
-              />
+          {/* Kepemimpinan Utama (Direktur) */}
+          <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
+            <div className="text-[11px] font-black uppercase text-slate-550 dark:text-slate-400 tracking-wider">
+              👤 Direktur Utama RS (Saat Ini)
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Direktur Utama RS</label>
+                <input
+                  type="text"
+                  value={editDirekturRSName}
+                  onChange={(e) => setEditDirekturRSName(e.target.value)}
+                  placeholder="e.g. dr. H. Bambang, Sp.B"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">NIP Direktur Utama</label>
+                <input
+                  type="text"
+                  value={editDirekturRSNip}
+                  onChange={(e) => setEditDirekturRSNip(e.target.value)}
+                  placeholder="e.g. 19750824..."
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-550 uppercase mb-1">Status Keaktifan RS</label>
-              <select
-                value={editStatusAktif ? "Aktif" : "Non-Aktif"}
-                onChange={(e) => setEditStatusAktif(e.target.value === "Aktif")}
-                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
-              >
-                <option value="Aktif">Aktif</option>
-                <option value="Non-Aktif">Non-Aktif</option>
-              </select>
+          {/* Logo Rumah Sakit Upload - Phase Phase Additional Fields */}
+          <div className="bg-slate-50 dark:bg-slate-950/20 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+            <div className="text-xs font-bold text-slate-750 dark:text-slate-350 uppercase tracking-wide flex items-center gap-1.5">
+              <Upload className="w-4 h-4 text-emerald-500" />
+              <span>Upload Logo Rumah Sakit / Client</span>
+            </div>
+            <div className="flex items-center gap-4">
+              {editLogoRS ? (
+                <div className="relative w-16 h-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shrink-0 flex items-center justify-center p-1">
+                  <img src={editLogoRS} alt="Logo Preview" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                  <button
+                    type="button"
+                    onClick={() => setEditLogoRS("")}
+                    className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl hover:bg-red-600 transition-all cursor-pointer"
+                    title="Hapus Logo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-805 border border-dashed border-slate-350 dark:border-slate-700 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
+                  <Building2 className="w-8 h-8 opacity-40" />
+                </div>
+              )}
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id={`edit-logo-upload-${cl.id}`}
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 500 * 1024) {
+                        alert("Ukuran file maksimal 500KB!");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          setEditLogoRS(event.target.result as string);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor={`edit-logo-upload-${cl.id}`}
+                  className="bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-all inline-block border-solid"
+                >
+                  Pilih File Gambar (Max 500KB)
+                </label>
+                <p className="text-[10px] text-slate-450 mt-1">Format yang didukung: JPG, PNG, WEBP, GIF</p>
+              </div>
             </div>
           </div>
 
@@ -564,9 +807,102 @@ export default function ClientCard({
               <span>Manajemen Riwayat Direktur Utama & NIP</span>
             </div>
 
+            {/* Sub director entry form (Moved to top as requested!) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-lg p-3 space-y-3">
+              <div className="text-[10px] font-extrabold text-slate-550 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850 flex items-center gap-1.5">
+                <span>➕ Formulir Input Direktur RS Baru</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Nama Direktur</label>
+                  <input
+                    type="text"
+                    value={subDirName}
+                    onChange={(e) => setSubDirName(e.target.value)}
+                    placeholder="dr. Bambang, Sp.B"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">NIP Direktur</label>
+                  <input
+                    type="text"
+                    value={subDirNip}
+                    onChange={(e) => setSubDirNip(e.target.value)}
+                    placeholder="197508..."
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Mulai Jabatan</label>
+                  <input
+                    type="date"
+                    value={subDirStart}
+                    onChange={(e) => setSubDirStart(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Selesai Jabatan</label>
+                  <input
+                    type="date"
+                    value={subDirEnd}
+                    onChange={(e) => setSubDirEnd(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-50 dark:border-slate-850">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  <input
+                    type="checkbox"
+                    checked={subDirActive}
+                    onChange={(e) => setSubDirActive(e.target.checked)}
+                    className="rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-550 shrink-0 w-3.5 h-3.5"
+                  />
+                  <span>Set sebagai Direktur Utama Aktif saat ini</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!subDirName.trim()) {
+                      alert("Nama Direktur wajib diisi!");
+                      return;
+                    }
+                    const id = "dir-" + Math.random().toString(36).slice(2, 9);
+                    const newDir: DirectorHistory = {
+                      id,
+                      name: subDirName.trim(),
+                      nip: subDirNip.trim(),
+                      startDate: subDirStart,
+                      endDate: subDirEnd,
+                      isActive: subDirActive
+                    };
+                    let list = [...editDirectors];
+                    if (subDirActive) {
+                      list = list.map(d => ({ ...d, isActive: false }));
+                    }
+                    setEditDirectors([...list, newDir]);
+                    setSubDirName("");
+                    setSubDirNip("");
+                    setSubDirStart("");
+                    setSubDirEnd("");
+                    setSubDirActive(false);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold px-3 py-1 rounded transition-all cursor-pointer"
+                >
+                  Tambahkan ke Riwayat
+                </button>
+              </div>
+            </div>
+
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-105 dark:border-slate-800/60">
+              📚 Daftar Riwayat Direktur Utama ({editDirectors.length})
+            </div>
+
             {editDirectors.length === 0 ? (
               <div className="text-center py-4 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Silakan tambahkan direktur baru di bawah.</p>
+                <p className="text-[11px] text-slate-500 italic">Belum ada riwayat Direktur. Gunakan formulir di atas untuk menambahkan direktur baru.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -615,95 +951,6 @@ export default function ClientCard({
                 ))}
               </div>
             )}
-
-            {/* Sub director entry form */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-lg p-3 space-y-3">
-              <div className="text-[10px] font-extrabold text-slate-550 dark:text-slate-400 uppercase tracking-widest pb-1 border-b border-slate-50 dark:border-slate-850">
-                ➕ Formulir Direktur RS Baru
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Nama Direktur</label>
-                  <input
-                    type="text"
-                    value={subDirName}
-                    onChange={(e) => setSubDirName(e.target.value)}
-                    placeholder="dr. Bambang, Sp.B"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">NIP Direktur</label>
-                  <input
-                    type="text"
-                    value={subDirNip}
-                    onChange={(e) => setSubDirNip(e.target.value)}
-                    placeholder="197508..."
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-850 dark:text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Mulai Jabatan</label>
-                  <input
-                    type="date"
-                    value={subDirStart}
-                    onChange={(e) => setSubDirStart(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850 text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Selesai Jabatan</label>
-                  <input
-                    type="date"
-                    value={subDirEnd}
-                    onChange={(e) => setSubDirEnd(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-850 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-50 dark:border-slate-850">
-                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
-                  <input
-                    type="checkbox"
-                    checked={subDirActive}
-                    onChange={(e) => setSubDirActive(e.target.checked)}
-                    className="rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-500 shrink-0 w-3.5 h-3.5"
-                  />
-                  <span>Set sebagai Direktur Aktif saat ini</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!subDirName.trim()) {
-                      alert("Nama Direktur wajib diisi!");
-                      return;
-                    }
-                    const id = "dir-" + Math.random().toString(36).slice(2, 9);
-                    const newDir: DirectorHistory = {
-                      id,
-                      name: subDirName.trim(),
-                      nip: subDirNip.trim(),
-                      startDate: subDirStart,
-                      endDate: subDirEnd,
-                      isActive: subDirActive
-                    };
-                    let list = [...editDirectors];
-                    if (subDirActive) {
-                      list = list.map(d => ({ ...d, isActive: false }));
-                    }
-                    setEditDirectors([...list, newDir]);
-                    setSubDirName("");
-                    setSubDirNip("");
-                    setSubDirStart("");
-                    setSubDirEnd("");
-                    setSubDirActive(false);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold px-3 py-1 rounded transition-all cursor-pointer"
-                >
-                  Tambahkan
-                </button>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -749,29 +996,52 @@ export default function ClientCard({
       ) : (
         <div>
           {/* Card View Mode */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{cl.namaRS}</span>
-                {cl.kodeRS && (
-                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 rounded px-1.5 py-0.5 font-bold font-mono uppercase">
-                    KODE: {cl.kodeRS}
-                  </span>
-                )}
-                <span className="text-[10px] bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide">
-                  {cl.tipeMedika || "Rumah Sakit"}
-                </span>
-                <span className={`text-[10px] border rounded px-1.5 py-0.5 font-black uppercase tracking-wider ${cl.statusAktif !== false ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40" : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-900/40"}`}>
-                  {cl.statusAktif !== false ? "● Aktif" : "○ Non-Aktif"}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5 mt-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <FileCheck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-300">No KSO:</span>
-                  <span className="font-mono text-slate-700 dark:text-slate-405">{cl.noKSO || "-"}</span>
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 text-left">
+            <div className="flex flex-col sm:flex-row gap-4 items-start flex-1 w-full">
+              {cl.logoRS ? (
+                <div className="w-16 h-16 shrink-0 bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-2xl flex items-center justify-center p-1.5 shadow-sm shadow-blue-500/5">
+                  <img src={cl.logoRS} alt="Logo RS" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
                 </div>
+              ) : (
+                <div className="w-16 h-16 shrink-0 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-2xl flex items-center justify-center text-blue-500 shadow-xs">
+                  <Building2 className="w-8 h-8 opacity-75" />
+                </div>
+              )}
+              <div className="flex-1 w-full">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-white">{cl.namaRS}</span>
+                  {cl.kodeRS && (
+                    <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 rounded px-1.5 py-0.5 font-bold font-mono uppercase">
+                      KODE: {cl.kodeRS}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide">
+                    {cl.tipeMedika || "Rumah Sakit"}
+                  </span>
+                  {cl.klasifikasi && cl.klasifikasi !== "-" && (
+                    <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide">
+                      {cl.klasifikasi}
+                    </span>
+                  )}
+                  <span className={`text-[10px] border rounded px-1.5 py-0.5 font-black uppercase tracking-wider ${cl.statusAktif !== false ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40" : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-900/40"}`}>
+                    {cl.statusAktif !== false ? "● Aktif" : "○ Non-Aktif"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5 mt-3 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <FileCheck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="font-semibold text-slate-650 dark:text-slate-300">No KSO:</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-405">{cl.noKSO || "-"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="font-semibold text-slate-650 dark:text-slate-300">Masa Berlaku KSO:</span>
+                    <span className="text-slate-705 dark:text-slate-305 font-bold">
+                      {cl.tanggalAwalKSO ? `${cl.tanggalAwalKSO} s.d ${cl.tanggalAkhirKSO || "Sekarang"}` : "Belum Diatur"}
+                    </span>
+                  </div>
 
                 <div className="flex items-center gap-1.5">
                   <Percent className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
@@ -782,7 +1052,16 @@ export default function ClientCard({
                 <div className="flex items-center gap-1.5">
                   <UserCheck2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                   <span className="font-semibold text-slate-650 dark:text-slate-300">Direktur RS (Terbaru):</span>
-                  <span className="text-slate-800 dark:text-slate-205 font-bold">{cl.direkturRS || "-"}</span>
+                  <span className="text-slate-800 dark:text-slate-205 font-bold">
+                    {(() => {
+                      const name = cl.direkturRS || "-";
+                      const nip = cl.nipDirektur;
+                      if (nip && !name.includes(nip)) {
+                        return `${name} (NIP. ${nip})`;
+                      }
+                      return name;
+                    })()}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
@@ -820,7 +1099,7 @@ export default function ClientCard({
                   </div>
                 </div>
               )}
-            </div>
+            </div></div>
 
             {/* Quick Stats & Badges */}
             <div className="flex flex-row md:flex-col items-center md:items-end gap-2 shrink-0 bg-slate-100/20 dark:bg-slate-950/10 p-3 rounded-xl border border-slate-200/40 dark:border-slate-800/40">
@@ -859,12 +1138,41 @@ export default function ClientCard({
           )}
 
           {/* Action buttons bar */}
-          <div className="flex items-center gap-2 self-end md:self-center border-t border-slate-100 dark:border-slate-900 md:border-none pt-3 md:pt-0 mt-4 justify-end">
+          <div className="flex items-center gap-2 self-end md:self-center border-t border-slate-100 dark:border-slate-900 md:border-none pt-3 md:pt-0 mt-4 justify-end flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setIsKsoExpanded(!isKsoExpanded);
+                setIsRoomsExpanded(false);
+                setIsModulesExpanded(false);
+                setAddKsoNo("");
+                setAddKsoStart("");
+                setAddKsoEnd("");
+                setAddKsoPersen(cl.persentaseKSO !== undefined ? cl.persentaseKSO : 100);
+                setAddKsoNotes("");
+              }}
+              className={`p-2 h-8.5 rounded-lg border transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
+                isKsoExpanded 
+                  ? "bg-amber-600 border-amber-500 text-white shadow-md shadow-amber-600/30" 
+                  : "bg-slate-100 border-slate-200 dark:bg-slate-900 dark:border-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title="Kelola Riwayat & Perpanjangan KSO"
+            >
+              <Calendar className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Kelola Riwayat KSO</span>
+              {cl.ksoHistory && cl.ksoHistory.length > 0 && (
+                <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[10px] font-black shrink-0">
+                  {cl.ksoHistory.length}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setIsModulesExpanded(!isModulesExpanded);
                 setIsRoomsExpanded(false);
+                setIsKsoExpanded(false);
                 const clientImplemented = cl.moduleStatuses?.map(ms => ms.modulName) || [];
                 const available = registeredModuleNames.filter(name => !clientImplemented.includes(name));
                 setAddModulName(available[0] || "");
@@ -887,6 +1195,7 @@ export default function ClientCard({
               onClick={() => {
                 setIsRoomsExpanded(!isRoomsExpanded);
                 setIsModulesExpanded(false);
+                setIsKsoExpanded(false);
                 setAddRoomName("");
                 setAddRoomCode("");
                 setAddRoomFloor("");
@@ -1106,6 +1415,221 @@ export default function ClientCard({
                   >
                     Tambah Status Modul
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- KSO HISTORY DRAWER --- */}
+          {isKsoExpanded && (
+            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl space-y-4 text-left">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <div className="flex items-center gap-1.5 text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                  <Calendar className="w-4 h-4 text-amber-500" />
+                  <span>Riwayat Perjanjian KSO & Perpanjangan</span>
+                </div>
+              </div>
+
+              {/* Form Tambah Perpanjangan KSO Baru */}
+              <div className="bg-white dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-850 rounded-lg space-y-3">
+                <div className="text-[11px] font-black uppercase text-slate-500 flex items-center gap-1">
+                  <Plus className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Input Perpanjangan KSO Baru (Siklus Baru)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-1">Nomor KSO Baru</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. KSO/2026/IX-45"
+                      value={addKsoNo}
+                      onChange={(e) => setAddKsoNo(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-1">Tanggal Mulai</label>
+                    <input
+                      type="date"
+                      value={addKsoStart}
+                      onChange={(e) => setAddKsoStart(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-950 dark:text-white rounded px-2.5 py-0.5 text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-1">Tanggal Akhir</label>
+                    <input
+                      type="date"
+                      value={addKsoEnd}
+                      onChange={(e) => setAddKsoEnd(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-950 dark:text-white rounded px-2.5 py-0.5 text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-1">Sharing KSO (%)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={addKsoPersen}
+                      onChange={(e) => setAddKsoPersen(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-1">Keterangan / Catatan</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Addendum I"
+                      value={addKsoNotes}
+                      onChange={(e) => setAddKsoNotes(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-950 dark:text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={addKsoActive}
+                      onChange={(e) => setAddKsoActive(e.target.checked)}
+                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
+                    />
+                    <span>Set sebagai KSO Aktif saat ini di profil</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!addKsoNo.trim()) {
+                        alert("Nomor KSO wajib diisi!");
+                        return;
+                      }
+                      const newHistoryEntry = {
+                        id: "kso-" + Math.random().toString(36).slice(2, 9),
+                        noKSO: addKsoNo.trim(),
+                        startDate: addKsoStart,
+                        endDate: addKsoEnd,
+                        persentaseKSO: addKsoPersen,
+                        statusAktif: addKsoActive,
+                        notes: addKsoNotes.trim()
+                      };
+
+                      let updatedHistory = [...(cl.ksoHistory || [])];
+                      if (addKsoActive) {
+                        // Deactivate others
+                        updatedHistory = updatedHistory.map(k => ({ ...k, statusAktif: false }));
+                      }
+                      updatedHistory.push(newHistoryEntry);
+
+                      const updatePayload: any = {
+                        ksoHistory: updatedHistory
+                      };
+
+                      if (addKsoActive) {
+                        updatePayload.noKSO = addKsoNo.trim();
+                        updatePayload.tanggalAwalKSO = addKsoStart;
+                        updatePayload.tanggalAkhirKSO = addKsoEnd;
+                        updatePayload.persentaseKSO = addKsoPersen;
+                      }
+
+                      await onUpdateClient(cl.id, updatePayload);
+
+                      // Reset form
+                      setAddKsoNo("");
+                      setAddKsoStart("");
+                      setAddKsoEnd("");
+                      setAddKsoPersen(cl.persentaseKSO !== undefined ? cl.persentaseKSO : 100);
+                      setAddKsoNotes("");
+                    }}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-all shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 border-solid border-transparent"
+                  >
+                    Simpan Perpanjangan KSO
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabel Riwayat KSO */}
+              <div className="border border-slate-200 dark:border-slate-850 rounded-xl overflow-hidden bg-white dark:bg-slate-950">
+                <div className="p-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-slate-505 dark:text-slate-400">Daftar Kontrak / Adendum KSO ({cl.ksoHistory?.length || 0} Data)</span>
+                </div>
+                <div className="overflow-x-auto text-[10px]">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-900 text-slate-500 uppercase tracking-wider font-black border-b border-slate-200 dark:border-slate-850">
+                        <th className="p-2.5">Nomor KSO</th>
+                        <th className="p-2.5">Masa Berlaku</th>
+                        <th className="p-2.5">Sharing (%)</th>
+                        <th className="p-2.5">Keterangan</th>
+                        <th className="p-2.5">Status</th>
+                        <th className="p-2.5 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
+                      {(!cl.ksoHistory || cl.ksoHistory.length === 0) ? (
+                        <tr>
+                          <td colSpan={6} className="p-6 text-center text-slate-400 italic">
+                            Belum ada riwayat perpanjangan KSO tercatat.
+                          </td>
+                        </tr>
+                      ) : (
+                        cl.ksoHistory.map((kso) => (
+                          <tr key={kso.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 text-slate-700 dark:text-slate-300">
+                            <td className="p-2.5 font-bold font-mono text-slate-900 dark:text-white">{kso.noKSO}</td>
+                            <td className="p-2.5">
+                              {kso.startDate || "-"} s.d {kso.endDate || "Sekarang"}
+                            </td>
+                            <td className="p-2.5 font-bold">{kso.persentaseKSO}%</td>
+                            <td className="p-2.5 italic text-slate-500">{kso.notes || "-"}</td>
+                            <td className="p-2.5">
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${kso.statusAktif ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-405"}`}>
+                                {kso.statusAktif ? "Aktif Saat Ini" : "Arsip / Lampau"}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-right">
+                              {!kso.statusAktif && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (confirm(`Set Nomor KSO "${kso.noKSO}" sebagai KSO Aktif saat ini di profil?`)) {
+                                      const updated = cl.ksoHistory?.map(item => ({
+                                        ...item,
+                                        statusAktif: item.id === kso.id
+                                      })) || [];
+
+                                      await onUpdateClient(cl.id, {
+                                        noKSO: kso.noKSO,
+                                        tanggalAwalKSO: kso.startDate,
+                                        tanggalAkhirKSO: kso.endDate,
+                                        persentaseKSO: kso.persentaseKSO,
+                                        ksoHistory: updated
+                                      });
+                                    }
+                                  }}
+                                  className="text-[9px] bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400 px-2 py-0.5 rounded font-black transition-all cursor-pointer border border-amber-200 dark:border-amber-900/40"
+                                >
+                                  Aktifkan KSO Ini
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (confirm("Hapus catatan riwayat KSO ini?")) {
+                                    const filtered = cl.ksoHistory?.filter(item => item.id !== kso.id) || [];
+                                    await onUpdateClient(cl.id, {
+                                      ksoHistory: filtered
+                                    });
+                                  }
+                                }}
+                                className="text-[9px] text-rose-500 hover:underline ml-2 cursor-pointer font-bold"
+                              >
+                                Hapus
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
