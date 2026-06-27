@@ -79,6 +79,8 @@ interface BillingKSOViewProps {
   onAddBilling: (billing: Partial<BillingKSO>) => Promise<void>;
   onUpdateBilling: (id: string, billing: Partial<BillingKSO>) => Promise<void>;
   onDeleteBilling: (id: string) => Promise<void>;
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
 export default function BillingKSOView({
@@ -87,7 +89,9 @@ export default function BillingKSOView({
   currentUser,
   onAddBilling,
   onUpdateBilling,
-  onDeleteBilling
+  onDeleteBilling,
+  subRouteParam,
+  onSubRouteUpdate
 }: BillingKSOViewProps) {
   // Navigation tabs: "all" or "verification" (for Manager)
   const [activeTab, setActiveTab] = useState<"all" | "verification">("all");
@@ -100,6 +104,25 @@ export default function BillingKSOView({
 
   // Selection view and Editor states
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
+
+  // Sync subRouteParam with selectedBillId
+  useEffect(() => {
+    if (subRouteParam) {
+      if (selectedBillId !== subRouteParam) {
+        setSelectedBillId(subRouteParam);
+      }
+    } else {
+      if (selectedBillId) {
+        setSelectedBillId(null);
+      }
+    }
+  }, [subRouteParam]);
+
+  useEffect(() => {
+    if (onSubRouteUpdate && subRouteParam !== selectedBillId) {
+      onSubRouteUpdate(selectedBillId);
+    }
+  }, [selectedBillId]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddNew, setIsAddNew] = useState(false);
   const [revisionNotes, setRevisionNotes] = useState("");

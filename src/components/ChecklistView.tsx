@@ -77,9 +77,17 @@ interface ChecklistViewProps {
   clients: Client[];
   users?: User[];
   triggerRefresh?: () => void;
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
-export default function ChecklistView({ currentUser, clients = [], users = [] }: ChecklistViewProps) {
+export default function ChecklistView({ 
+  currentUser, 
+  clients = [], 
+  users = [],
+  subRouteParam,
+  onSubRouteUpdate
+}: ChecklistViewProps) {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"isi" | "riwayat" | "settings">("isi");
 
@@ -101,6 +109,27 @@ export default function ChecklistView({ currentUser, clients = [], users = [] }:
 
   // Selection view for Detail Row
   const [selectedSubmission, setSelectedSubmission] = useState<ChecklistSubmission | null>(null);
+
+  // Sync subRouteParam with selectedSubmission
+  React.useEffect(() => {
+    if (subRouteParam) {
+      const found = submissions.find(s => s.id === subRouteParam);
+      if (found && (!selectedSubmission || selectedSubmission.id !== subRouteParam)) {
+        setSelectedSubmission(found);
+      }
+    } else {
+      if (selectedSubmission) {
+        setSelectedSubmission(null);
+      }
+    }
+  }, [subRouteParam, submissions]);
+
+  React.useEffect(() => {
+    const targetParam = selectedSubmission ? selectedSubmission.id : null;
+    if (onSubRouteUpdate && subRouteParam !== targetParam) {
+      onSubRouteUpdate(targetParam);
+    }
+  }, [selectedSubmission?.id]);
 
   // Form Submission Form State
   const [formSite, setFormSite] = useState("");

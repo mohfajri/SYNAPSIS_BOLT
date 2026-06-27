@@ -51,6 +51,8 @@ interface ProjectsViewProps {
   docs?: Documentation[];
   onAddDoc?: (data: Partial<Documentation>) => Promise<void>;
   onDeleteDoc?: (id: string) => Promise<void>;
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
 export default function ProjectsView({
@@ -77,7 +79,9 @@ export default function ProjectsView({
   meetingLogs = [],
   docs = [],
   onAddDoc,
-  onDeleteDoc
+  onDeleteDoc,
+  subRouteParam,
+  onSubRouteUpdate
 }: ProjectsViewProps) {
   
   const [search, setSearch] = useState("");
@@ -88,6 +92,31 @@ export default function ProjectsView({
   // Modal & form states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProj, setEditingProj] = useState<Project | null>(null);
+
+  // Sync sub-routing param with editingProj
+  useEffect(() => {
+    if (subRouteParam) {
+      const found = projects.find(p => p.id === subRouteParam);
+      if (found) {
+        if (!editingProj || editingProj.id !== subRouteParam) {
+          setEditingProj(found);
+          setIsFormOpen(true);
+        }
+      }
+    } else {
+      if (editingProj) {
+        setEditingProj(null);
+        setIsFormOpen(false);
+      }
+    }
+  }, [subRouteParam, projects]);
+
+  useEffect(() => {
+    const targetParam = (isFormOpen && editingProj) ? editingProj.id : null;
+    if (onSubRouteUpdate && subRouteParam !== targetParam) {
+      onSubRouteUpdate(targetParam);
+    }
+  }, [isFormOpen, editingProj?.id]);
   const [dateError, setDateError] = useState("");
   
   // Create / Edit Form Variables

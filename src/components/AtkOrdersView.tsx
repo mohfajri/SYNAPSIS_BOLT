@@ -33,9 +33,17 @@ interface AtkOrdersViewProps {
   currentUser: User | null;
   clients: Client[];
   onBillingAdded?: () => void; // Trigger callback once bill created
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
-export default function AtkOrdersView({ currentUser, clients, onBillingAdded }: AtkOrdersViewProps) {
+export default function AtkOrdersView({ 
+  currentUser, 
+  clients, 
+  onBillingAdded,
+  subRouteParam,
+  onSubRouteUpdate
+}: AtkOrdersViewProps) {
   // Tabs: 'orders' | 'rekap' | 'master'
   const [activeTab, setActiveTab] = useState<'orders' | 'rekap' | 'master'>('orders');
 
@@ -131,6 +139,25 @@ export default function AtkOrdersView({ currentUser, clients, onBillingAdded }: 
 
   // Active Selected Detail Drawer
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Sync subRouteParam with selectedOrderId
+  useEffect(() => {
+    if (subRouteParam) {
+      if (selectedOrderId !== subRouteParam) {
+        setSelectedOrderId(subRouteParam);
+      }
+    } else {
+      if (selectedOrderId) {
+        setSelectedOrderId(null);
+      }
+    }
+  }, [subRouteParam]);
+
+  useEffect(() => {
+    if (onSubRouteUpdate && subRouteParam !== selectedOrderId) {
+      onSubRouteUpdate(selectedOrderId);
+    }
+  }, [selectedOrderId]);
   const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
   // Shipping form fields

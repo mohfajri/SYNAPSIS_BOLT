@@ -39,6 +39,8 @@ interface MonevViewProps {
   onAddMonevLog: (log: Partial<MonevLog>) => Promise<void>;
   onUpdateMonevLog: (id: string, log: Partial<MonevLog>) => Promise<void>;
   onDeleteMonevLog: (id: string) => Promise<void>;
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
 export default function MonevView({
@@ -51,7 +53,9 @@ export default function MonevView({
   picThemeColors = {},
   onAddMonevLog,
   onUpdateMonevLog,
-  onDeleteMonevLog
+  onDeleteMonevLog,
+  subRouteParam,
+  onSubRouteUpdate
 }: MonevViewProps) {
   // Query Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -61,6 +65,25 @@ export default function MonevView({
 
   // Selection view and Editor states (No Popups!)
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+
+  // Sync subRouteParam with selectedLogId
+  useEffect(() => {
+    if (subRouteParam) {
+      if (selectedLogId !== subRouteParam) {
+        setSelectedLogId(subRouteParam);
+      }
+    } else {
+      if (selectedLogId) {
+        setSelectedLogId(null);
+      }
+    }
+  }, [subRouteParam]);
+
+  useEffect(() => {
+    if (onSubRouteUpdate && subRouteParam !== selectedLogId) {
+      onSubRouteUpdate(selectedLogId);
+    }
+  }, [selectedLogId]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddNew, setIsAddNew] = useState(false);
 

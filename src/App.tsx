@@ -113,31 +113,37 @@ export default function App() {
   const prioritiesList = ["Urgent", "High", "Medium", "Low", "Very Low"];
   const progressStatusesList = ["Not Started", "In Progress", "Done", "Pending", "Cancelled", "Backlog"];
 
-  // Layout View Mode & Sidebar with URL Routing
-  const [currentView, setCurrentView] = useState<string>(() => {
+  // Helper to parse the current hash route into view and param
+  const parseHash = () => {
     try {
       const hash = window.location.hash;
       if (hash && hash.startsWith("#/")) {
-        const view = hash.substring(2);
-        if (view) return view;
+        const path = hash.substring(2);
+        const parts = path.split("/");
+        return {
+          view: parts[0] || "dashboard",
+          param: parts[1] || null
+        };
       }
     } catch (e) {
       console.error("Failed to parse hash URL route:", e);
     }
-    return "dashboard";
-  });
+    return { view: "dashboard", param: null };
+  };
+
+  const initialRoute = parseHash();
+  const [currentView, setCurrentView] = useState<string>(initialRoute.view);
+  const [subRouteParam, setSubRouteParam] = useState<string | null>(initialRoute.param);
 
   useEffect(() => {
     const handleHashChange = () => {
       try {
-        const hash = window.location.hash;
-        if (hash && hash.startsWith("#/")) {
-          const view = hash.substring(2);
-          if (view && view !== currentView) {
-            setCurrentView(view);
-          }
-        } else {
-          setCurrentView("dashboard");
+        const parsed = parseHash();
+        if (parsed.view !== currentView) {
+          setCurrentView(parsed.view);
+        }
+        if (parsed.param !== subRouteParam) {
+          setSubRouteParam(parsed.param);
         }
       } catch (e) {
         console.error("Error matching hash route:", e);
@@ -148,18 +154,20 @@ export default function App() {
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
-  }, [currentView]);
+  }, [currentView, subRouteParam]);
 
   useEffect(() => {
     try {
-      const expectedHash = `#/${currentView}`;
+      const expectedHash = subRouteParam 
+        ? `#/${currentView}/${subRouteParam}` 
+        : `#/${currentView}`;
       if (window.location.hash !== expectedHash) {
-        window.location.hash = `/${currentView}`;
+        window.location.hash = expectedHash;
       }
     } catch (e) {
       console.error("Error setting hash route:", e);
     }
-  }, [currentView]);
+  }, [currentView, subRouteParam]);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isSidebarMini, setIsSidebarMini] = useState<boolean>(() => {
     try {
@@ -1911,6 +1919,8 @@ export default function App() {
               docs={scopedDocs}
               onAddDoc={handleAddDoc}
               onDeleteDoc={handleDeleteDoc}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -1934,6 +1944,8 @@ export default function App() {
               onClearInitialStatus={() => setQuickTaskStatusLink(null)}
               commLogs={scopedCommLogs}
               meetingLogs={scopedMeetingLogs}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -2008,6 +2020,8 @@ export default function App() {
               onAddTicket={handleAddTicket}
               onUpdateTicket={handleUpdateTicket}
               onDeleteTicket={handleDeleteTicket}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -2049,6 +2063,8 @@ export default function App() {
               onAddMonevLog={handleAddMonevLog}
               onUpdateMonevLog={handleUpdateMonevLog}
               onDeleteMonevLog={handleDeleteMonevLog}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -2060,6 +2076,8 @@ export default function App() {
               onAddBilling={handleAddBilling}
               onUpdateBilling={handleUpdateBilling}
               onDeleteBilling={handleDeleteBilling}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -2089,6 +2107,8 @@ export default function App() {
                   .then(data => setBillings(data))
                   .catch(err => console.error("Error refreshing billing list:", err));
               }}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 
@@ -2097,6 +2117,8 @@ export default function App() {
               currentUser={currentUser}
               clients={scopedClients}
               users={users}
+              subRouteParam={subRouteParam}
+              onSubRouteUpdate={setSubRouteParam}
             />
           )}
 

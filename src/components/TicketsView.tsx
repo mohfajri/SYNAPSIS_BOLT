@@ -56,6 +56,8 @@ interface TicketsViewProps {
   onAddTicket: (ticket: Partial<Ticket>) => Promise<void>;
   onUpdateTicket: (id: string, ticket: Partial<Ticket>) => Promise<void>;
   onDeleteTicket: (id: string) => Promise<void>;
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
 export default function TicketsView({
@@ -67,7 +69,9 @@ export default function TicketsView({
   users = [],
   onAddTicket,
   onUpdateTicket,
-  onDeleteTicket
+  onDeleteTicket,
+  subRouteParam,
+  onSubRouteUpdate
 }: TicketsViewProps) {
   const ticketCategories = settings?.kategoriLaporan
     ? settings.kategoriLaporan.filter((x: any) => x.active).map((x: any) => x.value)
@@ -150,6 +154,25 @@ export default function TicketsView({
 
   // Table row expand-collapse state manager
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+
+  // Sync subRouteParam with expandedTicketId
+  React.useEffect(() => {
+    if (subRouteParam) {
+      if (expandedTicketId !== subRouteParam) {
+        setExpandedTicketId(subRouteParam);
+      }
+    } else {
+      if (expandedTicketId) {
+        setExpandedTicketId(null);
+      }
+    }
+  }, [subRouteParam]);
+
+  React.useEffect(() => {
+    if (onSubRouteUpdate && subRouteParam !== expandedTicketId) {
+      onSubRouteUpdate(expandedTicketId);
+    }
+  }, [expandedTicketId]);
   const [activeStatusTab, setActiveStatusTab] = useState("All");
   const [activeStatusDropdownId, setActiveStatusDropdownId] = useState<string | null>(null);
   const [activeAssigneeDropdownId, setActiveAssigneeDropdownId] = useState<string | null>(null);

@@ -204,6 +204,8 @@ interface TasksViewProps {
   onClearInitialStatus?: () => void;
   commLogs?: CommLog[];
   meetingLogs?: MeetingLog[];
+  subRouteParam?: string | null;
+  onSubRouteUpdate?: (param: string | null) => void;
 }
 
 export default function TasksView({
@@ -224,7 +226,9 @@ export default function TasksView({
   initialOpenWithStatus,
   onClearInitialStatus,
   commLogs = [],
-  meetingLogs = []
+  meetingLogs = [],
+  subRouteParam,
+  onSubRouteUpdate
 }: TasksViewProps) {
   
   const [search, setSearch] = useState("");
@@ -265,6 +269,29 @@ export default function TasksView({
     } else {
       setDraftStatus("");
       setDraftProgress(0);
+    }
+  }, [selectedTask?.id]);
+
+  // Sync sub-routing param with selectedTask
+  useEffect(() => {
+    if (subRouteParam) {
+      const found = tasks.find(t => t.id === subRouteParam);
+      if (found) {
+        if (!selectedTask || selectedTask.id !== subRouteParam) {
+          setSelectedTask(found);
+        }
+      }
+    } else {
+      if (selectedTask) {
+        setSelectedTask(null);
+      }
+    }
+  }, [subRouteParam, tasks]);
+
+  useEffect(() => {
+    const targetParam = selectedTask ? selectedTask.id : null;
+    if (onSubRouteUpdate && subRouteParam !== targetParam) {
+      onSubRouteUpdate(targetParam);
     }
   }, [selectedTask?.id]);
 
