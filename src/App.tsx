@@ -113,8 +113,53 @@ export default function App() {
   const prioritiesList = ["Urgent", "High", "Medium", "Low", "Very Low"];
   const progressStatusesList = ["Not Started", "In Progress", "Done", "Pending", "Cancelled", "Backlog"];
 
-  // Layout View Mode & Sidebar
-  const [currentView, setCurrentView] = useState<string>("dashboard");
+  // Layout View Mode & Sidebar with URL Routing
+  const [currentView, setCurrentView] = useState<string>(() => {
+    try {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#/")) {
+        const view = hash.substring(2);
+        if (view) return view;
+      }
+    } catch (e) {
+      console.error("Failed to parse hash URL route:", e);
+    }
+    return "dashboard";
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      try {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith("#/")) {
+          const view = hash.substring(2);
+          if (view && view !== currentView) {
+            setCurrentView(view);
+          }
+        } else {
+          setCurrentView("dashboard");
+        }
+      } catch (e) {
+        console.error("Error matching hash route:", e);
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [currentView]);
+
+  useEffect(() => {
+    try {
+      const expectedHash = `#/${currentView}`;
+      if (window.location.hash !== expectedHash) {
+        window.location.hash = `/${currentView}`;
+      }
+    } catch (e) {
+      console.error("Error setting hash route:", e);
+    }
+  }, [currentView]);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isSidebarMini, setIsSidebarMini] = useState<boolean>(() => {
     try {
