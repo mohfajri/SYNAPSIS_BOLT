@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Task, Project } from "../types";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BookMarked, Layers } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -14,7 +14,7 @@ export default function CalendarView({
   onViewTaskDetail
 }: CalendarViewProps) {
   
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 21)); // Seeding time May 2026
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 21));
   const [filterProj, setFilterProj] = useState("");
   const [filterTime, setFilterTime] = useState("all");
   const [activeDateEvents, setActiveDateEvents] = useState<{ dateStr: string; events: any[] } | null>(null);
@@ -35,7 +35,6 @@ export default function CalendarView({
     const itemDate = new Date(dateStr);
     if (isNaN(itemDate.getTime())) return false;
     
-    // Set hours to midnight for pure date comparison
     ref.setHours(0,0,0,0);
     const itemCompare = new Date(itemDate);
     itemCompare.setHours(0,0,0,0);
@@ -53,8 +52,7 @@ export default function CalendarView({
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23,59,59,999);
       
-      const itemTime = itemCompare.getTime();
-      return itemTime >= startOfWeek.getTime() && itemTime <= endOfWeek.getTime();
+      return itemCompare.getTime() >= startOfWeek.getTime() && itemCompare.getTime() <= endOfWeek.getTime();
     }
     
     if (filterType === "bulan") {
@@ -86,50 +84,44 @@ export default function CalendarView({
   }
 
   function goToday() {
-    setCurrentDate(new Date(2026, 4, 21)); // Lock coordinate according to environment metadata
+    setCurrentDate(new Date(2026, 4, 21));
     setActiveDateEvents(null);
   }
 
-  // Construct calendar cells
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
+  const cells: Date[] = [];
+  
   const firstDayIndex = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrev = new Date(year, month, 0).getDate();
-
-  const cells: Date[] = [];
   
-  // Backfill previous month days
   for (let i = firstDayIndex - 1; i >= 0; i--) {
     cells.push(new Date(year, month - 1, daysInPrev - i));
   }
-  // Current month days
   for (let i = 1; i <= daysInMonth; i++) {
     cells.push(new Date(year, month, i));
   }
-  // Pad forward days for complete 6-week matrix
   const remainingSize = 42 - cells.length;
   for (let i = 1; i <= remainingSize; i++) {
     cells.push(new Date(year, month + 1, i));
   }
 
-  // Event parsing & mapping
   const parsedEvents: Record<string, any[]> = {};
 
-  // 1. Task dates (start and end)
   tasks
     .filter(t => !filterProj || t.project === filterProj)
     .filter(t => matchesDateFilter(t.startDate, filterTime) || matchesDateFilter(t.dueDate, filterTime))
     .forEach((t) => {
-      const color = t.status === "Done" ? "#10b981" : t.status === "In Progress" ? "#f59e0b" : "#6366f1";
+      const color = t.status === "Done" ? "#16a34a" : t.status === "In Progress" ? "#d97706" : "#2563eb";
       if (t.dueDate) {
         if (!parsedEvents[t.dueDate]) parsedEvents[t.dueDate] = [];
         parsedEvents[t.dueDate].push({
           id: t.id,
-          title: `⏰ TKT: ${t.task}`,
-          sub: `${t.project} &bull; PIC: ${t.pic || "Unassigned"}`,
-          color: "#d97706",
+          title: t.task,
+          sub: `${t.project} • ${t.pic || "—"}`,
+          color: "#dc2626",
           type: "task"
         });
       }
@@ -137,7 +129,7 @@ export default function CalendarView({
         if (!parsedEvents[t.startDate]) parsedEvents[t.startDate] = [];
         parsedEvents[t.startDate].push({
           id: t.id,
-          title: `▶ Mulai: ${t.task}`,
+          title: t.task,
           sub: `${t.project}`,
           color: color,
           type: "task"
@@ -145,7 +137,6 @@ export default function CalendarView({
       }
     });
 
-  // 2. Project target dates
   projects
     .filter(p => !filterProj || p.kode === filterProj)
     .filter(p => matchesDateFilter(p.startDate, filterTime) || matchesDateFilter(p.endDate, filterTime))
@@ -154,8 +145,8 @@ export default function CalendarView({
         if (!parsedEvents[p.startDate]) parsedEvents[p.startDate] = [];
         parsedEvents[p.startDate].push({
           id: p.id,
-          title: `🚀 Kickoff: ${p.nama}`,
-          sub: `${p.kode} &bull; Client: ${p.client || "No Client"}`,
+          title: `Kickoff: ${p.nama}`,
+          sub: `${p.kode}`,
           color: "#0891b2",
           type: "project"
         });
@@ -164,109 +155,91 @@ export default function CalendarView({
         if (!parsedEvents[p.endDate]) parsedEvents[p.endDate] = [];
         parsedEvents[p.endDate].push({
           id: p.id,
-          title: `🏁 Target Selesai: ${p.nama}`,
+          title: `Deadline: ${p.nama}`,
           sub: `${p.kode}`,
-          color: "#8b5cf6",
+          color: "#7c3aed",
           type: "project"
         });
       }
     });
 
   function handleCellClick(dateStr: string) {
-    const evs = parsedEvents[dateStr] || [];
     setActiveDateEvents({
       dateStr,
-      events: evs
+      events: parsedEvents[dateStr] || []
     });
   }
 
   return (
-    <div className="space-y-4 fade-in font-sans pb-10">
+    <div className="space-y-4 fade-in pb-10">
       
-      {/* Sorter and Month Nav headers */}
-      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl">
         
-        {/* Month selector navigation */}
         <div className="flex items-center gap-1">
-          <button 
-            onClick={handlePrevMonth}
-            className="p-1 border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded flex items-center"
-          >
-            <ChevronLeft className="w-4 h-4 text-slate-500" />
+          <button onClick={handlePrevMonth} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4 text-neutral-500" />
           </button>
-          <span className="text-xs font-black px-2 mt-0.5 text-center min-w-[150px] text-slate-700 dark:text-slate-300">
+          <span className="text-sm font-medium px-3 text-neutral-800 dark:text-neutral-200 min-w-[140px] text-center">
             {months[month]} {year}
           </span>
-          <button 
-            onClick={handleNextMonth}
-            className="p-1 border border-slate-250 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded flex items-center"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-500" />
+          <button onClick={handleNextMonth} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4 text-neutral-500" />
           </button>
         </div>
 
-        <button 
-          onClick={goToday}
-          className="px-3.5 py-1.5 border border-slate-250 dark:border-slate-800 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-        >
-          Mei 2026
+        <button onClick={goToday} className="px-3 py-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+          Hari Ini
         </button>
 
-        {/* Project Filters */}
         <select
           value={filterProj}
           onChange={(e) => setFilterProj(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-sm py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="">Semua Project</option>
+          <option value="">Semua Proyek</option>
           {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
         </select>
 
         <select
           value={filterTime}
           onChange={(e) => setFilterTime(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none font-semibold text-blue-600 dark:text-blue-400"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-sm py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="all">📅 Semua Batas Waktu Berjalan</option>
-          <option value="hari">☀️ Hari Ini (Today)</option>
-          <option value="minggu">📅 Minggu Ini (This Week)</option>
-          <option value="bulan">🌙 Bulan Ini (This Month)</option>
-          <option value="tahun">✨ Tahun Ini (This Year)</option>
+          <option value="all">Semua Waktu</option>
+          <option value="hari">Hari Ini</option>
+          <option value="minggu">Minggu Ini</option>
+          <option value="bulan">Bulan Ini</option>
+          <option value="tahun">Tahun Ini</option>
         </select>
 
-        {/* Legend pills */}
-        <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-auto">
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Batas Tugas
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-neutral-400 ml-auto">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500" /> Deadline
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" /> Mulai Tugas
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500" /> Mulai
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block" /> Mulai Project
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" /> Target Project
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-500" /> Proyek
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
-        {/* Left column: Responsive Calendar Grid */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs lg:col-span-8">
+        {/* Calendar Grid */}
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden lg:col-span-8">
           
-          {/* Week name header cells */}
-          <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-805 text-center font-bold py-2.5 text-slate-400 uppercase tracking-widest text-[9px]">
+          <div className="grid grid-cols-7 bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-200 dark:border-neutral-800 text-center py-2.5 text-neutral-400 text-xs font-medium">
             {weekdays.map(day => <div key={day}>{day}</div>)}
           </div>
 
-          {/* Grid Cells */}
           <div className="grid grid-cols-7">
             {cells.map((dateObj, idx) => {
               const isCurrentMonth = dateObj.getMonth() === month;
               const dateStr = dateObj.toISOString().slice(0, 10);
-              const isToday = dateStr === "2026-05-21"; // environment time coordinate code
+              const isToday = dateStr === "2026-05-21";
               const evs = parsedEvents[dateStr] || [];
               const showEvents = evs.slice(0, 2);
               const remainder = evs.length - showEvents.length;
@@ -275,25 +248,25 @@ export default function CalendarView({
                 <div
                   key={idx}
                   onClick={() => handleCellClick(dateStr)}
-                  className={`min-h-[90px] border-r border-b border-slate-100 dark:border-slate-800 p-2 hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-all cursor-pointer flex flex-col justify-between ${!isCurrentMonth ? "opacity-30" : ""} ${isToday ? "bg-blue-50/20 dark:bg-blue-950/15 border-l-2 border-l-blue-600" : ""}`}
+                  className={`min-h-[80px] border-r border-b border-neutral-100 dark:border-neutral-800 p-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-all cursor-pointer flex flex-col justify-between ${!isCurrentMonth ? "opacity-25" : ""} ${isToday ? "bg-neutral-50 dark:bg-neutral-800/40" : ""}`}
                 >
-                  <span className={`font-mono text-xs font-bold ${isToday ? "text-blue-600 dark:text-blue-400 underline decoration-2 underline-offset-2" : "text-slate-400 dark:text-slate-500"}`}>
+                  <span className={`text-xs font-medium ${isToday ? "text-neutral-900 dark:text-white bg-neutral-900 dark:bg-white w-6 h-6 rounded-full flex items-center justify-center" : "text-neutral-400 dark:text-neutral-500"}`}>
                     {dateObj.getDate()}
                   </span>
 
-                  <div className="space-y-1.5 mt-1 flex-1">
+                  <div className="space-y-1 mt-1 flex-1">
                     {showEvents.map((ev, sIdx) => (
                       <div
                         key={sIdx}
-                        className="text-[9px] font-bold p-1 rounded truncate border border-slate-150/10 leading-tight block select-none bg-slate-100/50 dark:bg-slate-800"
-                        style={{ color: ev.color, borderLeft: `2.5px solid ${ev.color}` }}
+                        className="text-[10px] font-medium p-1 rounded truncate leading-tight block select-none bg-neutral-100 dark:bg-neutral-800"
+                        style={{ color: ev.color, borderLeft: `2px solid ${ev.color}` }}
                         title={ev.title}
                       >
                         {ev.title}
                       </div>
                     ))}
                     {remainder > 0 && (
-                      <p className="text-[9px] text-blue-500 font-extrabold">+ {remainder} lagi</p>
+                      <p className="text-[10px] text-neutral-400 font-medium">+{remainder}</p>
                     )}
                   </div>
                 </div>
@@ -302,49 +275,44 @@ export default function CalendarView({
           </div>
         </div>
 
-        {/* Right column: Selected Day Event Reader Info */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs lg:col-span-4 space-y-4">
-          <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-            <CalendarIcon className="w-4 h-4 text-blue-500" /> Agenda Kegiatan Hari Terpilih
+        {/* Selected Day Panel */}
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 lg:col-span-4 space-y-4">
+          <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4" /> Agenda
           </h3>
 
           {activeDateEvents ? (
             <div className="space-y-3">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 border-b border-slate-150/60 pb-1 font-mono">
-                Tanggal: {new Date(activeDateEvents.dateStr).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              <p className="text-xs text-neutral-700 dark:text-neutral-300 font-medium">
+                {new Date(activeDateEvents.dateStr).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
               </p>
               
               {activeDateEvents.events.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">Tidak ada rilis tugas maupun kickoff project terdaftar pada tanggal ini.</p>
+                <p className="text-xs text-neutral-400 italic">Tidak ada kegiatan</p>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {activeDateEvents.events.map((ev, idx) => (
                     <div
                       key={idx}
-                      onClick={() => {
-                        if (ev.id && ev.type === "task") {
-                          onViewTaskDetail(ev.id);
-                        }
-                      }}
-                      className={`p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl transition-all ${ev.type === "task" ? "cursor-pointer hover:border-blue-500/25" : ""}`}
+                      onClick={() => { if (ev.id && ev.type === "task") onViewTaskDetail(ev.id); }}
+                      className={`p-3 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800 rounded-lg transition-all ${ev.type === "task" ? "cursor-pointer hover:border-neutral-300 dark:hover:border-neutral-600" : ""}`}
                     >
-                      <p className="font-bold text-xs" style={{ color: ev.color }}>{ev.title}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: ev.sub }} />
+                      <p className="font-medium text-xs" style={{ color: ev.color }}>{ev.title}</p>
+                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">{ev.sub}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-6 text-slate-400">
-              <Layers className="w-8 h-8 mx-auto mb-2 opacity-35 text-slate-400" />
-              <p className="text-xs italic">Klik salah satu tanggal di grid kalender untuk membaca rincian timeline tugas di sini.</p>
+            <div className="text-center py-8 text-neutral-400">
+              <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-xs">Klik tanggal untuk melihat agenda</p>
             </div>
           )}
         </div>
 
       </div>
-
     </div>
   );
 }

@@ -51,42 +51,7 @@ import PublicChecklistVerificationView from "./components/PublicChecklistVerific
 import CompanyProfileView from "./components/CompanyProfileView";
 
 // Icons
-import { 
-  LayoutDashboard, 
-  FolderLock, 
-  CheckSquare, 
-  Trello, 
-  Hourglass, 
-  Calendar, 
-  MessageSquare, 
-  Users, 
-  LogOut, 
-  Menu, 
-  X, 
-  Sun, 
-  Moon, 
-  Database,
-  CloudLightning,
-  Clock,
-  Bell,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Network,
-  Building2,
-  LifeBuoy,
-  Cpu,
-  Laptop,
-  ClipboardList,
-  Activity,
-  Receipt,
-  Package,
-  Wallet,
-  ClipboardCheck,
-  Search,
-  HelpCircle,
-  Briefcase
-} from "lucide-react";
+import { LayoutDashboard, FolderLock, SquareCheck as CheckSquare, Trello, Hourglass, Calendar, MessageSquare, Users, LogOut, Menu, X, Sun, Moon, Database, CloudLightning, Clock, Bell, Check, ChevronDown, ChevronRight, Network, Building2, LifeBuoy, Cpu, Laptop, ClipboardList, Activity, Receipt, Package, Wallet, ClipboardCheck, Search, Circle as HelpCircle, Briefcase } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -1557,71 +1522,53 @@ export default function App() {
     .filter(category => category.items.length > 0);
 
   return (
-    <div className="h-screen w-screen overflow-hidden font-sans bg-[#f4f5f7] dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors flex md:p-3.5 md:gap-3.5">
+    <div className="h-screen w-screen overflow-hidden font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 transition-colors flex">
       
       {/* SIDEBAR NAVIGATION COLUMN */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-40 bg-[#ebedf0] dark:bg-slate-900 py-4 flex flex-col justify-between transform transition-all duration-300 md:translate-x-0 md:static md:h-full shrink-0 overflow-hidden md:rounded-2xl md:border md:border-slate-200/80 md:dark:border-slate-800/80 md:shadow-xs ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-2" : "w-64 px-4"}`}
+        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 py-5 flex flex-col justify-between transform transition-all duration-200 md:translate-x-0 md:static md:h-full shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-3" : "w-64 px-4"}`}
       >
         {/* Brand header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-4 mb-2 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
           <div 
-            className={`flex items-center gap-2 ${isSidebarMini ? "md:justify-center md:w-full" : ""}`}
+            className={`flex items-center gap-2.5 ${isSidebarMini ? "md:justify-center md:w-full" : ""}`}
             title="System for Networked Analytics, Project Synchronization and Integrated Services"
           >
-            <Network className="w-6 h-6 text-blue-600 dark:text-blue-500 animate-pulse shrink-0" />
+            <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center shrink-0">
+              <Network className="w-4 h-4 text-white dark:text-neutral-900" />
+            </div>
             <div className={isSidebarMini ? "md:hidden" : ""}>
-              <h1 className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">SYNAPSIS</h1>
-              <p className="text-[10px] text-blue-600 dark:text-blue-450 font-bold tracking-widest font-sans">ENTERPRISE PORTAL</p>
+              <h1 className="text-sm font-semibold text-neutral-900 dark:text-white tracking-tight">Synapsis</h1>
+              <p className="text-[10px] text-neutral-400 font-medium tracking-wide">Enterprise</p>
             </div>
           </div>
           <button 
             type="button"
             onClick={() => setIsSidebarOpen(false)} 
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white md:hidden cursor-pointer"
+            className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white md:hidden cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* MIDDLE SCROLLABLE WRAPPER */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-0.5 custom-sidebar-scroll select-none">
+        <div className="flex-1 overflow-y-auto py-2 space-y-5 pr-1 custom-sidebar-scroll select-none">
           {/* Menus Map items */}
-          <div className="space-y-4">
-            {activeCategories.map((cat, catIdx) => {
+          <div className="space-y-5">
+            {activeCategories.map((cat) => {
               const isCollapsed = !!collapsedCategories[cat.name];
               
               return (
                 <div key={cat.name} className="space-y-1">
                   {/* Category Header */}
-                  {isSidebarMini ? (
-                    catIdx > 0 && <div className="border-t border-slate-100 dark:border-slate-800 my-2 hidden md:block" />
-                  ) : (
+                  {!isSidebarMini && (
                     <button
                       type="button"
                       onClick={() => toggleCategory(cat.name)}
-                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer"
+                      className="w-full text-left flex items-center justify-between text-[11px] font-medium tracking-wide text-neutral-400 dark:text-neutral-500 uppercase py-1 select-none hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors group cursor-pointer"
                     >
                       <span>{cat.name}</span>
-                      <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-                        {isCollapsed ? (
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Mobile header (always normal list on mobile) */}
-                  {isSidebarMini && (
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(cat.name)}
-                      className="w-full text-left flex items-center justify-between text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-slate-600 dark:hover:text-slate-350 transition-colors group cursor-pointer md:hidden relative"
-                    >
-                      <span>{cat.name}</span>
-                      <span className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                      <span className="text-neutral-300 group-hover:text-neutral-500 transition-colors">
                         {isCollapsed ? (
                           <ChevronRight className="w-3.5 h-3.5" />
                         ) : (
@@ -1633,7 +1580,7 @@ export default function App() {
 
                   {/* Items List */}
                   {(!isCollapsed || isSidebarMini) && (
-                    <div className="space-y-1 pl-1 border-l border-slate-100 dark:border-slate-800 ml-1">
+                    <div className="space-y-0.5">
                       {cat.items.map((item) => {
                         const Icon = item.icon;
                         const isActive = currentView === item.id;
@@ -1645,22 +1592,21 @@ export default function App() {
                             title={item.label}
                             onClick={() => {
                               setCurrentView(item.id);
-                              // On mobile, auto collapse sidebar
                               if (window.innerWidth < 768) {
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className={`w-full flex items-center gap-2.5 rounded-lg text-xs font-bold transition-all transition-colors cursor-pointer border ${
+                            className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all cursor-pointer ${
                               isSidebarMini 
-                                ? "px-3 py-1.5 md:px-0 md:py-2 md:justify-center" 
-                                : "px-3 py-1.5"
+                                ? "px-3 py-2 md:px-0 md:py-2.5 md:justify-center" 
+                                : "px-3 py-2"
                             } ${
                               isActive 
-                                ? "bg-slate-300/60 dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border-slate-300/40 dark:border-slate-700/50" 
-                                : "border-transparent text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                                ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900" 
+                                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white"
                             }`}
                           >
-                            <Icon className="w-4 h-4 opacity-90 shrink-0" />
+                            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isActive ? 2 : 1.5} />
                             <span className={`truncate ${isSidebarMini ? "md:hidden" : ""}`}>{item.label}</span>
                           </button>
                         );
@@ -1673,27 +1619,23 @@ export default function App() {
           </div>
         </div>
 
-        {/* Dynamic Indonesia Time, server host indicator & Logout Row */}
-        <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+        {/* Bottom section */}
+        <div className="space-y-2 pt-3 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
           <div 
-            className={`flex items-center gap-2 bg-slate-55 mb-0.5 dark:bg-slate-850 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-slate-800 ${isSidebarMini ? "md:justify-center md:px-0.5 md:py-1.5" : ""}`}
-            title={`WITA TIME COORD: ${currentTime || "—"}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium text-neutral-500 dark:text-neutral-400 ${isSidebarMini ? "md:justify-center md:px-1" : ""}`}
           >
-            <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-550 shrink-0" />
-            <div className={`flex-1 min-w-0 ${isSidebarMini ? "md:hidden" : ""}`}>
-              <div className="text-slate-500 dark:text-slate-400 leading-none text-[9px]">WITA TIME COORD</div>
-              <p className="text-slate-850 dark:text-white font-mono text-xs mt-0.5 font-bold leading-none">{currentTime || "—"}</p>
-            </div>
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span className={`font-mono text-[12px] ${isSidebarMini ? "md:hidden" : ""}`}>{currentTime || "—"}</span>
           </div>
 
           <button 
             type="button"
             onClick={handleLogout}
             title="Log out Session"
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-red-500/10 hover:border-red-500/20 text-red-600 dark:text-red-450 hover:text-red-700 text-xs font-bold rounded-lg transition-colors bg-white dark:bg-transparent cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0" : "justify-center"}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[13px] font-medium rounded-lg transition-colors cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0" : ""}`}
           >
-            <LogOut className="w-3.5 h-3.5 shrink-0" /> 
-            <span className={isSidebarMini ? "md:hidden" : ""}>Log Out</span>
+            <LogOut className="w-4 h-4 shrink-0" /> 
+            <span className={isSidebarMini ? "md:hidden" : ""}>Keluar</span>
           </button>
         </div>
       </aside>
@@ -1702,7 +1644,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP STATUS HEADER BAR */}
-        <header className="bg-transparent h-14 px-6 flex items-center justify-between shrink-0">
+        <header className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm h-14 px-6 flex items-center justify-between shrink-0 border-b border-neutral-100 dark:border-neutral-800">
           
           {/* Mobile hamburger menu toggle */}
           <div className="flex items-center gap-3">
@@ -1714,65 +1656,53 @@ export default function App() {
                   toggleSidebarMini();
                 }
               }}
-              className="p-1.5 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg shrink-0 cursor-pointer"
-              title="Toggle Sidebar Width"
+              className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg shrink-0 cursor-pointer transition-colors"
+              title="Toggle Sidebar"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
             
-            <span className="text-xs font-black text-slate-400 dark:text-slate-500 hidden sm:inline-block tracking-widest uppercase">
-              SUITE &bull; {currentView.toUpperCase()}
+            <span className="text-sm font-medium text-neutral-400 dark:text-neutral-500 hidden sm:inline-block">
+              {currentView.charAt(0).toUpperCase() + currentView.slice(1)}
             </span>
           </div>
 
-          {/* Action triggers: Theme Mode Sun/Moon, PostgreSQL sync */}
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-2 text-xs">
             {currentUser?.siteTugas && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-extrabold text-[#2563eb] dark:text-[#60a5fa] bg-[#eff6ff] dark:bg-slate-900 border border-[#dbeafe] dark:border-slate-800 rounded-lg shrink-0">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 rounded-lg shrink-0">
                 <Building2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Client Site: <span className="font-extrabold text-[#1d4ed8] dark:text-[#93c5fd]">{currentUser.siteTugas}</span></span>
+                <span>{currentUser.siteTugas}</span>
               </div>
             )}
 
-            {/* Bell Notification Trigger & Popover */}
+            {/* Notifications */}
             <div className="relative">
               <button 
                 onClick={() => setIsNotifOpen(prev => !prev)}
-                className="p-1.5 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors relative"
-                title={`${activeNotifications.length} Notifikasi baru`}
+                className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors relative"
               >
-                <Bell className={`w-4 h-4 ${activeNotifications.length > 0 ? "animate-bounce" : ""}`} />
+                <Bell className="w-4 h-4" />
                 {activeNotifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center border border-white dark:border-slate-900 shadow-sm">
-                    {activeNotifications.length}
-                  </span>
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 )}
               </button>
 
               {isNotifOpen && (
                 <>
-                  {/* Invisible backdrop to click away */}
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setIsNotifOpen(false)} 
-                  />
-                  
-                  {/* Floating card list */}
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 text-xs py-3 overflow-hidden">
-                    <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                      <span className="font-extrabold text-slate-800 dark:text-white tracking-wide">Pemberitahuan PIC</span>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 text-xs py-3 overflow-hidden">
+                    <div className="px-4 pb-2 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
+                      <span className="font-semibold text-neutral-800 dark:text-white">Notifikasi</span>
                       {activeNotifications.length > 0 && (
-                        <span className="bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">
-                          {activeNotifications.length} Baru
+                        <span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                          {activeNotifications.length}
                         </span>
                       )}
                     </div>
-
-                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
+                    <div className="max-h-64 overflow-y-auto">
                       {activeNotifications.length === 0 ? (
-                        <div className="py-8 text-center text-slate-400 font-medium">
-                          <Bell className="w-8 h-8 mx-auto opacity-20 mb-1.5" />
-                          Tidak ada notifikasi tugas baru.
+                        <div className="py-8 text-center text-neutral-400 text-sm">
+                          Tidak ada notifikasi
                         </div>
                       ) : (
                         activeNotifications.map(n => (
@@ -1782,23 +1712,13 @@ export default function App() {
                               setCurrentView(n.viewTarget);
                               setIsNotifOpen(false);
                             }}
-                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer transition-colors space-y-1"
+                            className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors border-b border-neutral-50 dark:border-neutral-800/50 last:border-0"
                           >
                             <div className="flex justify-between items-start gap-2">
-                              <span className="font-extrabold text-slate-800 dark:text-slate-150 line-clamp-1">{n.title}</span>
-                              <span className="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 text-[8px] px-1.5 py-0.5 rounded-full font-bold shrink-0 uppercase tracking-widest">{n.type}</span>
+                              <span className="font-medium text-neutral-800 dark:text-neutral-200 line-clamp-1">{n.title}</span>
+                              <span className="text-[10px] text-neutral-400 shrink-0">{n.type}</span>
                             </div>
-                            <p className="text-slate-500 dark:text-slate-450 font-medium leading-relaxed">{n.message}</p>
-                            <div className="flex justify-between items-center pt-1">
-                              <span className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold">{n.meta}</span>
-                              <button
-                                onClick={(e) => dismissNotification(n.id, e)}
-                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-emerald-600 rounded flex items-center gap-1 font-bold text-[10px]"
-                                title="Tandai Sudah Dibaca"
-                              >
-                                <Check className="w-3.5 h-3.5" /> Tandai Selesai
-                              </button>
-                            </div>
+                            <p className="text-neutral-500 dark:text-neutral-400 mt-1 text-[12px]">{n.message}</p>
                           </div>
                         ))
                       )}
@@ -1810,36 +1730,29 @@ export default function App() {
 
             <button 
               onClick={toggleThemeMode}
-              className="p-1.5 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              title={themeMode === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+              className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
             >
               {themeMode === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            {/* Profile Dropdown */}
+            {/* Profile */}
             <div className="relative">
               <button
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
-                className="flex items-center gap-3 p-1.5 px-2.5 border border-slate-200 dark:border-slate-800 text-slate-755 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
-                title="Sistem Profile & Password"
+                className="flex items-center gap-2.5 p-1.5 pr-3 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 overflow-hidden border border-slate-200/50 dark:border-slate-800">
+                <div className="w-7 h-7 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-semibold flex items-center justify-center shrink-0 overflow-hidden">
                   {currentUser?.photoUrl ? (
-                    <img 
-                      src={currentUser.photoUrl} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover" 
-                      referrerPolicy="no-referrer"
-                    />
+                    <img src={currentUser.photoUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     currentUser?.nickname?.slice(0, 2).toUpperCase() || currentUser?.username?.slice(0, 2).toUpperCase()
                   )}
                 </div>
                 <div className="text-left hidden sm:flex flex-col select-none">
-                  <span className="truncate max-w-[120px] text-[11px] font-black text-slate-800 dark:text-white leading-tight">
+                  <span className="truncate max-w-[120px] text-[12px] font-medium text-neutral-800 dark:text-white leading-tight">
                     {currentUser?.name || currentUser?.nickname || currentUser?.username}
                   </span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                  <span className="text-[10px] text-neutral-400 font-normal">
                     {currentUser?.role || "-"}
                   </span>
                 </div>
@@ -1848,28 +1761,22 @@ export default function App() {
               {isProfileMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1.5 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-805">
-                      <p className="font-extrabold text-slate-800 dark:text-white truncate">{currentUser?.name}</p>
-                      <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">{currentUser?.role}</p>
+                  <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 py-1 text-xs">
+                    <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-800">
+                      <p className="font-medium text-neutral-800 dark:text-white truncate">{currentUser?.name}</p>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{currentUser?.role}</p>
                     </div>
                     <button
-                      onClick={() => {
-                        setIsProfileMenuOpen(false);
-                        handleOpenProfileModal();
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-2"
+                      onClick={() => { setIsProfileMenuOpen(false); handleOpenProfileModal(); }}
+                      className="w-full text-left px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-[13px]"
                     >
-                      <span>👤 Edit Profil & Password</span>
+                      Edit Profil
                     </button>
                     <button
-                      onClick={() => {
-                        setIsProfileMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-red-50 dark:hover:bg-red-950/25 text-red-650 font-semibold border-t border-slate-100 dark:border-slate-850 flex items-center gap-2"
+                      onClick={() => { setIsProfileMenuOpen(false); handleLogout(); }}
+                      className="w-full text-left px-3 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 text-[13px] border-t border-neutral-100 dark:border-neutral-800"
                     >
-                      <span>🚪 Keluar Sesi</span>
+                      Keluar
                     </button>
                   </div>
                 </>
@@ -1879,7 +1786,7 @@ export default function App() {
         </header>
 
         {/* CONTAINER CONTENT WRAPPER WITH SCROLL-Y */}
-        <main className="flex-1 overflow-y-auto p-6 transition-all workspace-container">
+        <main className="flex-1 overflow-y-auto p-6 transition-all workspace-container bg-neutral-50 dark:bg-neutral-950">
           
           {currentView === "dashboard" && (
             <DashboardView 

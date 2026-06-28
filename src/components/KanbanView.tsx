@@ -1,15 +1,6 @@
 import React, { useState } from "react";
 import { Task, Project, User } from "../types";
-import { 
-  Plus, 
-  HelpCircle, 
-  AlertCircle, 
-  User2, 
-  FileCheck2, 
-  ChevronsRight,
-  TrendingDown
-} from "lucide-react";
-import { motion } from "motion/react";
+import { Plus, Circle as HelpCircle, User as User2 } from "lucide-react";
 
 interface KanbanViewProps {
   tasks: Task[];
@@ -59,7 +50,6 @@ export default function KanbanView({
     const itemDate = new Date(dateStr);
     if (isNaN(itemDate.getTime())) return false;
     
-    // Set hours to midnight for pure date comparison
     ref.setHours(0,0,0,0);
     const itemCompare = new Date(itemDate);
     itemCompare.setHours(0,0,0,0);
@@ -77,8 +67,7 @@ export default function KanbanView({
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23,59,59,999);
       
-      const itemTime = itemCompare.getTime();
-      return itemTime >= startOfWeek.getTime() && itemTime <= endOfWeek.getTime();
+      return itemCompare.getTime() >= startOfWeek.getTime() && itemCompare.getTime() <= endOfWeek.getTime();
     }
     
     if (filterType === "bulan") {
@@ -96,12 +85,10 @@ export default function KanbanView({
     ? progressStatusesList
     : ["Not Started", "In Progress", "Pending", "Backlog", "Done", "Cancelled"];
 
-  // Shift Backlog to the far-left (index 0) of the list
   const statuses = baseStatuses.includes("Backlog")
     ? ["Backlog", ...baseStatuses.filter(s => s !== "Backlog")]
     : baseStatuses;
 
-  // Filter tasks
   const filtered = tasks.filter((t) => {
     const matchesProj = filterProj === "" || t.project === filterProj;
     const matchesPic = filterPic === "" || t.pic === filterPic;
@@ -109,7 +96,6 @@ export default function KanbanView({
     return matchesProj && matchesPic && matchesTime;
   });
 
-  // Drag & drop handlers
   function handleDragStart(e: React.DragEvent, id: string) {
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
@@ -148,36 +134,36 @@ export default function KanbanView({
 
   function getHeaderColor(st: string) {
     const maps: Record<string, string> = {
-      "Not Started": "border-t-slate-400 bg-slate-50 dark:bg-slate-900 border-t-4",
-      "In Progress": "border-t-amber-500 bg-amber-50/50 dark:bg-amber-950/20 border-t-4",
-      Pending: "border-t-purple-500 bg-purple-50/50 dark:bg-purple-950/20 border-t-4",
-      Backlog: "border-t-cyan-500 bg-cyan-50/50 dark:bg-cyan-950/20 border-t-4",
-      Done: "border-t-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/25 border-t-4",
-      Cancelled: "border-t-red-400 bg-rose-50/50 dark:bg-rose-950/20 border-t-4"
+      "Not Started": "border-t-neutral-400 bg-neutral-50 dark:bg-neutral-900",
+      "In Progress": "border-t-amber-500 bg-amber-50 dark:bg-amber-950/20",
+      Pending: "border-t-purple-500 bg-purple-50 dark:bg-purple-950/20",
+      Backlog: "border-t-cyan-500 bg-cyan-50 dark:bg-cyan-950/20",
+      Done: "border-t-emerald-500 bg-emerald-50 dark:bg-emerald-950/20",
+      Cancelled: "border-t-red-400 bg-red-50 dark:bg-red-950/20"
     };
-    return maps[st] || "border-t-slate-350";
+    return maps[st] || "border-t-neutral-300 bg-neutral-50 dark:bg-neutral-900";
   }
 
   return (
-    <div className="space-y-4 fade-in font-sans pb-10">
+    <div className="space-y-4 fade-in pb-10">
       
-      {/* Sorters and quick filters bar */}
-      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
-        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Saringan Kanban:</span>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl">
+        <span className="text-xs font-medium text-neutral-400 mr-2">Filter:</span>
         
         <select
           value={filterProj}
           onChange={(e) => setFilterProj(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="">Semua Project</option>
+          <option value="">Semua Proyek</option>
           {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
         </select>
 
         <select
           value={filterPic}
           onChange={(e) => setFilterPic(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
           <option value="">Semua PIC</option>
           {picsList.map(p => <option key={p} value={p}>{p}</option>)}
@@ -186,28 +172,28 @@ export default function KanbanView({
         <select
           value={filterTime}
           onChange={(e) => setFilterTime(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none font-semibold text-blue-600 dark:text-blue-400"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="all">📅 Semua Batas Waktu Berjalan</option>
-          <option value="hari">☀️ Hari Ini (Today)</option>
-          <option value="minggu">📅 Minggu Ini (This Week)</option>
-          <option value="bulan">🌙 Bulan Ini (This Month)</option>
-          <option value="tahun">✨ Tahun Ini (This Year)</option>
+          <option value="all">Semua Waktu</option>
+          <option value="hari">Hari Ini</option>
+          <option value="minggu">Minggu Ini</option>
+          <option value="bulan">Bulan Ini</option>
+          <option value="tahun">Tahun Ini</option>
         </select>
 
-        <div className="text-[11px] text-slate-500 font-bold ml-auto font-mono bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-150/10">
-          Total beban: {filtered.length} tugas
+        <div className="text-xs text-neutral-400 ml-auto font-mono">
+          {filtered.length} tugas
         </div>
       </div>
 
-      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 bg-blue-50/50 dark:bg-blue-950/20 p-2.5 rounded-lg border border-blue-105/30 w-fit">
-        <HelpCircle className="w-4 h-4 text-blue-500" />
-        <span>Tips: Geser (drag-and-drop) tiket di bawah dari satu kolom ke kolom lain untuk memperbarui status dan progress tugas secara real-time.</span>
+      <div className="text-xs text-neutral-500 flex items-center gap-1 bg-neutral-50 dark:bg-neutral-950/50 p-2.5 rounded-lg w-fit">
+        <HelpCircle className="w-3.5 h-3.5" />
+        <span>Drag-and-drop tiket antar kolom untuk memperbarui status</span>
       </div>
 
-      {/* Kanban Board Container */}
+      {/* Kanban Board */}
       <div className="overflow-x-auto pb-4 shrink-0">
-        <div className="flex gap-4 min-w-[1200px] items-start">
+        <div className="flex gap-3 min-w-[1200px] items-start">
           {statuses.map((status) => {
             const colTasks = filtered.filter(t => t.status === status);
             const isOver = dragOverCol === status;
@@ -217,24 +203,24 @@ export default function KanbanView({
                 key={status}
                 onDragOver={(e) => handleDragOver(e, status)}
                 onDrop={(e) => handleDrop(e, status)}
-                className={`bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl w-64 flex-shrink-0 shadow-xs overflow-hidden flex flex-col max-h-[70vh] transition-all ${isOver ? "ring-2 ring-blue-500 bg-blue-50/15" : ""}`}
+                className={`bg-neutral-50 dark:bg-neutral-950/40 border border-neutral-200 dark:border-neutral-800 rounded-xl w-64 flex-shrink-0 overflow-hidden flex flex-col max-h-[70vh] transition-all ${isOver ? "ring-2 ring-neutral-400 dark:ring-neutral-600" : ""}`}
               >
                 
-                {/* Status Column Header */}
-                <div className={`p-4 flex justify-between items-center font-bold text-xs ${getHeaderColor(status)}`}>
+                {/* Column Header */}
+                <div className={`p-3.5 flex justify-between items-center font-medium text-xs border-t-2 ${getHeaderColor(status)}`}>
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-800 dark:text-slate-100">{status}</span>
-                    <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                    <span className="text-neutral-800 dark:text-neutral-200">{status}</span>
+                    <span className="bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-0.5 rounded-full text-[10px] font-mono">
                       {colTasks.length}
                     </span>
                   </div>
                 </div>
 
-                {/* Cards Block */}
-                <div className="p-3 overflow-y-auto space-y-2.5 flex-1 min-h-[400px]">
+                {/* Cards */}
+                <div className="p-2.5 overflow-y-auto space-y-2 flex-1 min-h-[400px]">
                   {colTasks.length === 0 ? (
-                    <div className="h-40 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-center p-4 text-center">
-                      <p className="text-[10px] text-slate-400 italic">Belum ada tugas di kolom ini.</p>
+                    <div className="h-32 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg flex items-center justify-center">
+                      <p className="text-[10px] text-neutral-400 italic">Kosong</p>
                     </div>
                   ) : (
                     colTasks.map((t) => {
@@ -250,42 +236,41 @@ export default function KanbanView({
                           onDragStart={(e) => handleDragStart(e, t.id)}
                           onDragEnd={handleDragEnd}
                           onClick={() => onViewTaskDetail(t.id)}
-                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 rounded-lg shadow-xs hover:border-blue-500/40 transition-all cursor-grab active:cursor-grabbing space-y-3"
+                          className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-3 rounded-lg hover:border-neutral-400 dark:hover:border-neutral-600 transition-all cursor-grab active:cursor-grabbing space-y-2"
                         >
                           <div className="space-y-1">
-                            <span className="text-[9px] font-bold font-mono text-blue-600 dark:text-blue-450 block truncate">
+                            <span className="text-[10px] font-mono text-neutral-500 block truncate">
                               {projects.find(p => p.kode === t.project)?.nama.slice(0, 24) || t.project}
                             </span>
-                            <h5 className="text-[11.5px] font-extrabold text-slate-800 dark:text-slate-100 leading-snug truncate-2-lines line-clamp-2">
+                            <h5 className="text-xs font-medium text-neutral-800 dark:text-neutral-200 leading-snug line-clamp-2">
                               {t.task}
                             </h5>
                           </div>
 
-                          <div className="flex justify-between items-center text-[10px] gap-2 pt-1">
-                            <span className="bg-slate-100 dark:bg-slate-850 px-1.5 py-0.5 rounded text-[9px] font-bold font-mono text-slate-500">
+                          <div className="flex justify-between items-center text-[10px] gap-2">
+                            <span className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-[10px] font-mono text-neutral-500">
                               {t.priority}
                             </span>
                             {t.dueDate && (
-                              <span className={`font-mono font-bold shrink-0 ${overdue ? "text-red-500 font-extrabold" : "text-slate-450 dark:text-slate-500"}`}>
+                              <span className={`font-mono shrink-0 ${overdue ? "text-red-500" : "text-neutral-400"}`}>
                                 {new Date(t.dueDate).toLocaleDateString("id-ID", { month: "short", day: "numeric" })}
                               </span>
                             )}
                           </div>
 
-                          {/* Footer Info */}
-                          <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
+                          <div className="flex justify-between items-center pt-2 border-t border-neutral-100 dark:border-neutral-800">
                             <div className="flex items-center gap-1.5 max-w-[60%] shrink-0">
-                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${picThemeColors(t.pic || "")}`}>
+                              <span className={`w-5 h-5 rounded-full text-[9px] font-medium flex items-center justify-center shrink-0 text-white ${picThemeColors(t.pic || "")}`}>
                                 {initials}
                               </span>
-                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
-                                {t.pic || "Unassigned"}
+                              <span className="text-[10px] text-neutral-500 dark:text-neutral-400 truncate">
+                                {t.pic || "—"}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-1 text-[10px] font-bold font-mono text-slate-400">
+                            <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400">
                               {subTotal > 0 && (
-                                <span className="bg-slate-50 border border-slate-150/10 px-1.5 py-0.5 rounded text-[9px] text-slate-500">
+                                <span className="bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-[9px]">
                                   {subDone}/{subTotal}
                                 </span>
                               )}
@@ -298,13 +283,13 @@ export default function KanbanView({
                   )}
                 </div>
 
-                {/* Quick Addition Button on Kanban bottom */}
-                <div className="p-2 border-t border-slate-100 dark:border-slate-800">
+                {/* Add Button */}
+                <div className="p-2 border-t border-neutral-100 dark:border-neutral-800">
                   <button
                     onClick={() => onAddTaskQuick(status)}
-                    className="w-full py-1.5 border border-dashed border-slate-200 hover:border-blue-500 hover:text-blue-600 dark:border-slate-800 dark:hover:border-blue-400 font-sans font-bold text-[10.5px] text-slate-500 dark:text-slate-400 rounded-lg flex items-center justify-center gap-1 transition-all"
+                    className="w-full py-1.5 border border-dashed border-neutral-200 hover:border-neutral-400 dark:border-neutral-800 dark:hover:border-neutral-600 text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300 text-[11px] font-medium rounded-lg flex items-center justify-center gap-1 transition-all"
                   >
-                    + Tambah Tugas
+                    <Plus className="w-3 h-3" /> Tambah
                   </button>
                 </div>
 

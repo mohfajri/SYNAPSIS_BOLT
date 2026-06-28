@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Project, Task, User } from "../types";
-import { Calendar, Layers, Hourglass, FolderLock, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface GanttViewProps {
   tasks: Task[];
@@ -22,7 +22,6 @@ export default function GanttView({
   onViewTaskDetail
 }: GanttViewProps) {
   
-  // Anchor navigation
   const [currentYear, setCurrentYear] = useState(2026);
   const [filterProj, setFilterProj] = useState("");
   const [filterPic, setFilterPic] = useState("");
@@ -51,7 +50,6 @@ export default function GanttView({
     const itemDate = new Date(dateStr);
     if (isNaN(itemDate.getTime())) return false;
     
-    // Set hours to midnight for pure date comparison
     ref.setHours(0,0,0,0);
     const itemCompare = new Date(itemDate);
     itemCompare.setHours(0,0,0,0);
@@ -69,8 +67,7 @@ export default function GanttView({
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23,59,59,999);
       
-      const itemTime = itemCompare.getTime();
-      return itemTime >= startOfWeek.getTime() && itemTime <= endOfWeek.getTime();
+      return itemCompare.getTime() >= startOfWeek.getTime() && itemCompare.getTime() <= endOfWeek.getTime();
     }
     
     if (filterType === "bulan") {
@@ -84,48 +81,13 @@ export default function GanttView({
     return true;
   };
 
-  // Months array representation
   const months = [
-    { label: "Jan", index: 1 },
-    { label: "Feb", index: 2 },
-    { label: "Mar", index: 3 },
-    { label: "Apr", index: 4 },
-    { label: "Mei", index: 5 },
-    { label: "Jun", index: 6 },
-    { label: "Jul", index: 7 },
-    { label: "Ags", index: 8 },
-    { label: "Sep", index: 9 },
-    { label: "Okt", index: 10 },
-    { label: "Nov", index: 11 },
-    { label: "Des", index: 12 }
+    { label: "Jan", index: 1 }, { label: "Feb", index: 2 }, { label: "Mar", index: 3 },
+    { label: "Apr", index: 4 }, { label: "Mei", index: 5 }, { label: "Jun", index: 6 },
+    { label: "Jul", index: 7 }, { label: "Ags", index: 8 }, { label: "Sep", index: 9 },
+    { label: "Okt", index: 10 }, { label: "Nov", index: 11 }, { label: "Des", index: 12 }
   ];
 
-  // Helper to extract year & month
-  function getTimelineFraction(dateStr: string | undefined, year: number): { startPercent: number; widthPercent: number } | null {
-    if (!dateStr) return null;
-    const parts = dateStr.split("-");
-    if (parts.length < 2) return null;
-    const itemYear = parseInt(parts[0]);
-    const itemMonth = parseInt(parts[1]);
-    const itemDay = parts[2] ? parseInt(parts[2]) : 15;
-
-    if (itemYear !== year) {
-      if (itemYear < year) return { startPercent: 0, widthPercent: 100 };
-      if (itemYear > year) return null;
-    }
-
-    // Fraction calculation relative to a 12-month calendar grid
-    const monthIndex = itemMonth - 1; // 0 to 11
-    const dayFraction = itemDay / 30; // 0 to 1
-    const totalFraction = (monthIndex + dayFraction) / 12; // 0 to 1
-    
-    return {
-      startPercent: Math.round(totalFraction * 100),
-      widthPercent: Math.max(8, Math.round((1 / 12) * 100)) // Min fallback width
-    };
-  }
-
-  // Combine and calculate spanning fractions
   function getSpanFraction(startStr: string | undefined, endStr: string | undefined, year: number): { left: number; width: number } | null {
     if (!startStr || !endStr) return null;
     try {
@@ -134,12 +96,6 @@ export default function GanttView({
       
       const sYear = sDate.getFullYear();
       const eYear = eDate.getFullYear();
-
-      // Lock bounds in scope
-      let sMonth = sYear === year ? sDate.getMonth() : 0;
-      let sDay = sYear === year ? sDate.getDate() : 1;
-      let eMonth = eYear === year ? eDate.getMonth() : 11;
-      let eDay = eYear === year ? eDate.getDate() : 30;
 
       if (sYear > year || eYear < year) return null;
 
@@ -156,7 +112,6 @@ export default function GanttView({
       let endDayOfYear = eYear === year ? calcDayOfYear(endStr) : 365;
 
       if (startDayOfYear > endDayOfYear) {
-        // Swap bounds if faulty
         const tmp = startDayOfYear;
         startDayOfYear = endDayOfYear;
         endDayOfYear = tmp;
@@ -176,57 +131,54 @@ export default function GanttView({
   }
 
   return (
-    <div className="space-y-4 fade-in font-sans pb-10">
+    <div className="space-y-4 fade-in pb-10">
       
-      {/* Upper sorters box */}
-      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl">
         
-        {/* Toggle Group type */}
-        <div className="flex bg-slate-150/60 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-lg p-1 text-xs">
+        <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 text-xs">
           <button
             onClick={() => setGanttGrouping('project')}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1 ${ganttGrouping === 'project' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'project' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
           >
-            <FolderLock className="w-3.5 h-3.5" /> Per Project Master
+            Proyek
           </button>
           <button
             onClick={() => setGanttGrouping('task')}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1 ${ganttGrouping === 'task' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'task' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
           >
-            <Hourglass className="w-3.5 h-3.5" /> Per Detail Tugas
+            Tugas
           </button>
         </div>
 
-        {/* Toggle Scale */}
-        <div className="flex bg-slate-150/60 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded-lg p-1 text-xs">
+        <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 text-xs">
           <button
             onClick={() => setTimelineScale('bulan')}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all ${timelineScale === 'bulan' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'bulan' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
           >
-            📅 Bulanan
+            Bulan
           </button>
           <button
             onClick={() => setTimelineScale('minggu')}
-            className={`px-3 py-1.5 rounded-md font-bold transition-all ${timelineScale === 'minggu' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'minggu' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
           >
-            🗓️ Mingguan
+            Minggu
           </button>
         </div>
 
-        {/* Filters */}
         <select
           value={filterProj}
           onChange={(e) => setFilterProj(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="">Semua Project</option>
+          <option value="">Semua Proyek</option>
           {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
         </select>
 
         <select
           value={filterPic}
           onChange={(e) => setFilterPic(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
           <option value="">Semua PIC</option>
           {picsList.map(p => <option key={p} value={p}>{p}</option>)}
@@ -235,57 +187,49 @@ export default function GanttView({
         <select
           value={filterTime}
           onChange={(e) => setFilterTime(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none font-semibold text-blue-600 dark:text-blue-400"
+          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
         >
-          <option value="all">📅 Semua Batas Waktu Berjalan</option>
-          <option value="hari">☀️ Hari Ini (Today)</option>
-          <option value="minggu">📅 Minggu Ini (This Week)</option>
-          <option value="bulan">🌙 Bulan Ini (This Month)</option>
-          <option value="tahun">✨ Tahun Ini (This Year)</option>
+          <option value="all">Semua Waktu</option>
+          <option value="hari">Hari Ini</option>
+          <option value="minggu">Minggu Ini</option>
+          <option value="bulan">Bulan Ini</option>
+          <option value="tahun">Tahun Ini</option>
         </select>
 
-        {/* Anchors navigations */}
         <div className="flex items-center gap-1 ml-auto">
-          <button 
-            onClick={() => setCurrentYear(currentYear - 1)}
-            className="p-1 border border-slate-250 dark:border-slate-850 hover:bg-slate-100 rounded"
-          >
-            <ChevronLeft className="w-4 h-4 text-slate-500" />
+          <button onClick={() => setCurrentYear(currentYear - 1)} className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4 text-neutral-500" />
           </button>
-          <span className="text-xs font-black px-2 mt-0.5 text-slate-700 dark:text-slate-300 font-mono">
+          <span className="text-sm font-medium px-2 text-neutral-800 dark:text-neutral-200 min-w-[50px] text-center">
             {currentYear}
           </span>
-          <button 
-            onClick={() => setCurrentYear(currentYear + 1)}
-            className="p-1 border border-slate-250 dark:border-slate-850 hover:bg-slate-100 rounded"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-500" />
+          <button onClick={() => setCurrentYear(currentYear + 1)} className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4 text-neutral-500" />
           </button>
         </div>
       </div>
 
-      <div className="bg-slate-50/65 dark:bg-slate-950/20 p-2 text-[11px] text-slate-500 dark:text-slate-400 font-medium rounded-lg border border-slate-150/10 mb-2 w-fit">
-         Timeline di bawah mencerminkan visualisasi jadwal start date dan end date untuk tahun <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{currentYear}</span>.
+      <div className="bg-neutral-50 dark:bg-neutral-950/50 p-2.5 text-xs text-neutral-500 dark:text-neutral-400 rounded-lg border border-neutral-200 dark:border-neutral-800 w-fit">
+        Timeline untuk tahun <span className="font-medium text-neutral-800 dark:text-white">{currentYear}</span>
       </div>
 
-      {/* Gantt Table Grid Container with Max Height and Dual Scroll */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-auto max-h-[580px] shadow-sm relative">
+      {/* Gantt Table */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-auto max-h-[580px] relative">
         <table className="w-full border-collapse text-xs min-w-[850px]">
-          <thead className="sticky top-0 z-30 bg-slate-50 dark:bg-slate-950 shadow-xs">
-            {/* Headers row with Month or Week labels */}
-            <tr className="bg-slate-50 dark:bg-slate-950/95 text-slate-500 dark:text-slate-455 font-bold border-b border-slate-200 dark:border-slate-800">
-              <th className="sticky top-0 left-0 z-40 bg-slate-100 dark:bg-slate-950 p-4 border-r border-slate-200 dark:border-slate-800 text-left w-52 border-b border-slate-250 dark:border-slate-850">
-                Rincian Entitas ({ganttGrouping === 'project' ? "Project Master" : "Tugas Pelaksana"})
+          <thead className="sticky top-0 z-30 bg-neutral-50 dark:bg-neutral-950">
+            <tr className="text-neutral-500 dark:text-neutral-400 font-medium border-b border-neutral-200 dark:border-neutral-800">
+              <th className="sticky top-0 left-0 z-40 bg-neutral-100 dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 text-left w-52">
+                {ganttGrouping === 'project' ? "Proyek" : "Tugas"}
               </th>
               {timelineScale === 'bulan' ? (
                 months.map((m) => (
-                  <th key={m.index} className="sticky top-0 bg-slate-50 dark:bg-slate-950/95 p-2.5 border-r border-slate-150 dark:border-slate-805 text-center min-w-[45px] font-mono border-b border-slate-250 dark:border-slate-850">
+                  <th key={m.index} className="sticky top-0 bg-neutral-50 dark:bg-neutral-950 p-2.5 border-r border-neutral-100 dark:border-neutral-800 text-center min-w-[45px] font-mono text-[11px]">
                     {m.label}
                   </th>
                 ))
               ) : (
                 weeks.map((wk) => (
-                  <th key={wk.index} className="sticky top-0 bg-slate-50 dark:bg-slate-950/95 p-1 border-r border-slate-150 dark:border-slate-805 text-center min-w-[22px] font-mono text-[9px] border-b border-slate-250 dark:border-slate-850" title={`Minggu ${wk.index}`}>
+                  <th key={wk.index} className="sticky top-0 bg-neutral-50 dark:bg-neutral-950 p-1 border-r border-neutral-100 dark:border-neutral-800 text-center min-w-[22px] font-mono text-[9px]" title={`Minggu ${wk.index}`}>
                     {wk.label}
                   </th>
                 ))
@@ -295,8 +239,6 @@ export default function GanttView({
           <tbody>
             
             {ganttGrouping === 'project' ? (
-              
-              /* RENDER METHOD: PROJECTS TIMELINE ROWS */
               projects
                 .filter(p => !filterProj || p.kode === filterProj)
                 .filter(p => !filterPic || p.pic === filterPic)
@@ -305,46 +247,43 @@ export default function GanttView({
                   const span = getSpanFraction(p.startDate, p.endDate, currentYear);
                   
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-950/25 transition-colors border-b border-slate-100 dark:border-slate-850/60">
-                      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 p-4 border-r border-slate-200 dark:border-slate-800 font-bold max-w-xs truncate shadow-sm">
-                        <span className="bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-[9px] font-bold font-mono px-2 py-0.5 rounded mr-1.5 align-middle">
+                    <tr key={p.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100 dark:border-neutral-800/50">
+                      <td className="sticky left-0 z-10 bg-white dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 font-medium max-w-xs truncate">
+                        <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
                           {p.kode}
                         </span>
-                        <span className="text-slate-800 dark:text-slate-100">{p.nama}</span>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-1">PIC: {p.pic || "—"}</p>
+                        <span className="text-neutral-800 dark:text-neutral-200">{p.nama}</span>
+                        <p className="text-[10px] text-neutral-400 mt-1">{p.pic || "—"}</p>
                       </td>
                       
-                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-slate-50/20 dark:bg-slate-950/5">
-                        {/* Month / Week guide lines */}
+                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-neutral-50/20 dark:bg-neutral-950/5">
                         {timelineScale === 'bulan' ? (
-                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-slate-100 dark:divide-slate-800/40" />
+                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-neutral-100 dark:divide-neutral-800/30" />
                         ) : (
                           <div className="absolute inset-0 flex pointer-events-none">
                             {weeks.map((wk) => (
-                              <div key={wk.index} className="flex-1 h-full border-r border-slate-100 dark:border-slate-800/20" />
+                              <div key={wk.index} className="flex-1 h-full border-r border-neutral-100 dark:border-neutral-800/15" />
                             ))}
                           </div>
                         )}
  
                         {span ? (
                           <div
-                            className="absolute bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 rounded-lg py-2.5 px-3 text-white text-[10px] font-extrabold flex items-center justify-between whitespace-nowrap shadow-sm shadow-indigo-500/10 cursor-alias select-none"
+                            className="absolute bg-neutral-800 dark:bg-neutral-200 rounded-md py-2 px-3 text-white dark:text-neutral-900 text-[10px] font-medium flex items-center justify-between whitespace-nowrap cursor-default select-none"
                             style={{ left: `${span.left}%`, width: `${span.width}%` }}
                             title={`${p.nama} (${p.startDate} s/d ${p.endDate})`}
                           >
                             <span className="overflow-hidden text-ellipsis">{p.nama}</span>
-                            <span className="font-mono bg-black/20 text-[9px] px-1 rounded">{p.status}</span>
+                            <span className="font-mono text-[9px] opacity-70 ml-2">{p.status}</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 italic block text-center mt-3">Tidak dalam jangkauan aktif tahun {currentYear}</span>
+                          <span className="text-[10px] text-neutral-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
                         )}
                       </td>
                     </tr>
                   );
                 })
             ) : (
-              
-              /* RENDER METHOD: TASKS SCROLL TIMELINES ROW */
               tasks
                 .filter(t => !filterProj || t.project === filterProj)
                 .filter(t => !filterPic || t.pic === filterPic)
@@ -352,31 +291,30 @@ export default function GanttView({
                 .map((t) => {
                   const span = getSpanFraction(t.startDate, t.dueDate, currentYear);
                   const statusColors: Record<string, string> = {
-                    Done: "from-emerald-500 to-emerald-600 shadow-emerald-500/10",
-                    "In Progress": "from-amber-500 to-amber-600 shadow-amber-500/10",
-                    "Not Started": "from-slate-400 to-slate-500",
-                    Pending: "from-purple-500 to-purple-600 shadow-purple-500/10"
+                    Done: "bg-emerald-600 dark:bg-emerald-500",
+                    "In Progress": "bg-amber-500",
+                    "Not Started": "bg-neutral-400",
+                    Pending: "bg-purple-500"
                   };
-                  const barGradient = statusColors[t.status] || "from-blue-500 to-blue-600";
+                  const barColor = statusColors[t.status] || "bg-neutral-800 dark:bg-neutral-200";
  
                   return (
-                    <tr key={t.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-950/25 transition-colors border-b border-slate-100 dark:border-slate-850/60">
-                      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 p-4 border-r border-slate-200 dark:border-slate-800 font-bold max-w-xs truncate shadow-sm">
-                        <span className="bg-slate-200 dark:bg-slate-800 text-slate-755 dark:text-slate-300 text-[9px] font-bold font-mono px-2 py-0.5 rounded mr-1.5 align-middle">
+                    <tr key={t.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100 dark:border-neutral-800/50">
+                      <td className="sticky left-0 z-10 bg-white dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 font-medium max-w-xs truncate">
+                        <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
                           {t.project}
                         </span>
-                        <span className="text-slate-850 dark:text-slate-100">{t.task}</span>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-1">PIC: {t.pic || "—"}</p>
+                        <span className="text-neutral-800 dark:text-neutral-200">{t.task}</span>
+                        <p className="text-[10px] text-neutral-400 mt-1">{t.pic || "—"}</p>
                       </td>
                       
-                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-slate-50/20 dark:bg-slate-950/5">
-                        {/* Month / Week guide lines */}
+                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-neutral-50/20 dark:bg-neutral-950/5">
                         {timelineScale === 'bulan' ? (
-                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-slate-100 dark:divide-slate-800/40" />
+                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-neutral-100 dark:divide-neutral-800/30" />
                         ) : (
                           <div className="absolute inset-0 flex pointer-events-none">
                             {weeks.map((wk) => (
-                              <div key={wk.index} className="flex-1 h-full border-r border-slate-100 dark:border-slate-800/20" />
+                              <div key={wk.index} className="flex-1 h-full border-r border-neutral-100 dark:border-neutral-800/15" />
                             ))}
                           </div>
                         )}
@@ -384,26 +322,24 @@ export default function GanttView({
                         {span ? (
                           <div
                             onClick={() => onViewTaskDetail(t.id)}
-                            className={`absolute bg-gradient-to-r ${barGradient} rounded-lg py-1.5 px-3.5 text-white text-[10px] font-bold flex items-center justify-between whitespace-nowrap shadow-xs cursor-pointer select-none`}
+                            className={`absolute ${barColor} rounded-md py-1.5 px-3 text-white text-[10px] font-medium flex items-center justify-between whitespace-nowrap cursor-pointer select-none`}
                             style={{ left: `${span.left}%`, width: `${span.width}%` }}
                             title={`${t.task} (${t.startDate} s/d ${t.dueDate})`}
                           >
                             <span className="overflow-hidden text-ellipsis">{t.task}</span>
-                            <span className="font-mono text-[9px]">{t.progress}%</span>
+                            <span className="font-mono text-[9px] opacity-70 ml-2">{t.progress}%</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 italic block text-center mt-3">Tidak dalam jangkauan aktif tahun {currentYear}</span>
+                          <span className="text-[10px] text-neutral-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
                         )}
                       </td>
                     </tr>
                   );
                 })
             )}
- 
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

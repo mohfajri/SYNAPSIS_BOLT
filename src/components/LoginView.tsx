@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { api, saveSession } from "../lib/api";
 import { User } from "../types";
-import { Shield, KeyRound, Mail, UserPlus, Fingerprint, Lock, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowRight, Mail, UserPlus, Lock, CircleCheck as CheckCircle2, CircleAlert as AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface LoginViewProps {
@@ -51,7 +51,6 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
       });
       setSuccess("Pendaftaran user berhasil! Silakan masuk dengan kredensial baru Anda.");
       setIsRegister(false);
-      // Reset input fields except username
       setPassword("");
     } catch (err: any) {
       setError(err.message || "Gagal membuat user baru.");
@@ -61,29 +60,25 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      {/* Dynamic Background Effect */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(59,130,246,0.08),transparent_50%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Title Brand */}
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20 mb-3">
-            <Shield className="w-6 h-6" />
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm relative z-10">
+        {/* Brand */}
+        <div className="text-center mb-10">
+          <div className="w-10 h-10 bg-neutral-900 dark:bg-white rounded-xl mx-auto flex items-center justify-center mb-4">
+            <svg className="w-5 h-5 text-white dark:text-neutral-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.8 17.8l-4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.07-4.93l-4.24 4.24M6.34 6.34l-4.24-4.24" />
+            </svg>
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">SYNAPSIS</h1>
-          <p className="text-[10px] text-blue-400 font-black tracking-widest uppercase mt-1 leading-normal max-w-sm mx-auto">System for Networked Analytics, Project Synchronization & Integrated Services</p>
+          <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">Synapsis</h1>
+          <p className="text-[13px] text-neutral-400 mt-1 font-normal">Enterprise Management System</p>
         </div>
 
-        {/* Card Body */}
-        <motion.div 
-          layout 
-          className="bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800 p-8 shadow-2xl shadow-black/40"
-        >
-          <div className="flex justify-between items-center mb-6 border-b border-slate-800/60 pb-4">
-            <h2 className="text-lg font-bold text-slate-200">
-              {isRegister ? "Registrasi Akun Baru" : "Masuk Sistem"}
+        {/* Card */}
+        <motion.div layout className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-base font-medium text-neutral-800 dark:text-neutral-200">
+              {isRegister ? "Buat Akun" : "Masuk"}
             </h2>
             <button
               onClick={() => {
@@ -91,28 +86,20 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                 setError(null);
                 setSuccess(null);
               }}
-              className="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 transition-colors"
+              className="text-[13px] text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white font-medium transition-colors"
             >
-              {isRegister ? (
-                <>
-                  <KeyRound className="w-3.5 h-3.5" /> Sudah punya akun?
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-3.5 h-3.5" /> Buat akun baru
-                </>
-              )}
+              {isRegister ? "Sudah punya akun?" : "Buat akun"}
             </button>
           </div>
 
-          {/* Feedback banners */}
+          {/* Feedback */}
           <AnimatePresence mode="popLayout">
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mb-4 p-3 bg-red-950/40 border border-red-900/40 text-red-400 rounded-lg text-xs font-semibold flex items-start gap-2"
+                className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-[13px] flex items-start gap-2"
               >
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
@@ -124,7 +111,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mb-4 p-3 bg-green-950/40 border border-green-900/40 text-green-400 rounded-lg text-xs font-semibold flex items-start gap-2"
+                className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 text-green-600 dark:text-green-400 rounded-xl text-[13px] flex items-start gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{success}</span>
@@ -133,88 +120,71 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
           </AnimatePresence>
 
           <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
-            {/* Full Name (For Register) */}
             {isRegister && (
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nama Lengkap</label>
-                <div className="relative">
-                  <Fingerprint className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-250 focus:outline-none focus:border-blue-500 text-white"
-                    placeholder="e.g. Fajri Fanani"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Username */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Username</label>
-              <div className="relative">
-                <Shield className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Nama Lengkap</label>
                 <input
                   type="text"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-250 focus:outline-none focus:border-blue-500 text-white"
-                  placeholder="Username Anda"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  placeholder="Nama lengkap Anda"
                 />
-              </div>
-            </div>
-
-            {/* Email (For Register) */}
-            {isRegister && (
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Alamat Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-250 focus:outline-none focus:border-blue-500 text-white"
-                    placeholder="nama@perusahaan.com"
-                  />
-                </div>
               </div>
             )}
 
-            {/* Password */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-sm text-slate-250 focus:outline-none focus:border-blue-500 text-white"
-                  placeholder="••••••••"
-                />
-              </div>
+              <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Username</label>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                placeholder="username"
+              />
             </div>
 
-            {/* Role (For Register) */}
             {isRegister && (
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Wewenang / Hak Akses</label>
+                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                  placeholder="nama@perusahaan.com"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {isRegister && (
+              <div>
+                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-700 dark:text-neutral-300 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                 >
-                  <option value="Administrator">Administrator (Main Control)</option>
-                  <option value="Direktur">Direktur (Managerial Utama)</option>
-                  <option value="Manager">Manager (Supervisory Hub)</option>
-                  <option value="Site Coordinator">Site Coordinator (tim Teknis Lapangan)</option>
-                  <option value="Staff">Staff (Pelaksana Teknis)</option>
+                  <option value="Administrator">Administrator</option>
+                  <option value="Direktur">Direktur</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Site Coordinator">Site Coordinator</option>
+                  <option value="Staff">Staff</option>
                   <option value="System Support">System Support</option>
                   <option value="Technical Support">Technical Support</option>
                   <option value="Assistant Technical Support">Assistant Technical Support</option>
@@ -225,24 +195,26 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-bold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all font-sans flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 rounded-xl py-3 text-[14px] font-medium transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span>Memproses...</span>
               ) : isRegister ? (
                 <>
-                  <UserPlus className="w-4 h-4" /> Daftar Akun Baru
+                  <UserPlus className="w-4 h-4" /> Daftar
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4" /> Masuk ke Panel
+                  Masuk <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
-
-
         </motion.div>
+
+        <p className="text-center text-[12px] text-neutral-400 mt-6">
+          Synapsis Enterprise Portal v2.0
+        </p>
       </div>
     </div>
   );
