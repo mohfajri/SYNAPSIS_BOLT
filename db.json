@@ -279,7 +279,7 @@
       "categoryProgress": "Training",
       "pic": "Fajar",
       "priority": "Medium",
-      "status": "Pending",
+      "status": "Done",
       "startDate": "2026-04-20",
       "dueDate": "2026-04-28",
       "progress": 100,
@@ -297,10 +297,10 @@
       "categoryProgress": "Aplikasi",
       "pic": "Nanda",
       "priority": "Medium",
-      "status": "Done",
+      "status": "Pending",
       "startDate": "2026-04-15",
       "dueDate": "2026-05-20",
-      "progress": 100,
+      "progress": 30,
       "notes": "Menunggu regulasi format baru disetujui BPKAD.",
       "url": "",
       "subtasks": [],
@@ -1913,16 +1913,5 @@
       "order": 62
     }
   ],
-  "checklists": [],
-  "companyProfile": {
-    "id": "default",
-    "nama": "PT. Medika KSO Syanapsis",
-    "alamat": "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 No. 13, Kuningan Timur, Jakarta Selatan 12950",
-    "telepon": "021-5228585",
-    "fax": "021-5228586",
-    "web": "https://syanapsis.taskhub.co.id",
-    "email": "info@syanapsis.taskhub.co.id",
-    "logoUrl": "",
-    "updatedAt": "2026-06-28T06:54:04.165Z"
-  }
+  "checklists": []
 }
