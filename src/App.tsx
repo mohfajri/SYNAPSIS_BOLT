@@ -1398,10 +1398,12 @@ export default function App() {
   // Pre-authenticator render check
   if (isSessionLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center font-sans select-none">
-        <div className="text-center space-y-3">
-          <CloudLightning className="w-12 h-12 text-blue-500 animate-bounce mx-auto" />
-          <p className="text-slate-300 font-bold text-sm tracking-wider">MENGHUBUNGKAN POSTGRESQL SECURE ENGINE...</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center font-sans select-none">
+        <div className="text-center space-y-4">
+          <div className="w-14 h-14 bg-teal-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-teal-600/20">
+            <Network className="w-7 h-7 text-white animate-pulse" />
+          </div>
+          <p className="text-slate-400 font-medium text-sm tracking-wider">Memuat ruang kerja Synapsis...</p>
         </div>
       </div>
     );
@@ -1522,30 +1524,30 @@ export default function App() {
     .filter(category => category.items.length > 0);
 
   return (
-    <div className="h-screen w-screen overflow-hidden font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 transition-colors flex">
+    <div className="h-screen w-screen overflow-hidden font-sans bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors flex">
       
       {/* SIDEBAR NAVIGATION COLUMN */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 py-5 flex flex-col justify-between transform transition-all duration-200 md:translate-x-0 md:static md:h-full shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-3" : "w-64 px-4"}`}
+        className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-5 flex flex-col justify-between transform transition-all duration-200 md:translate-x-0 md:static md:h-full shrink-0 overflow-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarMini ? "w-64 px-4 md:w-16 md:px-3" : "w-64 px-4"}`}
       >
         {/* Brand header */}
-        <div className="flex items-center justify-between pb-4 mb-2 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+        <div className="flex items-center justify-between pb-4 mb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div 
             className={`flex items-center gap-2.5 ${isSidebarMini ? "md:justify-center md:w-full" : ""}`}
             title="System for Networked Analytics, Project Synchronization and Integrated Services"
           >
-            <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center shrink-0">
-              <Network className="w-4 h-4 text-white dark:text-neutral-900" />
+            <div className="w-9 h-9 bg-teal-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm shadow-teal-600/20">
+              <Network className="w-4.5 h-4.5 text-white" />
             </div>
             <div className={isSidebarMini ? "md:hidden" : ""}>
-              <h1 className="text-sm font-semibold text-neutral-900 dark:text-white tracking-tight">Synapsis</h1>
-              <p className="text-[10px] text-neutral-400 font-medium tracking-wide">Enterprise</p>
+              <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Synapsis</h1>
+              <p className="text-[10px] text-teal-600 dark:text-teal-400 font-medium tracking-wide">Enterprise</p>
             </div>
           </div>
           <button 
             type="button"
             onClick={() => setIsSidebarOpen(false)} 
-            className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white md:hidden cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white md:hidden cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1565,10 +1567,10 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => toggleCategory(cat.name)}
-                      className="w-full text-left flex items-center justify-between text-[11px] font-medium tracking-wide text-neutral-400 dark:text-neutral-500 uppercase py-1 select-none hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors group cursor-pointer"
+                      className="w-full text-left flex items-center justify-between text-[10px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase py-1.5 select-none hover:text-teal-600 dark:hover:text-teal-400 transition-colors group cursor-pointer"
                     >
                       <span>{cat.name}</span>
-                      <span className="text-neutral-300 group-hover:text-neutral-500 transition-colors">
+                      <span className="text-slate-300 group-hover:text-teal-500 transition-colors">
                         {isCollapsed ? (
                           <ChevronRight className="w-3.5 h-3.5" />
                         ) : (
@@ -1596,17 +1598,17 @@ export default function App() {
                                 setIsSidebarOpen(false);
                               }
                             }}
-                            className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all cursor-pointer ${
+                            className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all cursor-pointer ${
                               isSidebarMini 
                                 ? "px-3 py-2 md:px-0 md:py-2.5 md:justify-center" 
                                 : "px-3 py-2"
                             } ${
                               isActive 
-                                ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900" 
-                                : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white"
+                                ? "nav-active-pill text-white" 
+                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
-                            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isActive ? 2 : 1.5} />
+                            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isActive ? 2.25 : 1.5} />
                             <span className={`truncate ${isSidebarMini ? "md:hidden" : ""}`}>{item.label}</span>
                           </button>
                         );
@@ -1620,11 +1622,11 @@ export default function App() {
         </div>
 
         {/* Bottom section */}
-        <div className="space-y-2 pt-3 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
+        <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
           <div 
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium text-neutral-500 dark:text-neutral-400 ${isSidebarMini ? "md:justify-center md:px-1" : ""}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium text-slate-500 dark:text-slate-400 ${isSidebarMini ? "md:justify-center md:px-1" : ""}`}
           >
-            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <Clock className="w-3.5 h-3.5 shrink-0 text-teal-500" />
             <span className={`font-mono text-[12px] ${isSidebarMini ? "md:hidden" : ""}`}>{currentTime || "—"}</span>
           </div>
 
@@ -1632,7 +1634,7 @@ export default function App() {
             type="button"
             onClick={handleLogout}
             title="Log out Session"
-            className={`w-full flex items-center gap-2 px-3 py-2 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[13px] font-medium rounded-lg transition-colors cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0" : ""}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 text-[13px] font-medium rounded-lg transition-colors cursor-pointer ${isSidebarMini ? "md:justify-center md:px-0" : ""}`}
           >
             <LogOut className="w-4 h-4 shrink-0" /> 
             <span className={isSidebarMini ? "md:hidden" : ""}>Keluar</span>
@@ -1644,7 +1646,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP STATUS HEADER BAR */}
-        <header className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm h-14 px-6 flex items-center justify-between shrink-0 border-b border-neutral-100 dark:border-neutral-800">
+        <header className="glass-header h-14 px-6 flex items-center justify-between shrink-0 border-b border-slate-200/60 dark:border-slate-800">
           
           {/* Mobile hamburger menu toggle */}
           <div className="flex items-center gap-3">
@@ -1656,20 +1658,20 @@ export default function App() {
                   toggleSidebarMini();
                 }
               }}
-              className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg shrink-0 cursor-pointer transition-colors"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg shrink-0 cursor-pointer transition-colors"
               title="Toggle Sidebar"
             >
               <Menu className="w-4 h-4" />
             </button>
             
-            <span className="text-sm font-medium text-neutral-400 dark:text-neutral-500 hidden sm:inline-block">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 hidden sm:inline-block capitalize">
               {currentView.charAt(0).toUpperCase() + currentView.slice(1)}
             </span>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
             {currentUser?.siteTugas && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 rounded-lg shrink-0">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-900/30 rounded-lg shrink-0">
                 <Building2 className="w-3.5 h-3.5 shrink-0" />
                 <span>{currentUser.siteTugas}</span>
               </div>
@@ -1679,20 +1681,20 @@ export default function App() {
             <div className="relative">
               <button 
                 onClick={() => setIsNotifOpen(prev => !prev)}
-                className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors relative"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors relative"
               >
                 <Bell className="w-4 h-4" />
                 {activeNotifications.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
                 )}
               </button>
 
               {isNotifOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 text-xs py-3 overflow-hidden">
-                    <div className="px-4 pb-2 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
-                      <span className="font-semibold text-neutral-800 dark:text-white">Notifikasi</span>
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 text-xs py-3 overflow-hidden slide-in-right">
+                    <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                      <span className="font-semibold text-slate-800 dark:text-white">Notifikasi</span>
                       {activeNotifications.length > 0 && (
                         <span className="bg-red-50 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-medium">
                           {activeNotifications.length}
@@ -1701,7 +1703,7 @@ export default function App() {
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {activeNotifications.length === 0 ? (
-                        <div className="py-8 text-center text-neutral-400 text-sm">
+                        <div className="py-8 text-center text-slate-400 text-sm">
                           Tidak ada notifikasi
                         </div>
                       ) : (
@@ -1712,13 +1714,13 @@ export default function App() {
                               setCurrentView(n.viewTarget);
                               setIsNotifOpen(false);
                             }}
-                            className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors border-b border-neutral-50 dark:border-neutral-800/50 last:border-0"
+                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-50 dark:border-slate-800/50 last:border-0"
                           >
                             <div className="flex justify-between items-start gap-2">
-                              <span className="font-medium text-neutral-800 dark:text-neutral-200 line-clamp-1">{n.title}</span>
-                              <span className="text-[10px] text-neutral-400 shrink-0">{n.type}</span>
+                              <span className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">{n.title}</span>
+                              <span className="text-[10px] text-slate-400 shrink-0">{n.type}</span>
                             </div>
-                            <p className="text-neutral-500 dark:text-neutral-400 mt-1 text-[12px]">{n.message}</p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-1 text-[12px]">{n.message}</p>
                           </div>
                         ))
                       )}
@@ -1730,7 +1732,7 @@ export default function App() {
 
             <button 
               onClick={toggleThemeMode}
-              className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               {themeMode === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
@@ -1739,9 +1741,9 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
-                className="flex items-center gap-2.5 p-1.5 pr-3 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
+                className="flex items-center gap-2.5 p-1.5 pr-3 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0 select-none cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-semibold flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-[10px] font-semibold flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-teal-100 dark:ring-teal-900/30">
                   {currentUser?.photoUrl ? (
                     <img src={currentUser.photoUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
@@ -1749,10 +1751,10 @@ export default function App() {
                   )}
                 </div>
                 <div className="text-left hidden sm:flex flex-col select-none">
-                  <span className="truncate max-w-[120px] text-[12px] font-medium text-neutral-800 dark:text-white leading-tight">
+                  <span className="truncate max-w-[120px] text-[12px] font-medium text-slate-800 dark:text-white leading-tight">
                     {currentUser?.name || currentUser?.nickname || currentUser?.username}
                   </span>
-                  <span className="text-[10px] text-neutral-400 font-normal">
+                  <span className="text-[10px] text-teal-600 dark:text-teal-400 font-normal">
                     {currentUser?.role || "-"}
                   </span>
                 </div>
@@ -1761,20 +1763,20 @@ export default function App() {
               {isProfileMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-lg z-50 py-1 text-xs">
-                    <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-800">
-                      <p className="font-medium text-neutral-800 dark:text-white truncate">{currentUser?.name}</p>
-                      <p className="text-[10px] text-neutral-400 mt-0.5">{currentUser?.role}</p>
+                  <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 text-xs slide-in-right">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                      <p className="font-medium text-slate-800 dark:text-white truncate">{currentUser?.name}</p>
+                      <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-0.5">{currentUser?.role}</p>
                     </div>
                     <button
                       onClick={() => { setIsProfileMenuOpen(false); handleOpenProfileModal(); }}
-                      className="w-full text-left px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-[13px]"
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[13px]"
                     >
                       Edit Profil
                     </button>
                     <button
                       onClick={() => { setIsProfileMenuOpen(false); handleLogout(); }}
-                      className="w-full text-left px-3 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 text-[13px] border-t border-neutral-100 dark:border-neutral-800"
+                      className="w-full text-left px-3 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 text-[13px] border-t border-slate-100 dark:border-slate-800"
                     >
                       Keluar
                     </button>
@@ -1786,7 +1788,7 @@ export default function App() {
         </header>
 
         {/* CONTAINER CONTENT WRAPPER WITH SCROLL-Y */}
-        <main className="flex-1 overflow-y-auto p-6 transition-all workspace-container bg-neutral-50 dark:bg-neutral-950">
+        <main className="flex-1 overflow-y-auto p-6 transition-all workspace-container bg-slate-50 dark:bg-slate-950">
           
           {currentView === "dashboard" && (
             <DashboardView 

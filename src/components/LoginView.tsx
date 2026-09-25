@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { api, saveSession } from "../lib/api";
 import { User } from "../types";
-import { ArrowRight, Mail, UserPlus, Lock, CircleCheck as CheckCircle2, CircleAlert as AlertCircle } from "lucide-react";
+import { ArrowRight, Mail, UserPlus, Lock, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Network, Sparkles, ShieldCheck, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface LoginViewProps {
@@ -15,7 +15,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<'Administrator' | 'Site Coordinator' | 'System Support' | 'Technical Support' | 'Assistant Technical Support'>("Technical Support");
-  
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,162 +59,229 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     }
   }
 
+  const inputClass = "w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-4 text-[14px] text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 transition-all";
+
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm relative z-10">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950">
+      {/* Left hero panel — hidden on mobile */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[50%] gradient-teal relative overflow-hidden flex-col justify-between p-12 text-white">
+        {/* Decorative orbs */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-2xl" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl" />
+        <div className="absolute top-1/3 left-1/2 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl" />
+
         {/* Brand */}
-        <div className="text-center mb-10">
-          <div className="w-10 h-10 bg-neutral-900 dark:bg-white rounded-xl mx-auto flex items-center justify-center mb-4">
-            <svg className="w-5 h-5 text-white dark:text-neutral-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.8 17.8l-4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.07-4.93l-4.24 4.24M6.34 6.34l-4.24-4.24" />
-            </svg>
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
+            <Network className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">Synapsis</h1>
-          <p className="text-[13px] text-neutral-400 mt-1 font-normal">Enterprise Management System</p>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Synapsis</h1>
+            <p className="text-[11px] text-teal-100/80 font-medium tracking-wide">Enterprise Management System</p>
+          </div>
         </div>
 
-        {/* Card */}
-        <motion.div layout className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-base font-medium text-neutral-800 dark:text-neutral-200">
-              {isRegister ? "Buat Akun" : "Masuk"}
+        {/* Hero content */}
+        <div className="relative z-10 space-y-8 max-w-md">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full border border-white/15 mb-6">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span className="text-[12px] font-medium text-teal-50">Project Management Platform</span>
+            </div>
+            <h2 className="text-3xl xl:text-4xl font-bold tracking-tight leading-tight">
+              Kelola proyek, tugas, dan tim dalam satu ruang kerja terpadu.
             </h2>
-            <button
-              onClick={() => {
-                setIsRegister(!isRegister);
-                setError(null);
-                setSuccess(null);
-              }}
-              className="text-[13px] text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white font-medium transition-colors"
-            >
-              {isRegister ? "Sudah punya akun?" : "Buat akun"}
-            </button>
+            <p className="text-teal-100/70 text-[15px] mt-4 leading-relaxed">
+              Pantau progres secara real-time, berkolaborasi dengan tim teknis, dan pastikan setiap milestone terselesaikan tepat waktu.
+            </p>
           </div>
 
-          {/* Feedback */}
-          <AnimatePresence mode="popLayout">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-[13px] flex items-start gap-2"
-              >
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </motion.div>
-            )}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center border border-white/15">
+                <TrendingUp className="w-4 h-4 text-teal-100" />
+              </div>
+              <span className="text-[14px] text-teal-50/90">Dashboard analitik & visualisasi progres</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center border border-white/15">
+                <ShieldCheck className="w-4 h-4 text-teal-100" />
+              </div>
+              <span className="text-[14px] text-teal-50/90">Manajemen peran & akses berlapis</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center border border-white/15">
+                <Network className="w-4 h-4 text-teal-100" />
+              </div>
+              <span className="text-[14px] text-teal-50/90">Kolaborasi lintas site & dokumentasi terpusat</span>
+            </div>
+          </div>
+        </div>
 
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 text-green-600 dark:text-green-400 rounded-xl text-[13px] flex items-start gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{success}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Footer */}
+        <div className="relative z-10 text-[12px] text-teal-200/50">
+          Synapsis Enterprise Portal v2.0
+        </div>
+      </div>
 
-          <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
-            {isRegister && (
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-sm relative z-10">
+          {/* Mobile brand */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="w-11 h-11 bg-teal-600 rounded-xl mx-auto flex items-center justify-center mb-3">
+              <Network className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">Synapsis</h1>
+            <p className="text-[12px] text-slate-400 mt-0.5">Enterprise Management System</p>
+          </div>
+
+          {/* Heading */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              {isRegister ? "Buat Akun" : "Selamat Datang"}
+            </h2>
+            <p className="text-[14px] text-slate-500 dark:text-slate-400 mt-1.5">
+              {isRegister ? "Daftar untuk mulai mengelola proyek Anda." : "Masuk untuk melanjutkan ke ruang kerja Anda."}
+            </p>
+          </div>
+
+          {/* Card */}
+          <motion.div layout className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+
+            {/* Feedback */}
+            <AnimatePresence mode="popLayout">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-[13px] flex items-start gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </motion.div>
+              )}
+
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-[13px] flex items-start gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{success}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
+              {isRegister && (
+                <div>
+                  <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1.5">Nama Lengkap</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Nama lengkap Anda"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Nama Lengkap</label>
+                <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1.5">Username</label>
                 <input
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                  placeholder="Nama lengkap Anda"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className={inputClass}
+                  placeholder="username"
                 />
               </div>
-            )}
 
-            <div>
-              <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Username</label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                placeholder="username"
-              />
-            </div>
-
-            {isRegister && (
-              <div>
-                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                  placeholder="nama@perusahaan.com"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-900 dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {isRegister && (
-              <div>
-                <label className="block text-[12px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl py-2.5 px-4 text-[14px] text-neutral-700 dark:text-neutral-300 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                >
-                  <option value="Administrator">Administrator</option>
-                  <option value="Direktur">Direktur</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Site Coordinator">Site Coordinator</option>
-                  <option value="Staff">Staff</option>
-                  <option value="System Support">System Support</option>
-                  <option value="Technical Support">Technical Support</option>
-                  <option value="Assistant Technical Support">Assistant Technical Support</option>
-                </select>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 rounded-xl py-3 text-[14px] font-medium transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span>Memproses...</span>
-              ) : isRegister ? (
-                <>
-                  <UserPlus className="w-4 h-4" /> Daftar
-                </>
-              ) : (
-                <>
-                  Masuk <ArrowRight className="w-4 h-4" />
-                </>
+              {isRegister && (
+                <div>
+                  <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="nama@perusahaan.com"
+                  />
+                </div>
               )}
-            </button>
-          </form>
-        </motion.div>
 
-        <p className="text-center text-[12px] text-neutral-400 mt-6">
-          Synapsis Enterprise Portal v2.0
-        </p>
+              <div>
+                <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1.5">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputClass}
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {isRegister && (
+                <div>
+                  <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1.5">Role</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as any)}
+                    className={inputClass}
+                  >
+                    <option value="Administrator">Administrator</option>
+                    <option value="Direktur">Direktur</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Site Coordinator">Site Coordinator</option>
+                    <option value="Staff">Staff</option>
+                    <option value="System Support">System Support</option>
+                    <option value="Technical Support">Technical Support</option>
+                    <option value="Assistant Technical Support">Assistant Technical Support</option>
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-xl py-3 text-[14px] font-semibold transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              >
+                {loading ? (
+                  <span>Memproses...</span>
+                ) : isRegister ? (
+                  <>
+                    <UserPlus className="w-4 h-4" /> Daftar
+                  </>
+                ) : (
+                  <>
+                    Masuk <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 text-center">
+              <button
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setError(null);
+                  setSuccess(null);
+                }}
+                className="text-[13px] text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400 font-medium transition-colors"
+              >
+                {isRegister ? "Sudah punya akun? Masuk" : "Belum punya akun? Buat akun"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
