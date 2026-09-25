@@ -130,13 +130,13 @@ export default function UsersView({
 
   const getRoleStyleClass = (roleName: string) => {
     const styles: Record<string, string> = {
-      Administrator: "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200",
-      'Site Coordinator': "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200",
-      'System Support': "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200",
-      'Technical Support': "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200",
-      'Assistant Technical Support': "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+      Administrator: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
+      'Site Coordinator': "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
+      'System Support': "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
+      'Technical Support': "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
+      'Assistant Technical Support': "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
     };
-    return styles[roleName] || "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200";
+    return styles[roleName] || "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200";
   };
 
   return (
@@ -145,10 +145,10 @@ export default function UsersView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-medium text-neutral-900 dark:text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-neutral-500" /> Manajemen Akun
+          <h2 className="text-lg font-medium text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-5 h-5 text-slate-500" /> Manajemen Akun
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Kelola kredensial login dan hak akses pengguna.
           </p>
         </div>
@@ -156,7 +156,7 @@ export default function UsersView({
         {currentUser?.role === "Administrator" && (
           <button
             onClick={() => { setErrorText(""); setIsFormOpen(true); }}
-            className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
           >
             <UserPlus className="w-4 h-4" /> Tambah User
           </button>
@@ -164,10 +164,10 @@ export default function UsersView({
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 font-medium text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-medium text-xs">
               <tr>
                 <th className="p-4">User</th>
                 <th className="p-4">Username</th>
@@ -180,16 +180,16 @@ export default function UsersView({
                 <th className="p-4 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {users.map((u) => {
                 const isYou = u.id === currentUser?.id;
                 const revealed = !!showPasswordMap[u.id];
 
                 return (
-                  <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors">
+                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold text-[11px] flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-8 h-8 rounded-lg bg-teal-600 text-white font-semibold text-[11px] flex items-center justify-center shrink-0 overflow-hidden">
                           {u.photoUrl ? (
                             <img src={u.photoUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
@@ -203,29 +203,29 @@ export default function UsersView({
                         )}
                       </div>
                     </td>
-                    <td className="p-4 font-medium text-neutral-800 dark:text-neutral-200">
+                    <td className="p-4 font-medium text-slate-800 dark:text-slate-200">
                       {u.username}
                     </td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-400">
+                    <td className="p-4 text-slate-600 dark:text-slate-400">
                       <div>{u.name || "—"}</div>
-                      <div className="text-[11px] text-neutral-400 font-mono">{u.nickname || "—"}</div>
+                      <div className="text-[11px] text-slate-400 font-mono">{u.nickname || "—"}</div>
                     </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-medium ${getRoleStyleClass(u.role)}`}>
                         {u.role}
                       </span>
                     </td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-400">
-                      {u.divisi || <span className="text-neutral-400">—</span>}
+                    <td className="p-4 text-slate-600 dark:text-slate-400">
+                      {u.divisi || <span className="text-slate-400">—</span>}
                     </td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-400">
+                    <td className="p-4 text-slate-600 dark:text-slate-400">
                       {u.siteTugas ? (
                         <div className="flex items-center gap-1">
-                          <Building2 className="w-3.5 h-3.5 text-neutral-400" />
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
                           <span>{u.siteTugas}</span>
                         </div>
                       ) : (
-                        <span className="text-neutral-400">Pusat</span>
+                        <span className="text-slate-400">Pusat</span>
                       )}
                     </td>
                     <td className="p-4">
@@ -234,15 +234,15 @@ export default function UsersView({
                           Aktif
                         </span>
                       ) : (
-                        <span className="bg-neutral-100 text-neutral-400 text-[11px] font-medium px-2 py-0.5 rounded-full">
+                        <span className="bg-slate-100 text-slate-400 text-[11px] font-medium px-2 py-0.5 rounded-full">
                           Nonaktif
                         </span>
                       )}
                     </td>
                     <td className="p-4 font-mono text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="text-neutral-500">{revealed ? u.password : "••••••"}</span>
-                        <button onClick={() => toggleReveal(u.id)} className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">
+                        <span className="text-slate-500">{revealed ? u.password : "••••••"}</span>
+                        <button onClick={() => toggleReveal(u.id)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                           {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </button>
                       </div>
@@ -259,7 +259,7 @@ export default function UsersView({
                             setEditStatusAktif(u.statusAktif !== false);
                             setEditDivisi(u.divisi || "");
                           }}
-                          className="p-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -267,7 +267,7 @@ export default function UsersView({
 
                         <button
                           onClick={() => { setResetPasswordUser(u); setNewPassword(""); }}
-                          className="p-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                           title="Reset Password"
                         >
                           <Key className="w-3.5 h-3.5" />
@@ -280,7 +280,7 @@ export default function UsersView({
                                 onDeleteUser(u.id);
                               }
                             }}
-                            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
                             title="Hapus"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -299,16 +299,16 @@ export default function UsersView({
       {/* MODALS */}
       <AnimatePresence>
         {isFormOpen && (
-          <div className="fixed inset-0 bg-neutral-950/50 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/50 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
             >
-              <div className="flex justify-between items-center border-b border-neutral-100 dark:border-neutral-800 pb-3">
-                <h3 className="font-medium text-base text-neutral-800 dark:text-white">Tambah User Baru</h3>
-                <button type="button" onClick={() => setIsFormOpen(false)} className="text-neutral-400 hover:text-neutral-700 text-xl">&times;</button>
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-medium text-base text-slate-800 dark:text-white">Tambah User Baru</h3>
+                <button type="button" onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
               </div>
 
               {errorText && (
@@ -319,32 +319,32 @@ export default function UsersView({
 
               <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Username *</label>
-                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Username *</label>
+                  <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Nama Lengkap *</label>
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Nama Lengkap *</label>
+                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Nama Panggilan *</label>
-                  <input type="text" required value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Nama Panggilan *</label>
+                  <input type="text" required value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Password *</label>
-                  <input type="text" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Password *</label>
+                  <input type="text" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Role</label>
-                  <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Role</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     {rolesList.filter(r => r.active || r.roleName === role).map(r => (
                       <option key={r.roleName} value={r.roleName}>{r.roleName}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Divisi</label>
-                  <select value={divisi} onChange={(e) => setDivisi(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Divisi</label>
+                  <select value={divisi} onChange={(e) => setDivisi(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     <option value="">— Pilih Divisi —</option>
                     {divisiList.filter(d => d.active).map(d => (
                       <option key={d.value} value={d.value}>{d.value}</option>
@@ -352,8 +352,8 @@ export default function UsersView({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Site Tugas</label>
-                  <select value={siteTugas} onChange={(e) => setSiteTugas(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Site Tugas</label>
+                  <select value={siteTugas} onChange={(e) => setSiteTugas(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     <option value="">Kantor Pusat</option>
                     {clientsList.map(cl => (
                       <option key={cl.id} value={cl.namaRS}>{cl.namaRS}</option>
@@ -361,12 +361,12 @@ export default function UsersView({
                   </select>
                 </div>
                 <div className="flex items-center gap-2 py-1">
-                  <input type="checkbox" id="statusAktif" checked={statusAktif} onChange={(e) => setStatusAktif(e.target.checked)} className="w-4 h-4 rounded border-neutral-300" />
-                  <label htmlFor="statusAktif" className="text-xs text-neutral-600 dark:text-neutral-400">Akun Aktif</label>
+                  <input type="checkbox" id="statusAktif" checked={statusAktif} onChange={(e) => setStatusAktif(e.target.checked)} className="w-4 h-4 rounded border-slate-300" />
+                  <label htmlFor="statusAktif" className="text-xs text-slate-600 dark:text-slate-400">Akun Aktif</label>
                 </div>
-                <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                  <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 border border-neutral-200 text-neutral-600 text-xs font-medium rounded-lg hover:bg-neutral-50 transition-colors">Batal</button>
-                  <button type="submit" className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors">Simpan</button>
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Batal</button>
+                  <button type="submit" className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors">Simpan</button>
                 </div>
               </form>
             </motion.div>
@@ -374,38 +374,38 @@ export default function UsersView({
         )}
 
         {editUser && (
-          <div className="fixed inset-0 bg-neutral-950/50 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/50 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
             >
-              <div className="flex justify-between items-center border-b border-neutral-100 dark:border-neutral-800 pb-3">
-                <h3 className="font-medium text-base text-neutral-800 dark:text-white">Edit User</h3>
-                <button type="button" onClick={() => setEditUser(null)} className="text-neutral-400 hover:text-neutral-700 text-xl">&times;</button>
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-medium text-base text-slate-800 dark:text-white">Edit User</h3>
+                <button type="button" onClick={() => setEditUser(null)} className="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
               </div>
 
               <form onSubmit={handleEditSubmit} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Nama Lengkap *</label>
-                  <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Nama Lengkap *</label>
+                  <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Nama Panggilan *</label>
-                  <input type="text" required value={editNickname} onChange={(e) => setEditNickname(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm" />
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Nama Panggilan *</label>
+                  <input type="text" required value={editNickname} onChange={(e) => setEditNickname(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Role</label>
-                  <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Role</label>
+                  <select value={editRole} onChange={(e) => setEditRole(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     {rolesList.filter(r => r.active || r.roleName === editRole).map(r => (
                       <option key={r.roleName} value={r.roleName}>{r.roleName}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Divisi</label>
-                  <select value={editDivisi} onChange={(e) => setEditDivisi(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Divisi</label>
+                  <select value={editDivisi} onChange={(e) => setEditDivisi(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     <option value="">— Pilih Divisi —</option>
                     {divisiList.filter(d => d.active || d.value === editDivisi).map(d => (
                       <option key={d.value} value={d.value}>{d.value}</option>
@@ -413,8 +413,8 @@ export default function UsersView({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-500 mb-1">Site Tugas</label>
-                  <select value={editSiteTugas} onChange={(e) => setEditSiteTugas(e.target.value)} className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm">
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">Site Tugas</label>
+                  <select value={editSiteTugas} onChange={(e) => setEditSiteTugas(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm">
                     <option value="">Kantor Pusat</option>
                     {clientsList.map(cl => (
                       <option key={cl.id} value={cl.namaRS}>{cl.namaRS}</option>
@@ -422,12 +422,12 @@ export default function UsersView({
                   </select>
                 </div>
                 <div className="flex items-center gap-2 py-1">
-                  <input type="checkbox" id="editStatusAktif" checked={editStatusAktif} onChange={(e) => setEditStatusAktif(e.target.checked)} className="w-4 h-4 rounded border-neutral-300" />
-                  <label htmlFor="editStatusAktif" className="text-xs text-neutral-600 dark:text-neutral-400">Akun Aktif</label>
+                  <input type="checkbox" id="editStatusAktif" checked={editStatusAktif} onChange={(e) => setEditStatusAktif(e.target.checked)} className="w-4 h-4 rounded border-slate-300" />
+                  <label htmlFor="editStatusAktif" className="text-xs text-slate-600 dark:text-slate-400">Akun Aktif</label>
                 </div>
-                <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                  <button type="button" onClick={() => setEditUser(null)} className="px-4 py-2 border border-neutral-200 text-neutral-600 text-xs font-medium rounded-lg hover:bg-neutral-50 transition-colors">Batal</button>
-                  <button type="submit" className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors">Simpan</button>
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button type="button" onClick={() => setEditUser(null)} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Batal</button>
+                  <button type="submit" className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors">Simpan</button>
                 </div>
               </form>
             </motion.div>
@@ -435,16 +435,16 @@ export default function UsersView({
         )}
 
         {resetPasswordUser && (
-          <div className="fixed inset-0 bg-neutral-950/50 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/50 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
             >
-              <div className="flex justify-between items-center border-b border-neutral-100 dark:border-neutral-800 pb-3">
-                <h3 className="font-medium text-base text-neutral-800 dark:text-white">Reset Password</h3>
-                <button type="button" onClick={() => setResetPasswordUser(null)} className="text-neutral-400 hover:text-neutral-700 text-xl">&times;</button>
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-medium text-base text-slate-800 dark:text-white">Reset Password</h3>
+                <button type="button" onClick={() => setResetPasswordUser(null)} className="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
               </div>
 
               {resetSuccessMessage ? (
@@ -454,12 +454,12 @@ export default function UsersView({
               ) : (
                 <form onSubmit={handleResetPasswordSubmit} className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-500 mb-1">Sandi Baru *</label>
-                    <input type="text" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Password baru..." className="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 py-2 px-3 rounded-lg text-neutral-800 dark:text-neutral-200 text-sm outline-none focus:border-neutral-400" />
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Sandi Baru *</label>
+                    <input type="text" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Password baru..." className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2 px-3 rounded-lg text-slate-800 dark:text-slate-200 text-sm outline-none focus:border-slate-400" />
                   </div>
-                  <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                    <button type="button" onClick={() => setResetPasswordUser(null)} className="px-4 py-2 border border-neutral-200 text-neutral-600 text-xs font-medium rounded-lg hover:bg-neutral-50 transition-colors">Batal</button>
-                    <button type="submit" className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors">Reset</button>
+                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onClick={() => setResetPasswordUser(null)} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors">Batal</button>
+                    <button type="submit" className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors">Reset</button>
                   </div>
                 </form>
               )}

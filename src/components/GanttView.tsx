@@ -134,33 +134,33 @@ export default function GanttView({
     <div className="space-y-4 fade-in pb-10">
       
       {/* Controls */}
-      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl">
+      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl">
         
-        <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 text-xs">
+        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs">
           <button
             onClick={() => setGanttGrouping('project')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'project' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'project' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'}`}
           >
             Proyek
           </button>
           <button
             onClick={() => setGanttGrouping('task')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'task' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${ganttGrouping === 'task' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'}`}
           >
             Tugas
           </button>
         </div>
 
-        <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 text-xs">
+        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs">
           <button
             onClick={() => setTimelineScale('bulan')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'bulan' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'bulan' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'}`}
           >
             Bulan
           </button>
           <button
             onClick={() => setTimelineScale('minggu')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'minggu' ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500'}`}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${timelineScale === 'minggu' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500'}`}
           >
             Minggu
           </button>
@@ -169,7 +169,7 @@ export default function GanttView({
         <select
           value={filterProj}
           onChange={(e) => setFilterProj(e.target.value)}
-          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
+          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
         >
           <option value="">Semua Proyek</option>
           {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
@@ -178,7 +178,7 @@ export default function GanttView({
         <select
           value={filterPic}
           onChange={(e) => setFilterPic(e.target.value)}
-          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
+          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
         >
           <option value="">Semua PIC</option>
           {picsList.map(p => <option key={p} value={p}>{p}</option>)}
@@ -187,7 +187,7 @@ export default function GanttView({
         <select
           value={filterTime}
           onChange={(e) => setFilterTime(e.target.value)}
-          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-xs py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
+          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
         >
           <option value="all">Semua Waktu</option>
           <option value="hari">Hari Ini</option>
@@ -197,39 +197,39 @@ export default function GanttView({
         </select>
 
         <div className="flex items-center gap-1 ml-auto">
-          <button onClick={() => setCurrentYear(currentYear - 1)} className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <ChevronLeft className="w-4 h-4 text-neutral-500" />
+          <button onClick={() => setCurrentYear(currentYear - 1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4 text-slate-500" />
           </button>
-          <span className="text-sm font-medium px-2 text-neutral-800 dark:text-neutral-200 min-w-[50px] text-center">
+          <span className="text-sm font-medium px-2 text-slate-800 dark:text-slate-200 min-w-[50px] text-center">
             {currentYear}
           </span>
-          <button onClick={() => setCurrentYear(currentYear + 1)} className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <ChevronRight className="w-4 h-4 text-neutral-500" />
+          <button onClick={() => setCurrentYear(currentYear + 1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4 text-slate-500" />
           </button>
         </div>
       </div>
 
-      <div className="bg-neutral-50 dark:bg-neutral-950/50 p-2.5 text-xs text-neutral-500 dark:text-neutral-400 rounded-lg border border-neutral-200 dark:border-neutral-800 w-fit">
-        Timeline untuk tahun <span className="font-medium text-neutral-800 dark:text-white">{currentYear}</span>
+      <div className="bg-slate-50 dark:bg-slate-950/50 p-2.5 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-800 w-fit">
+        Timeline untuk tahun <span className="font-medium text-slate-800 dark:text-white">{currentYear}</span>
       </div>
 
       {/* Gantt Table */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-auto max-h-[580px] relative">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-auto max-h-[580px] relative">
         <table className="w-full border-collapse text-xs min-w-[850px]">
-          <thead className="sticky top-0 z-30 bg-neutral-50 dark:bg-neutral-950">
-            <tr className="text-neutral-500 dark:text-neutral-400 font-medium border-b border-neutral-200 dark:border-neutral-800">
-              <th className="sticky top-0 left-0 z-40 bg-neutral-100 dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 text-left w-52">
+          <thead className="sticky top-0 z-30 bg-slate-50 dark:bg-slate-950">
+            <tr className="text-slate-500 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-800">
+              <th className="sticky top-0 left-0 z-40 bg-slate-100 dark:bg-slate-900 p-4 border-r border-slate-200 dark:border-slate-800 text-left w-52">
                 {ganttGrouping === 'project' ? "Proyek" : "Tugas"}
               </th>
               {timelineScale === 'bulan' ? (
                 months.map((m) => (
-                  <th key={m.index} className="sticky top-0 bg-neutral-50 dark:bg-neutral-950 p-2.5 border-r border-neutral-100 dark:border-neutral-800 text-center min-w-[45px] font-mono text-[11px]">
+                  <th key={m.index} className="sticky top-0 bg-slate-50 dark:bg-slate-950 p-2.5 border-r border-slate-100 dark:border-slate-800 text-center min-w-[45px] font-mono text-[11px]">
                     {m.label}
                   </th>
                 ))
               ) : (
                 weeks.map((wk) => (
-                  <th key={wk.index} className="sticky top-0 bg-neutral-50 dark:bg-neutral-950 p-1 border-r border-neutral-100 dark:border-neutral-800 text-center min-w-[22px] font-mono text-[9px]" title={`Minggu ${wk.index}`}>
+                  <th key={wk.index} className="sticky top-0 bg-slate-50 dark:bg-slate-950 p-1 border-r border-slate-100 dark:border-slate-800 text-center min-w-[22px] font-mono text-[9px]" title={`Minggu ${wk.index}`}>
                     {wk.label}
                   </th>
                 ))
@@ -247,29 +247,29 @@ export default function GanttView({
                   const span = getSpanFraction(p.startDate, p.endDate, currentYear);
                   
                   return (
-                    <tr key={p.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100 dark:border-neutral-800/50">
-                      <td className="sticky left-0 z-10 bg-white dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 font-medium max-w-xs truncate">
-                        <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
+                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors border-b border-slate-100 dark:border-slate-800/50">
+                      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 p-4 border-r border-slate-200 dark:border-slate-800 font-medium max-w-xs truncate">
+                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
                           {p.kode}
                         </span>
-                        <span className="text-neutral-800 dark:text-neutral-200">{p.nama}</span>
-                        <p className="text-[10px] text-neutral-400 mt-1">{p.pic || "—"}</p>
+                        <span className="text-slate-800 dark:text-slate-200">{p.nama}</span>
+                        <p className="text-[10px] text-slate-400 mt-1">{p.pic || "—"}</p>
                       </td>
                       
-                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-neutral-50/20 dark:bg-neutral-950/5">
+                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-slate-50/20 dark:bg-slate-950/5">
                         {timelineScale === 'bulan' ? (
-                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-neutral-100 dark:divide-neutral-800/30" />
+                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-slate-100 dark:divide-slate-800/30" />
                         ) : (
                           <div className="absolute inset-0 flex pointer-events-none">
                             {weeks.map((wk) => (
-                              <div key={wk.index} className="flex-1 h-full border-r border-neutral-100 dark:border-neutral-800/15" />
+                              <div key={wk.index} className="flex-1 h-full border-r border-slate-100 dark:border-slate-800/15" />
                             ))}
                           </div>
                         )}
  
                         {span ? (
                           <div
-                            className="absolute bg-neutral-800 dark:bg-neutral-200 rounded-md py-2 px-3 text-white dark:text-neutral-900 text-[10px] font-medium flex items-center justify-between whitespace-nowrap cursor-default select-none"
+                            className="absolute bg-slate-800 dark:bg-slate-200 rounded-md py-2 px-3 text-white dark:text-slate-900 text-[10px] font-medium flex items-center justify-between whitespace-nowrap cursor-default select-none"
                             style={{ left: `${span.left}%`, width: `${span.width}%` }}
                             title={`${p.nama} (${p.startDate} s/d ${p.endDate})`}
                           >
@@ -277,7 +277,7 @@ export default function GanttView({
                             <span className="font-mono text-[9px] opacity-70 ml-2">{p.status}</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-neutral-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
+                          <span className="text-[10px] text-slate-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
                         )}
                       </td>
                     </tr>
@@ -293,28 +293,28 @@ export default function GanttView({
                   const statusColors: Record<string, string> = {
                     Done: "bg-emerald-600 dark:bg-emerald-500",
                     "In Progress": "bg-amber-500",
-                    "Not Started": "bg-neutral-400",
+                    "Not Started": "bg-slate-400",
                     Pending: "bg-purple-500"
                   };
-                  const barColor = statusColors[t.status] || "bg-neutral-800 dark:bg-neutral-200";
+                  const barColor = statusColors[t.status] || "bg-slate-800 dark:bg-slate-200";
  
                   return (
-                    <tr key={t.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100 dark:border-neutral-800/50">
-                      <td className="sticky left-0 z-10 bg-white dark:bg-neutral-900 p-4 border-r border-neutral-200 dark:border-neutral-800 font-medium max-w-xs truncate">
-                        <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
+                    <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors border-b border-slate-100 dark:border-slate-800/50">
+                      <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 p-4 border-r border-slate-200 dark:border-slate-800 font-medium max-w-xs truncate">
+                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-mono px-2 py-0.5 rounded mr-1.5">
                           {t.project}
                         </span>
-                        <span className="text-neutral-800 dark:text-neutral-200">{t.task}</span>
-                        <p className="text-[10px] text-neutral-400 mt-1">{t.pic || "—"}</p>
+                        <span className="text-slate-800 dark:text-slate-200">{t.task}</span>
+                        <p className="text-[10px] text-slate-400 mt-1">{t.pic || "—"}</p>
                       </td>
                       
-                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-neutral-50/20 dark:bg-neutral-950/5">
+                      <td colSpan={timelineScale === 'bulan' ? 12 : 52} className="relative p-2 h-14 bg-slate-50/20 dark:bg-slate-950/5">
                         {timelineScale === 'bulan' ? (
-                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-neutral-100 dark:divide-neutral-800/30" />
+                          <div className="absolute inset-0 grid grid-cols-12 pointer-events-none divide-x divide-slate-100 dark:divide-slate-800/30" />
                         ) : (
                           <div className="absolute inset-0 flex pointer-events-none">
                             {weeks.map((wk) => (
-                              <div key={wk.index} className="flex-1 h-full border-r border-neutral-100 dark:border-neutral-800/15" />
+                              <div key={wk.index} className="flex-1 h-full border-r border-slate-100 dark:border-slate-800/15" />
                             ))}
                           </div>
                         )}
@@ -330,7 +330,7 @@ export default function GanttView({
                             <span className="font-mono text-[9px] opacity-70 ml-2">{t.progress}%</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-neutral-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
+                          <span className="text-[10px] text-slate-400 italic block text-center mt-3">Tidak dalam jangkauan {currentYear}</span>
                         )}
                       </td>
                     </tr>

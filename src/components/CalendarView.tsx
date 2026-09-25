@@ -174,28 +174,28 @@ export default function CalendarView({
     <div className="space-y-4 fade-in pb-10">
       
       {/* Controls */}
-      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 rounded-xl">
+      <div className="flex flex-wrap gap-3 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl">
         
         <div className="flex items-center gap-1">
-          <button onClick={handlePrevMonth} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <ChevronLeft className="w-4 h-4 text-neutral-500" />
+          <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4 text-slate-500" />
           </button>
-          <span className="text-sm font-medium px-3 text-neutral-800 dark:text-neutral-200 min-w-[140px] text-center">
+          <span className="text-sm font-medium px-3 text-slate-800 dark:text-slate-200 min-w-[140px] text-center">
             {months[month]} {year}
           </span>
-          <button onClick={handleNextMonth} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
-            <ChevronRight className="w-4 h-4 text-neutral-500" />
+          <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4 text-slate-500" />
           </button>
         </div>
 
-        <button onClick={goToday} className="px-3 py-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+        <button onClick={goToday} className="px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
           Hari Ini
         </button>
 
         <select
           value={filterProj}
           onChange={(e) => setFilterProj(e.target.value)}
-          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-sm py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
+          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
         >
           <option value="">Semua Proyek</option>
           {projects.map(p => <option key={p.kode} value={p.kode}>{p.kode} – {p.nama}</option>)}
@@ -204,7 +204,7 @@ export default function CalendarView({
         <select
           value={filterTime}
           onChange={(e) => setFilterTime(e.target.value)}
-          className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-sm py-1.5 px-3 rounded-lg text-neutral-700 dark:text-neutral-300 focus:outline-none"
+          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm py-1.5 px-3 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none"
         >
           <option value="all">Semua Waktu</option>
           <option value="hari">Hari Ini</option>
@@ -213,7 +213,7 @@ export default function CalendarView({
           <option value="tahun">Tahun Ini</option>
         </select>
 
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-neutral-400 ml-auto">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400 ml-auto">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-500" /> Deadline
           </span>
@@ -229,9 +229,9 @@ export default function CalendarView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
         {/* Calendar Grid */}
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden lg:col-span-8">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:col-span-8">
           
-          <div className="grid grid-cols-7 bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-200 dark:border-neutral-800 text-center py-2.5 text-neutral-400 text-xs font-medium">
+          <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-center py-2.5 text-slate-400 text-xs font-medium">
             {weekdays.map(day => <div key={day}>{day}</div>)}
           </div>
 
@@ -248,9 +248,9 @@ export default function CalendarView({
                 <div
                   key={idx}
                   onClick={() => handleCellClick(dateStr)}
-                  className={`min-h-[80px] border-r border-b border-neutral-100 dark:border-neutral-800 p-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-all cursor-pointer flex flex-col justify-between ${!isCurrentMonth ? "opacity-25" : ""} ${isToday ? "bg-neutral-50 dark:bg-neutral-800/40" : ""}`}
+                  className={`min-h-[80px] border-r border-b border-slate-100 dark:border-slate-800 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all cursor-pointer flex flex-col justify-between ${!isCurrentMonth ? "opacity-25" : ""} ${isToday ? "bg-slate-50 dark:bg-slate-800/40" : ""}`}
                 >
-                  <span className={`text-xs font-medium ${isToday ? "text-neutral-900 dark:text-white bg-neutral-900 dark:bg-white w-6 h-6 rounded-full flex items-center justify-center" : "text-neutral-400 dark:text-neutral-500"}`}>
+                  <span className={`text-xs font-medium ${isToday ? "text-white bg-teal-600 w-6 h-6 rounded-full flex items-center justify-center" : "text-slate-400 dark:text-slate-500"}`}>
                     {dateObj.getDate()}
                   </span>
 
@@ -258,7 +258,7 @@ export default function CalendarView({
                     {showEvents.map((ev, sIdx) => (
                       <div
                         key={sIdx}
-                        className="text-[10px] font-medium p-1 rounded truncate leading-tight block select-none bg-neutral-100 dark:bg-neutral-800"
+                        className="text-[10px] font-medium p-1 rounded truncate leading-tight block select-none bg-slate-100 dark:bg-slate-800"
                         style={{ color: ev.color, borderLeft: `2px solid ${ev.color}` }}
                         title={ev.title}
                       >
@@ -266,7 +266,7 @@ export default function CalendarView({
                       </div>
                     ))}
                     {remainder > 0 && (
-                      <p className="text-[10px] text-neutral-400 font-medium">+{remainder}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">+{remainder}</p>
                     )}
                   </div>
                 </div>
@@ -276,36 +276,36 @@ export default function CalendarView({
         </div>
 
         {/* Selected Day Panel */}
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 lg:col-span-4 space-y-4">
-          <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 lg:col-span-4 space-y-4">
+          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" /> Agenda
           </h3>
 
           {activeDateEvents ? (
             <div className="space-y-3">
-              <p className="text-xs text-neutral-700 dark:text-neutral-300 font-medium">
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
                 {new Date(activeDateEvents.dateStr).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
               </p>
               
               {activeDateEvents.events.length === 0 ? (
-                <p className="text-xs text-neutral-400 italic">Tidak ada kegiatan</p>
+                <p className="text-xs text-slate-400 italic">Tidak ada kegiatan</p>
               ) : (
                 <div className="space-y-2">
                   {activeDateEvents.events.map((ev, idx) => (
                     <div
                       key={idx}
                       onClick={() => { if (ev.id && ev.type === "task") onViewTaskDetail(ev.id); }}
-                      className={`p-3 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-100 dark:border-neutral-800 rounded-lg transition-all ${ev.type === "task" ? "cursor-pointer hover:border-neutral-300 dark:hover:border-neutral-600" : ""}`}
+                      className={`p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg transition-all ${ev.type === "task" ? "cursor-pointer hover:border-slate-300 dark:hover:border-slate-600" : ""}`}
                     >
                       <p className="font-medium text-xs" style={{ color: ev.color }}>{ev.title}</p>
-                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">{ev.sub}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{ev.sub}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-neutral-400">
+            <div className="text-center py-8 text-slate-400">
               <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p className="text-xs">Klik tanggal untuk melihat agenda</p>
             </div>
